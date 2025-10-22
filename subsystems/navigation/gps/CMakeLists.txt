@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(athena_gps)
+project(gps)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -15,18 +15,18 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(MAVSDK REQUIRED)
-add_executable(athena_gps src/PixhawkNode.cpp)
+add_executable(gps src/PixhawkNode.cpp)
 
-ament_target_dependencies(athena_gps
+ament_target_dependencies(gps
         rclcpp
         std_msgs
         sensor_msgs
 )
-target_link_libraries(athena_gps
+target_link_libraries(gps
         MAVSDK::mavsdk
 )
 install(TARGETS
-        athena_gps
+        gps
         DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

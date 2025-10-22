@@ -18,9 +18,9 @@
 #include <string>
 #include <vector>
 
-#include "athena_science_controllers/athena_science_manual_parameters.hpp"
+#include "science_controllers/athena_science_manual_parameters.hpp"
 #include "controller_interface/controller_interface.hpp"
-#include "athena_science_controllers/visibility_control.h"
+#include "science_controllers/visibility_control.h"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "realtime_tools/realtime_buffer.hpp"
@@ -31,7 +31,7 @@
 #include "control_msgs/msg/joint_controller_state.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 
-namespace athena_science_controllers
+namespace science_controllers
 {
 
 // name constants for state interfaces
@@ -165,6 +165,6 @@ private:
   };
 };
 
-// namespace athena_science_controllers
+// namespace science_controllers
 
 #endif  // ATHENA_SCIENCE_CONTROLLERS__ATHENA_SCIENCE_MANUAL_HPP_

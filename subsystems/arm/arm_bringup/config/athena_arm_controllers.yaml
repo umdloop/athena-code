@@ -12,10 +12,10 @@ controller_manager:
       type: velocity_controllers/JointGroupVelocityController
 
     manual_arm_cylindrical_controller:
-      type: athena_arm_controllers/ManualArmCylindricalController
+      type: arm_controllers/ManualArmCylindricalController
 
     manual_arm_joint_by_joint_controller:
-      type: athena_arm_controllers/ManualArmJointByJointController
+      type: arm_controllers/ManualArmJointByJointController
     
 
 joint_trajectory_controller:

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "athena_drive_controllers/single_ackermann_controller.hpp"
+#include "drive_controllers/single_ackermann_controller.hpp"
 
 #include <limits>
 #include <memory>
@@ -23,7 +23,7 @@
 #include "controller_interface/helpers.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-namespace athena_drive_controllers
+namespace drive_controllers
 {
 SingleAckermannController::SingleAckermannController() : controller_interface::ControllerInterface() {}
 
@@ -200,9 +200,9 @@ controller_interface::return_type SingleAckermannController::update(
 
   return controller_interface::return_type::OK;
 }
-}  // namespace athena_drive_controllers
+}  // namespace drive_controllers
 
 #include "pluginlib/class_list_macros.hpp"
 
 PLUGINLIB_EXPORT_CLASS(
-  athena_drive_controllers::SingleAckermannController, controller_interface::ControllerInterface)
+  drive_controllers::SingleAckermannController, controller_interface::ControllerInterface)

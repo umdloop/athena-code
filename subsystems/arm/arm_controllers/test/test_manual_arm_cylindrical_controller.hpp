@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-#include "athena_arm_controllers/manual_arm_cylindrical_controller.hpp"
+#include "arm_controllers/manual_arm_cylindrical_controller.hpp"
 #include "gmock/gmock.h"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
@@ -41,9 +41,9 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 
 // TODO(anyone): replace the state and command message types
-using ControllerStateMsg = athena_arm_controllers::ManualArmCylindricalController::ControllerStateMsg;
-using ControllerReferenceMsg = athena_arm_controllers::ManualArmCylindricalController::ControllerReferenceMsg;
-using ControllerModeSrvType = athena_arm_controllers::ManualArmCylindricalController::ControllerModeSrvType;
+using ControllerStateMsg = arm_controllers::ManualArmCylindricalController::ControllerStateMsg;
+using ControllerReferenceMsg = arm_controllers::ManualArmCylindricalController::ControllerReferenceMsg;
+using ControllerModeSrvType = arm_controllers::ManualArmCylindricalController::ControllerModeSrvType;
 
 namespace
 {
@@ -52,7 +52,7 @@ constexpr auto NODE_ERROR = controller_interface::CallbackReturn::ERROR;
 }  // namespace
 
 // subclassing and friending so we can access member variables
-class TestableManualArmCylindricalController : public athena_arm_controllers::ManualArmCylindricalController
+class TestableManualArmCylindricalController : public arm_controllers::ManualArmCylindricalController
 {
   FRIEND_TEST(ManualArmCylindricalControllerTest, all_parameters_set_configure_success);
   FRIEND_TEST(ManualArmCylindricalControllerTest, activate_success);
@@ -65,7 +65,7 @@ public:
   controller_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override
   {
-    auto ret = athena_arm_controllers::ManualArmCylindricalController::on_configure(previous_state);
+    auto ret = arm_controllers::ManualArmCylindricalController::on_configure(previous_state);
     // Only if on_configure is successful create subscription
     if (ret == CallbackReturn::SUCCESS)
     {

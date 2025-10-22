@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(athena_drive_controllers)
+project(drive_controllers)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
   add_compile_options(-Wall -Wextra -Werror=conversion -Werror=unused-but-set-variable -Werror=return-type -Werror=shadow)
@@ -30,44 +30,44 @@ endforeach()
 # Add swerve_drive_controller library related compile commands
 generate_parameter_library(swerve_drive_controller_parameters
   config/swerve_drive_controller.yaml
-  include/athena_drive_controllers/validate_drive_controller_parameters.hpp
+  include/drive_controllers/validate_drive_controller_parameters.hpp
 )
 
 generate_parameter_library(double_ackermann_controller_parameters
   config/double_ackermann_controller.yaml
-  include/athena_drive_controllers/validate_drive_controller_parameters.hpp
+  include/drive_controllers/validate_drive_controller_parameters.hpp
 )
 
 generate_parameter_library(crab_steering_controller_parameters
   config/crab_steering_controller.yaml
-  include/athena_drive_controllers/validate_drive_controller_parameters.hpp
+  include/drive_controllers/validate_drive_controller_parameters.hpp
 )
 
 generate_parameter_library(single_ackermann_controller_parameters
   config/single_ackermann_controller.yaml
-  include/athena_drive_controllers/validate_drive_controller_parameters.hpp
+  include/drive_controllers/validate_drive_controller_parameters.hpp
 )
 
 add_library(
-  athena_drive_controllers
+  drive_controllers
   SHARED
   src/swerve_drive_controller.cpp
   src/double_ackermann_controller.cpp
   src/single_ackermann_controller.cpp
 )
-target_include_directories(athena_drive_controllers PUBLIC
+target_include_directories(drive_controllers PUBLIC
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
-target_link_libraries(athena_drive_controllers swerve_drive_controller_parameters double_ackermann_controller_parameters crab_steering_controller_parameters single_ackermann_controller_parameters)
-ament_target_dependencies(athena_drive_controllers ${THIS_PACKAGE_INCLUDE_DEPENDS})
-target_compile_definitions(athena_drive_controllers PRIVATE "SWERVE_DRIVE_CONTROLLER_BUILDING_DLL")
+target_link_libraries(drive_controllers swerve_drive_controller_parameters double_ackermann_controller_parameters crab_steering_controller_parameters single_ackermann_controller_parameters)
+ament_target_dependencies(drive_controllers ${THIS_PACKAGE_INCLUDE_DEPENDS})
+target_compile_definitions(drive_controllers PRIVATE "SWERVE_DRIVE_CONTROLLER_BUILDING_DLL")
 
 pluginlib_export_plugin_description_file(
-  controller_interface athena_drive_controllers.xml)
+  controller_interface drive_controllers.xml)
 
 install(
   TARGETS
-  athena_drive_controllers
+  drive_controllers
   RUNTIME DESTINATION bin
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -115,7 +115,7 @@ ament_export_dependencies(
   ${THIS_PACKAGE_INCLUDE_DEPENDS}
 )
 ament_export_libraries(
-  athena_drive_controllers
+  drive_controllers
 )
 
 ament_package()

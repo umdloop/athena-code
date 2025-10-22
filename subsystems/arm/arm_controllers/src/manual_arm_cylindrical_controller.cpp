@@ -18,7 +18,7 @@
 // [RosTeamWorkspace](https://github.com/StoglRobotics/ros_team_workspace) repository.
 //
 
-#include "athena_arm_controllers/manual_arm_cylindrical_controller.hpp"
+#include "arm_controllers/manual_arm_cylindrical_controller.hpp"
 
 #include <limits>
 #include <memory>
@@ -43,7 +43,7 @@ static constexpr rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
   RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
   false};
 
-using ControllerReferenceMsg = athena_arm_controllers::ManualArmCylindricalController::ControllerReferenceMsg;
+using ControllerReferenceMsg = arm_controllers::ManualArmCylindricalController::ControllerReferenceMsg;
 
 // called from RT control loop
 void reset_controller_reference_msg(
@@ -55,7 +55,7 @@ void reset_controller_reference_msg(
 
 }  // namespace
 
-namespace athena_arm_controllers
+namespace arm_controllers
 {
 ManualArmCylindricalController::ManualArmCylindricalController() : controller_interface::ControllerInterface() {}
 
@@ -298,4 +298,4 @@ controller_interface::return_type ManualArmCylindricalController::update(
 #include "pluginlib/class_list_macros.hpp"
 
 PLUGINLIB_EXPORT_CLASS(
-  athena_arm_controllers::ManualArmCylindricalController, controller_interface::ControllerInterface)
+  arm_controllers::ManualArmCylindricalController, controller_interface::ControllerInterface)

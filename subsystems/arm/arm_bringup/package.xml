@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>athena_arm_bringup</name>
+  <name>arm_bringup</name>
   <version>0.0.0</version>
   <description>Bring up package for arm</description>
   <maintainer email="duttaishan01@gmail.com">Ishan Dutta</maintainer>
@@ -37,7 +37,7 @@
   <exec_depend>rviz2</exec_depend>
   <exec_depend>urdf</exec_depend>
   <exec_depend>xacro</exec_depend>
-  <exec_depend>athena_arm_controllers</exec_depend>
+  <exec_depend>arm_controllers</exec_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
   <exec_depend>builtin_interfaces</exec_depend>
 

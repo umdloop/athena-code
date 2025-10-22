@@ -14,7 +14,7 @@ def generate_launch_description():
             " ",
             PathJoinSubstitution(
                 [
-                    FindPackageShare("athena_arm_description"),
+                    FindPackageShare("description"),
                     "urdf",
                     "athena_arm.urdf.xacro",
                 ]
@@ -24,7 +24,7 @@ def generate_launch_description():
     robot_description = {"robot_description": robot_description_content}
 
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("athena_arm_description"), "rviz", "rviz_config.rviz"]
+        [FindPackageShare("description"), "rviz", "rviz_config.rviz"]
     )
 
     joint_state_publisher_gui_node = Node(

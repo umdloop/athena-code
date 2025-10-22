@@ -21,13 +21,13 @@
 
 #include "controller_interface/controller_interface.hpp"
 #include "single_ackermann_controller_parameters.hpp"
-#include "athena_drive_controllers/visibility_control.h"
+#include "drive_controllers/visibility_control.h"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "realtime_tools/realtime_buffer.h"
 #include "sensor_msgs/msg/joy.hpp"
 
-namespace athena_drive_controllers
+namespace drive_controllers
 {
 
 class SingleAckermannController : public controller_interface::ControllerInterface
@@ -78,6 +78,6 @@ private:
   void reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg);
 };
 
-}  // namespace athena_drive_controllers
+}  // namespace drive_controllers
 
 #endif  // ATHENA_DRIVE_CONTROLLERS__SINGLE_ACKERMANN_CONTROLLER_HPP_

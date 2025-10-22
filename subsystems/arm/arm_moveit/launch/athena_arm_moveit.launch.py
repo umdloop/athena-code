@@ -12,29 +12,29 @@ def generate_launch_description():
 
     joint_state_yaml = PathJoinSubstitution(
         [
-            FindPackageShare("athena_arm_bringup"),
+            FindPackageShare("arm_bringup"),
             "config",
             "initial_joint_states.yaml",
         ]
     )
         
-    robot_description_path = PathJoinSubstitution([FindPackageShare("athena_arm_description"),
+    robot_description_path = PathJoinSubstitution([FindPackageShare("description"),
                                                    "urdf",
                                                    "athena_arm.urdf.xacro"])
-    robot_semantic_path = PathJoinSubstitution([FindPackageShare("athena_arm_moveit"),
+    robot_semantic_path = PathJoinSubstitution([FindPackageShare("arm_moveit"),
                                                 "srdf",
                                                 "athena_arm.srdf"])
-    robot_kinematics_path = PathJoinSubstitution([FindPackageShare("athena_arm_moveit"),
+    robot_kinematics_path = PathJoinSubstitution([FindPackageShare("arm_moveit"),
                                                   "config",
                                                   "kinematics.yaml"])
-    moveit_controllers_config_path = PathJoinSubstitution([FindPackageShare("athena_arm_moveit"),
+    moveit_controllers_config_path = PathJoinSubstitution([FindPackageShare("arm_moveit"),
                                                            "config",
                                                            "moveit_controllers.yaml"])
     
     # Eventually want to use this, for now the package will be independent
     rviz_config_file = PathJoinSubstitution(
         [
-            FindPackageShare("athena_arm_description"), 
+            FindPackageShare("description"), 
             "rviz", 
             "rviz_config.rviz"
         ]
@@ -42,7 +42,7 @@ def generate_launch_description():
 
     # rviz_config_file = PathJoinSubstitution(
     #     [
-    #         FindPackageShare("athena_arm_moveit"), 
+    #         FindPackageShare("arm_moveit"), 
     #         "rviz", 
     #         "moveit.rviz"
     #     ]
@@ -52,7 +52,7 @@ def generate_launch_description():
     # Load the robot configuration
     moveit_config = (
         MoveItConfigsBuilder(
-            "athena_arm", package_name="athena_arm_moveit"
+            "athena_arm", package_name="arm_moveit"
         )
         .robot_description(robot_description_path.perform(LaunchContext()))
         .robot_description_semantic("srdf/athena_arm.srdf")
@@ -111,7 +111,7 @@ def generate_launch_description():
     )
 
     hello_moveit_node = Node(
-        package="athena_arm_moveit",
+        package="arm_moveit",
         executable="hello_moveit",
         output="screen",
         parameters=[moveit_config.to_dict()],

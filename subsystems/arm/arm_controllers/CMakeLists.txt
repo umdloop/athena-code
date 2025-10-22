@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(athena_arm_controllers)
+project(arm_controllers)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
   add_compile_options(-Wall -Wextra -Werror=conversion -Werror=unused-but-set-variable -Werror=return-type -Werror=shadow)
@@ -27,38 +27,38 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
-# Add athena_arm_controllers library related compile commands
+# Add arm_controllers library related compile commands
 generate_parameter_library(manual_arm_cylindrical_controller_parameters
   config/manual_arm_cylindrical_controller.yaml
-  include/athena_arm_controllers/validate_athena_arm_controller_parameters.hpp
+  include/arm_controllers/validate_athena_arm_controller_parameters.hpp
 )
 
 generate_parameter_library(manual_arm_joint_by_joint_controller_parameters
   config/manual_arm_joint_by_joint_controller.yaml
-  include/athena_arm_controllers/validate_athena_arm_controller_parameters.hpp
+  include/arm_controllers/validate_athena_arm_controller_parameters.hpp
 )
 
 add_library(
-  athena_arm_controllers
+  arm_controllers
   SHARED
   src/manual_arm_cylindrical_controller.cpp
   src/manual_arm_joint_by_joint_controller.cpp
   src/velocity_calculations.cpp
 )
-target_include_directories(athena_arm_controllers PUBLIC
+target_include_directories(arm_controllers PUBLIC
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
-target_link_libraries(athena_arm_controllers manual_arm_cylindrical_controller_parameters)
-target_link_libraries(athena_arm_controllers manual_arm_joint_by_joint_controller_parameters)
-ament_target_dependencies(athena_arm_controllers ${THIS_PACKAGE_INCLUDE_DEPENDS})
-target_compile_definitions(athena_arm_controllers PRIVATE "manual_arm_cylindrical_controller_BUILDING_DLL")
+target_link_libraries(arm_controllers manual_arm_cylindrical_controller_parameters)
+target_link_libraries(arm_controllers manual_arm_joint_by_joint_controller_parameters)
+ament_target_dependencies(arm_controllers ${THIS_PACKAGE_INCLUDE_DEPENDS})
+target_compile_definitions(arm_controllers PRIVATE "manual_arm_cylindrical_controller_BUILDING_DLL")
 
 pluginlib_export_plugin_description_file(
-  controller_interface athena_arm_controllers.xml)
+  controller_interface arm_controllers.xml)
 
 install(
   TARGETS
-  athena_arm_controllers
+  arm_controllers
   RUNTIME DESTINATION bin
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -106,7 +106,7 @@ ament_export_dependencies(
   ${THIS_PACKAGE_INCLUDE_DEPENDS}
 )
 ament_export_libraries(
-  athena_arm_controllers
+  arm_controllers
 )
 
 ament_package()

@@ -36,7 +36,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "runtime_config_package",
-            default_value="athena_arm_bringup",
+            default_value="arm_bringup",
             description='Package with the controller\'s configuration in "config" folder. \
         Usually the argument is not set, it enables use of a custom setup.',
         )
@@ -44,14 +44,14 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "controllers_file",
-            default_value="athena_arm_controllers.yaml",
+            default_value="arm_controllers.yaml",
             description="YAML file with the controllers configuration.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_package",
-            default_value="athena_arm_description",
+            default_value="description",
             description="Description package with robot URDF/xacro files. Usually the argument \
             is not set, it enables use of a custom description.",
         )
@@ -73,7 +73,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "moveit_package",
-            default_value="athena_arm_moveit",
+            default_value="arm_moveit",
             description="MoveIt package containing all the configurations and necessary files for \
             integrating MoveIt.",
         )
@@ -131,7 +131,7 @@ def generate_launch_description():
     # This is creating a terminal command that essentially expands all macros in this file
     # and creates the FULL URDF
     robot_description_path = PathJoinSubstitution(
-        [FindPackageShare("athena_arm_description"), "urdf", "athena_arm.urdf.xacro"]
+        [FindPackageShare("description"), "urdf", "athena_arm.urdf.xacro"]
     )
     robot_controllers = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", controllers_file]
@@ -149,13 +149,13 @@ def generate_launch_description():
     # MoveIt Config Setup (TODO: Currently not using Launch Configuration for description and these configs because moveit
     # config builder happens at launch time. Is there a way to keep these Launch configs when building file path?)
     robot_semantic_path = PathJoinSubstitution(
-        [FindPackageShare("athena_arm_moveit"), "srdf", "athena_arm.srdf"]
+        [FindPackageShare("arm_moveit"), "srdf", "athena_arm.srdf"]
     )
     robot_kinematics_path = PathJoinSubstitution(
-        [FindPackageShare("athena_arm_moveit"), "config", "kinematics.yaml"]
+        [FindPackageShare("arm_moveit"), "config", "kinematics.yaml"]
     )
     moveit_controllers_config_path = PathJoinSubstitution(
-        [FindPackageShare("athena_arm_moveit"), "config", "moveit_controllers.yaml"]
+        [FindPackageShare("arm_moveit"), "config", "moveit_controllers.yaml"]
     )
 
     # -- Additional Configuration Setup --
@@ -181,7 +181,7 @@ def generate_launch_description():
 
     # Load the robot configuration
     moveit_config = (
-        MoveItConfigsBuilder("athena_arm", package_name="athena_arm_moveit")
+        MoveItConfigsBuilder("athena_arm", package_name="arm_moveit")
         .robot_description(file_path=robot_description_path.perform(LaunchContext()))
         .robot_description_semantic(file_path=robot_semantic_path.perform(LaunchContext()))
         .robot_description_kinematics(file_path=robot_kinematics_path.perform(LaunchContext()))
@@ -288,7 +288,7 @@ def generate_launch_description():
             on_exit=[TimerAction(
                 period=3.0,
                 actions=[Node(
-                    package="athena_arm_bringup",
+                    package="arm_bringup",
                     executable="controller_switcher.py",
                     name="controller_switcher",
                     output="screen"
@@ -367,7 +367,7 @@ def generate_launch_description():
     )
 
     hello_moveit_node = Node(
-        package="athena_arm_moveit",
+        package="arm_moveit",
         executable="hello_moveit",
         output="screen",
         parameters=[moveit_config.to_dict()],

@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-#include "athena_drive_controllers/double_ackermann_controller.hpp"
+#include "drive_controllers/double_ackermann_controller.hpp"
 #include "gmock/gmock.h"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
@@ -41,9 +41,9 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 
 // TODO(anyone): replace the state and command message types
-using ControllerStateMsg = athena_drive_controllers::DoubleAckermannController::ControllerStateMsg;
-using ControllerReferenceMsg = athena_drive_controllers::DoubleAckermannController::ControllerReferenceMsg;
-using ControllerModeSrvType = athena_drive_controllers::DoubleAckermannController::ControllerModeSrvType;
+using ControllerStateMsg = drive_controllers::DoubleAckermannController::ControllerStateMsg;
+using ControllerReferenceMsg = drive_controllers::DoubleAckermannController::ControllerReferenceMsg;
+using ControllerModeSrvType = drive_controllers::DoubleAckermannController::ControllerModeSrvType;
 
 namespace
 {
@@ -52,7 +52,7 @@ constexpr auto NODE_ERROR = controller_interface::CallbackReturn::ERROR;
 }  // namespace
 
 // subclassing and friending so we can access member variables
-class TestableDoubleAckermannController : public athena_drive_controllers::DoubleAckermannController
+class TestableDoubleAckermannController : public drive_controllers::DoubleAckermannController
 {
   FRIEND_TEST(DoubleAckermannControllerTest, all_parameters_set_configure_success);
   FRIEND_TEST(DoubleAckermannControllerTest, activate_success);
@@ -65,7 +65,7 @@ public:
   controller_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override
   {
-    auto ret = athena_drive_controllers::DoubleAckermannController::on_configure(previous_state);
+    auto ret = drive_controllers::DoubleAckermannController::on_configure(previous_state);
     // Only if on_configure is successful create subscription
     if (ret == CallbackReturn::SUCCESS)
     {

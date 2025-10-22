@@ -11,25 +11,25 @@
 
   <!-- Macro Imports -->
   <!-- Import athena_arm macro -->
-  <xacro:include filename="$(find athena_arm_description)/urdf/athena_arm_description.urdf.xacro"/>
+  <xacro:include filename="$(find description)/urdf/description.urdf.xacro"/>
 
   <!-- Import mock ros2_control description -->
-  <xacro:include filename="$(find athena_arm_description)/ros2_control/mock.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/mock.ros2_control.xacro" />
 
   <!-- Import smc ros2_control description -->
-  <xacro:include filename="$(find athena_arm_description)/ros2_control/smc.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/smc.ros2_control.xacro" />
 
   <!-- Import talon ros2_control description -->
-  <xacro:include filename="$(find athena_arm_description)/ros2_control/talon.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/talon.ros2_control.xacro" />
 
   <!-- Import rmd ros2_control description -->
-  <xacro:include filename="$(find athena_arm_description)/ros2_control/rmd.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/rmd.ros2_control.xacro" />
 
   <!-- Import actuator ros2_control description -->
-  <xacro:include filename="$(find athena_arm_description)/ros2_control/actuator.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/actuator.ros2_control.xacro" />
 
   <!-- Import odrive ros2_control description -->
-  <xacro:include filename="$(find athena_arm_description)/ros2_control/odrive.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/odrive.ros2_control.xacro" />
 
 
   <!-- create link fixed to the "world" -->
@@ -37,7 +37,7 @@
 
   
   <!-- Contains description of arm -->
-  <xacro:athena_arm_description/>
+  <xacro:description/>
 
 
   <xacro:if value="$(arg use_mock_hardware)">     <!-- MOCK -->

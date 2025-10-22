@@ -18,7 +18,7 @@
 // [RosTeamWorkspace](https://github.com/StoglRobotics/ros_team_workspace) repository.
 //
 
-#include "athena_drive_controllers/swerve_drive_controller.hpp"
+#include "drive_controllers/swerve_drive_controller.hpp"
 
 #include <limits>
 #include <memory>
@@ -44,7 +44,7 @@ static constexpr rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
   RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
   false};
 
-using ControllerReferenceMsg = athena_drive_controllers::SwerveDriveController::ControllerReferenceMsg;
+using ControllerReferenceMsg = drive_controllers::SwerveDriveController::ControllerReferenceMsg;
 
 // called from RT control loop
 void reset_controller_reference_msg(
@@ -60,7 +60,7 @@ void reset_controller_reference_msg(
 
 }  // namespace
 
-namespace athena_drive_controllers
+namespace drive_controllers
 {
 SwerveDriveController::SwerveDriveController() : controller_interface::ControllerInterface() {}
 
@@ -316,9 +316,9 @@ controller_interface::return_type SwerveDriveController::update(
   return controller_interface::return_type::OK;
 }
 
-}  // namespace athena_drive_controllers
+}  // namespace drive_controllers
 
 #include "pluginlib/class_list_macros.hpp"
 
 PLUGINLIB_EXPORT_CLASS(
-  athena_drive_controllers::SwerveDriveController, controller_interface::ControllerInterface)
+  drive_controllers::SwerveDriveController, controller_interface::ControllerInterface)

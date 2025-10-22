@@ -20,9 +20,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "test_athena_science_manual.hpp"
 
-using athena_science_controllers::CMD_MY_ITFS;
-using athena_science_controllers::control_mode_type;
-using athena_science_controllers::STATE_MY_ITFS;
+using science_controllers::CMD_MY_ITFS;
+using science_controllers::control_mode_type;
+using science_controllers::STATE_MY_ITFS;
 
 class AthenaScienceManualTest : public AthenaScienceManualFixture<TestableAthenaScienceManual>
 {

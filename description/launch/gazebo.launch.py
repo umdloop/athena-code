@@ -18,7 +18,7 @@ def generate_launch_description():
             package='gazebo_ros',
             executable='spawn_model',
             name='spawn_model',
-            arguments=['-file', '$(find athena_arm)/urdf/athena_arm_description.urdf.xacro', '-urdf', '-model', 'athena_arm'],
+            arguments=['-file', '$(find athena_arm)/urdf/description.urdf.xacro', '-urdf', '-model', 'athena_arm'],
             output='screen'
         ),
         Node(

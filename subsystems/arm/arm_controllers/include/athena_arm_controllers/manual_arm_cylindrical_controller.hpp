@@ -27,7 +27,7 @@
 
 #include "controller_interface/controller_interface.hpp"
 #include "manual_arm_cylindrical_controller_parameters.hpp"
-#include "athena_arm_controllers/visibility_control.h"
+#include "arm_controllers/visibility_control.h"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "realtime_tools/realtime_buffer.h"
@@ -40,9 +40,9 @@
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 
-#include "athena_arm_controllers/velocity_calculations.hpp"
+#include "arm_controllers/velocity_calculations.hpp"
 
-namespace athena_arm_controllers
+namespace arm_controllers
 {
 // name constants for state interfaces
 static constexpr size_t STATE_MY_ITFS = 0;
@@ -137,6 +137,6 @@ private:
   void reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg);
 };
 
-}  // namespace athena_arm_controllers
+}  // namespace arm_controllers
 
 #endif  // ATHENA_ARM_CONTROLLERS__MANUAL_ARM_CYLINDRICAL_CONTROLLER_HPP_

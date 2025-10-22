@@ -39,7 +39,7 @@ TEST(TestLoadDoubleAckermannController, load_controller)
     executor, ros2_control_test_assets::minimal_robot_urdf, true, "test_controller_manager");
 
   ASSERT_NO_THROW(
-    cm.load_controller("test_athena_drive_controllers", "athena_drive_controllers/DoubleAckermannController"));
+    cm.load_controller("test_drive_controllers", "drive_controllers/DoubleAckermannController"));
 
   rclcpp::shutdown();
 }

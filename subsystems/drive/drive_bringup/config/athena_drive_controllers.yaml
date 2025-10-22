@@ -30,7 +30,7 @@ controller_manager:
       type: ackermann_steering_controller/AckermannSteeringController
 
     single_ackermann_controller:
-      type: athena_drive_controllers/SingleAckermannController
+      type: drive_controllers/SingleAckermannController
     
     drive_velocity_controller:
       type: velocity_controllers/JointGroupVelocityController
@@ -39,7 +39,7 @@ controller_manager:
       type: position_controllers/JointGroupPositionController
 
     # swerve_drive_controller:
-    #   type: athena_drive_controllers/SwerveDriveController
+    #   type: drive_controllers/SwerveDriveController
     
 
 ackermann_steering_controller:

@@ -34,7 +34,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "runtime_config_package",
-            default_value="athena_science_bringup",
+            default_value="science_bringup",
             description='Package with the controller\'s configuration in "config" folder. \
         Usually the argument is not set, it enables use of a custom setup.',
         )
@@ -42,14 +42,14 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "controllers_file",
-            default_value="athena_science_controllers.yaml",
+            default_value="science_controllers.yaml",
             description="YAML file with the controllers configuration.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_package",
-            default_value="athena_science_description",
+            default_value="description",
             description="Description package with robot URDF/xacro files. Usually the argument \
         is not set, it enables use of a custom description.",
         )
@@ -205,7 +205,7 @@ def generate_launch_description():
             on_exit=[TimerAction(
                 period=3.0,
                 actions=[Node(
-                    package="athena_science_bringup",
+                    package="science_bringup",
                     executable="controller_switcher.py",
                     name="controller_switcher",
                     output="screen"

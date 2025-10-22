@@ -34,7 +34,7 @@ controller_manager:
       type: velocity_controllers/JointGroupVelocityController
 
     athena_science_manual_controller:
-      type: athena_science_controllers/AthenaScienceManual
+      type: science_controllers/AthenaScienceManual
 
 joint_group_position_controller:                
   ros__parameters:

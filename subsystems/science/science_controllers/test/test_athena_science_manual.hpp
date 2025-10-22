@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-#include "athena_science_controllers/athena_science_manual.hpp"
+#include "science_controllers/athena_science_manual.hpp"
 #include "gmock/gmock.h"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
@@ -34,9 +34,9 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 
 // TODO(anyone): replace the state and command message types
-using ControllerStateMsg = athena_science_controllers::AthenaScienceManual::ControllerStateMsg;
-using ControllerReferenceMsg = athena_science_controllers::AthenaScienceManual::ControllerReferenceMsg;
-using ControllerModeSrvType = athena_science_controllers::AthenaScienceManual::ControllerModeSrvType;
+using ControllerStateMsg = science_controllers::AthenaScienceManual::ControllerStateMsg;
+using ControllerReferenceMsg = science_controllers::AthenaScienceManual::ControllerReferenceMsg;
+using ControllerModeSrvType = science_controllers::AthenaScienceManual::ControllerModeSrvType;
 
 namespace
 {
@@ -45,7 +45,7 @@ constexpr auto NODE_ERROR = controller_interface::CallbackReturn::ERROR;
 }  // namespace
 
 // subclassing and friending so we can access member variables
-class TestableAthenaScienceManual : public athena_science_controllers::AthenaScienceManual
+class TestableAthenaScienceManual : public science_controllers::AthenaScienceManual
 {
   FRIEND_TEST(AthenaScienceManualTest, all_parameters_set_configure_success);
   FRIEND_TEST(AthenaScienceManualTest, activate_success);
@@ -58,7 +58,7 @@ public:
   controller_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override
   {
-    auto ret = athena_science_controllers::AthenaScienceManual::on_configure(previous_state);
+    auto ret = science_controllers::AthenaScienceManual::on_configure(previous_state);
     // Only if on_configure is successful create subscription
     if (ret == CallbackReturn::SUCCESS)
     {

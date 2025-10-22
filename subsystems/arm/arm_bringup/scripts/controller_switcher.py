@@ -6,7 +6,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.duration import Duration
 import threading
 
-from athena_arm_msgs.srv import SetController
+from msgs.srv import SetController
 from controller_manager_msgs.srv import SwitchController, ListControllers
 
 

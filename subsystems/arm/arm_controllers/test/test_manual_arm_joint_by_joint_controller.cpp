@@ -27,9 +27,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "test_manual_arm_joint_by_joint_controller.hpp"
 
-using athena_arm_controllers::CMD_MY_ITFS;
-using athena_arm_controllers::control_mode_type;
-using athena_arm_controllers::STATE_MY_ITFS;
+using arm_controllers::CMD_MY_ITFS;
+using arm_controllers::control_mode_type;
+using arm_controllers::STATE_MY_ITFS;
 
 class ManualArmJointByJointControllerTest : public ManualArmJointByJointControllerFixture<TestableManualArmJointByJointController>
 {

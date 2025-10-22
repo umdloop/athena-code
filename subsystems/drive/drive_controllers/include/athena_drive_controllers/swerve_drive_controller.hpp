@@ -27,7 +27,7 @@
 
 #include "controller_interface/controller_interface.hpp"
 #include "swerve_drive_controller_parameters.hpp"
-#include "athena_drive_controllers/visibility_control.h"
+#include "drive_controllers/visibility_control.h"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "realtime_tools/realtime_buffer.h"
@@ -39,7 +39,7 @@
 #include "control_msgs/msg/joint_jog.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 
-namespace athena_drive_controllers
+namespace drive_controllers
 {
 // name constants for state interfaces
 static constexpr size_t STATE_MY_ITFS = 0;
@@ -117,6 +117,6 @@ private:
   void reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg);
 };
 
-}  // namespace athena_drive_controllers
+}  // namespace drive_controllers
 
 #endif  // ATHENA_DRIVE_CONTROLLERS__SWERVE_DRIVE_CONTROLLER_HPP_

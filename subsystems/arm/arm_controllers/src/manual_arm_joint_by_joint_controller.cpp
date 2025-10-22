@@ -18,7 +18,7 @@
 // [RosTeamWorkspace](https://github.com/StoglRobotics/ros_team_workspace) repository.
 //
 
-#include "athena_arm_controllers/manual_arm_joint_by_joint_controller.hpp"
+#include "arm_controllers/manual_arm_joint_by_joint_controller.hpp"
 
 #include <limits>
 #include <memory>
@@ -43,7 +43,7 @@ static constexpr rmw_qos_profile_t rmw_qos_profile_services_hist_keep_all = {
   RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
   false};
 
-using ControllerReferenceMsg = athena_arm_controllers::ManualArmJointByJointController::ControllerReferenceMsg;
+using ControllerReferenceMsg = arm_controllers::ManualArmJointByJointController::ControllerReferenceMsg;
 
 // called from RT control loop
 void reset_controller_reference_msg(
@@ -55,7 +55,7 @@ void reset_controller_reference_msg(
 
 }  // namespace
 
-namespace athena_arm_controllers
+namespace arm_controllers
 {
 ManualArmJointByJointController::ManualArmJointByJointController() : controller_interface::ControllerInterface() {}
 
@@ -295,9 +295,9 @@ controller_interface::return_type ManualArmJointByJointController::update(
   return controller_interface::return_type::OK;
 }
 
-}  // namespace athena_arm_controllers
+}  // namespace arm_controllers
 
 #include "pluginlib/class_list_macros.hpp"
 
 PLUGINLIB_EXPORT_CLASS(
-  athena_arm_controllers::ManualArmJointByJointController, controller_interface::ControllerInterface)
+  arm_controllers::ManualArmJointByJointController, controller_interface::ControllerInterface)

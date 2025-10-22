@@ -26,9 +26,9 @@
 #include <utility>
 #include <vector>
 
-using athena_drive_controllers::CMD_MY_ITFS;
-using athena_drive_controllers::control_mode_type;
-using athena_drive_controllers::STATE_MY_ITFS;
+using drive_controllers::CMD_MY_ITFS;
+using drive_controllers::control_mode_type;
+using drive_controllers::STATE_MY_ITFS;
 
 class DoubleAckermannControllerTest : public DoubleAckermannControllerFixture<TestableDoubleAckermannController>
 {

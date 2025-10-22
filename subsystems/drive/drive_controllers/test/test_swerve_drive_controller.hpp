@@ -29,7 +29,7 @@
 // #include <utility>
 // #include <vector>
 
-// #include "athena_drive_controllers/swerve_drive_controller.hpp"
+// #include "drive_controllers/swerve_drive_controller.hpp"
 // #include "gmock/gmock.h"
 // #include "hardware_interface/loaned_command_interface.hpp"
 // #include "hardware_interface/loaned_state_interface.hpp"
@@ -41,9 +41,9 @@
 // #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 
 // // TODO(anyone): replace the state and command message types
-// using ControllerStateMsg = athena_drive_controllers::SwerveDriveController::ControllerStateMsg;
-// using ControllerReferenceMsg = athena_drive_controllers::SwerveDriveController::ControllerReferenceMsg;
-// using ControllerModeSrvType = athena_drive_controllers::SwerveDriveController::ControllerModeSrvType;
+// using ControllerStateMsg = drive_controllers::SwerveDriveController::ControllerStateMsg;
+// using ControllerReferenceMsg = drive_controllers::SwerveDriveController::ControllerReferenceMsg;
+// using ControllerModeSrvType = drive_controllers::SwerveDriveController::ControllerModeSrvType;
 
 // namespace
 // {
@@ -52,7 +52,7 @@
 // }  // namespace
 
 // // subclassing and friending so we can access member variables
-// class TestableSwerveDriveController : public athena_drive_controllers::SwerveDriveController
+// class TestableSwerveDriveController : public drive_controllers::SwerveDriveController
 // {
 //   FRIEND_TEST(SwerveDriveControllerTest, all_parameters_set_configure_success);
 //   FRIEND_TEST(SwerveDriveControllerTest, activate_success);
@@ -65,7 +65,7 @@
 //   controller_interface::CallbackReturn on_configure(
 //     const rclcpp_lifecycle::State & previous_state) override
 //   {
-//     auto ret = athena_drive_controllers::SwerveDriveController::on_configure(previous_state);
+//     auto ret = drive_controllers::SwerveDriveController::on_configure(previous_state);
 //     // Only if on_configure is successful create subscription
 //     if (ret == CallbackReturn::SUCCESS)
 //     {

@@ -3,7 +3,7 @@
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:macro name="athena_drive_description">
+  <xacro:macro name="description">
     <link
       name="chassis_base_link">
       <inertial>
@@ -26,7 +26,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/chassis_base_link.STL" />
+            filename="package://description/meshes/chassis_base_link.STL" />
         </geometry>
         <material
           name="">
@@ -40,7 +40,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/chassis_base_link.STL" />
+            filename="package://description/meshes/chassis_base_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -66,7 +66,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/suspension_left_link.STL" />
+            filename="package://description/meshes/suspension_left_link.STL" />
         </geometry>
         <material
           name="">
@@ -80,7 +80,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/suspension_left_link.STL" />
+            filename="package://description/meshes/suspension_left_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -132,7 +132,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_front_link.STL" />
+            filename="package://description/meshes/swerve_front_link.STL" />
         </geometry>
         <material
           name="">
@@ -146,7 +146,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_front_link.STL" />
+            filename="package://description/meshes/swerve_front_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -190,7 +190,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_module_front_link.STL" />
+            filename="package://description/meshes/swerve_module_front_link.STL" />
         </geometry>
         <material
           name="">
@@ -204,7 +204,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_module_front_link.STL" />
+            filename="package://description/meshes/swerve_module_front_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -248,7 +248,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/bracket_front_link.STL" />
+            filename="package://description/meshes/bracket_front_link.STL" />
         </geometry>
         <material
           name="">
@@ -262,7 +262,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/bracket_front_link.STL" />
+            filename="package://description/meshes/bracket_front_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -301,7 +301,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/wheel_front_link.STL" />
+            filename="package://description/meshes/wheel_front_link.STL" />
         </geometry>
         <material
           name="">
@@ -315,7 +315,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/wheel_front_link.STL" />
+            filename="package://description/meshes/wheel_front_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -359,7 +359,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_back_link.STL" />
+            filename="package://description/meshes/swerve_back_link.STL" />
         </geometry>
         <material
           name="">
@@ -373,7 +373,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_back_link.STL" />
+            filename="package://description/meshes/swerve_back_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -417,7 +417,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_module_back_link.STL" />
+            filename="package://description/meshes/swerve_module_back_link.STL" />
         </geometry>
         <material
           name="">
@@ -431,7 +431,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_module_back_link.STL" />
+            filename="package://description/meshes/swerve_module_back_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -475,7 +475,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/bracket_back_link.STL" />
+            filename="package://description/meshes/bracket_back_link.STL" />
         </geometry>
         <material
           name="">
@@ -489,7 +489,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/bracket_back_link.STL" />
+            filename="package://description/meshes/bracket_back_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -528,7 +528,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/wheel_back_link.STL" />
+            filename="package://description/meshes/wheel_back_link.STL" />
         </geometry>
         <material
           name="">
@@ -542,7 +542,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/wheel_back_link.STL" />
+            filename="package://description/meshes/wheel_back_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -586,7 +586,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/suspension_right_link.STL" />
+            filename="package://description/meshes/suspension_right_link.STL" />
         </geometry>
         <material
           name="">
@@ -600,7 +600,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/suspension_right_link.STL" />
+            filename="package://description/meshes/suspension_right_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -644,7 +644,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_front2_link.STL" />
+            filename="package://description/meshes/swerve_front2_link.STL" />
         </geometry>
         <material
           name="">
@@ -658,7 +658,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_front2_link.STL" />
+            filename="package://description/meshes/swerve_front2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -702,7 +702,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_module_front2_link.STL" />
+            filename="package://description/meshes/swerve_module_front2_link.STL" />
         </geometry>
         <material
           name="">
@@ -716,7 +716,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_module_front2_link.STL" />
+            filename="package://description/meshes/swerve_module_front2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -760,7 +760,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/bracket_front2_link.STL" />
+            filename="package://description/meshes/bracket_front2_link.STL" />
         </geometry>
         <material
           name="">
@@ -774,7 +774,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/bracket_front2_link.STL" />
+            filename="package://description/meshes/bracket_front2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -813,7 +813,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/wheel_front2_link.STL" />
+            filename="package://description/meshes/wheel_front2_link.STL" />
         </geometry>
         <material
           name="">
@@ -827,7 +827,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/wheel_front2_link.STL" />
+            filename="package://description/meshes/wheel_front2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -871,7 +871,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_back2_link.STL" />
+            filename="package://description/meshes/swerve_back2_link.STL" />
         </geometry>
         <material
           name="">
@@ -885,7 +885,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_back2_link.STL" />
+            filename="package://description/meshes/swerve_back2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -929,7 +929,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_module_back2_link.STL" />
+            filename="package://description/meshes/swerve_module_back2_link.STL" />
         </geometry>
         <material
           name="">
@@ -943,7 +943,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/swerve_module_back2_link.STL" />
+            filename="package://description/meshes/swerve_module_back2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -987,7 +987,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/bracket_back2_link.STL" />
+            filename="package://description/meshes/bracket_back2_link.STL" />
         </geometry>
         <material
           name="">
@@ -1001,7 +1001,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/bracket_back2_link.STL" />
+            filename="package://description/meshes/bracket_back2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -1040,7 +1040,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/wheel_back2_link.STL" />
+            filename="package://description/meshes/wheel_back2_link.STL" />
         </geometry>
         <material
           name="">
@@ -1054,7 +1054,7 @@
           rpy="0 0 0" />
         <geometry>
           <mesh
-            filename="package://athena_drive_description/meshes/wheel_back2_link.STL" />
+            filename="package://description/meshes/wheel_back2_link.STL" />
         </geometry>
       </collision>
     </link>

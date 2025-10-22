@@ -6,8 +6,8 @@
 // Unauthorized copying of this file, via any medium is strictly prohibited.
 // The file is considered confidential.
 
-#include "athena_science_controllers/athena_science_manual.hpp"
-#include "athena_science_controllers/athena_science_manual_parameters.hpp"
+#include "science_controllers/athena_science_manual.hpp"
+#include "science_controllers/athena_science_manual_parameters.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -28,7 +28,7 @@ void reset_controller_reference_msg(
 }
 }  // namespace
 
-namespace athena_science_controllers
+namespace science_controllers
 {
 
 AthenaScienceManual::AthenaScienceManual() : controller_interface::ControllerInterface() {}
@@ -193,8 +193,8 @@ controller_interface::return_type AthenaScienceManual::update(
 }
 
 
-}  // namespace athena_science_controllers
+}  // namespace science_controllers
 
 #include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(
-  athena_science_controllers::AthenaScienceManual, controller_interface::ControllerInterface)
+  science_controllers::AthenaScienceManual, controller_interface::ControllerInterface)
