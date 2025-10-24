@@ -17,16 +17,16 @@
   <xacro:include filename="$(find description)/config/mock.ros2_control.xacro" />
 
   <!-- Import smc ros2_control description -->
-  <xacro:include filename="$(find description)/ros2_control/arm.smc.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/arm/arm.smc.ros2_control.xacro" />
 
   <!-- Import talon ros2_control description -->
-  <xacro:include filename="$(find description)/ros2_control/arm.talon.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/arm/arm.talon.ros2_control.xacro" />
 
   <!-- Import rmd ros2_control description -->
-  <xacro:include filename="$(find description)/ros2_control/arm.rmd.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/arm/arm.rmd.ros2_control.xacro" />
 
   <!-- Import actuator ros2_control description -->
-  <xacro:include filename="$(find description)/ros2_control/arm.actuator.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/arm/arm.actuator.ros2_control.xacro" />
 
   <!-- Import odrive ros2_control description -->
   <!-- <xacro:include filename="$(find description)/config/odrive.ros2_control.xacro" /> -->

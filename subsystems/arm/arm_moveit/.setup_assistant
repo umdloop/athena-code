@@ -1,6 +1,6 @@
 moveit_setup_assistant_config:
   urdf:
-    package: athena_arm_description
+    package: description
     relative_path: urdf/athena_arm.urdf.xacro
   srdf:
     relative_path: config/athena_arm.srdf
