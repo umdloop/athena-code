@@ -30,7 +30,7 @@ controller_manager:
       type: ackermann_steering_controller/AckermannSteeringController
 
     single_ackermann_controller:
-      type: drive_controllers/SingleAckermannController
+      type: athena_drive_controllers/SingleAckermannController
     
     drive_velocity_controller:
       type: velocity_controllers/JointGroupVelocityController

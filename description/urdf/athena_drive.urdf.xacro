@@ -25,13 +25,13 @@
 
   
   <!-- Import athena_drive macro -->
-  <xacro:include filename="$(find description)/urdf/description.urdf.xacro"/>
+  <xacro:include filename="$(find description)/urdf/athena_drive_description.urdf.xacro"/>
 
   <!-- Import rmd ros2_control description -->
-  <xacro:include filename="$(find description)/ros2_control/rmd.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/drive/drive.rmd.ros2_control.xacro" />
 
   <!-- Import odrive ros2_control description -->
-  <xacro:include filename="$(find description)/ros2_control/odrive.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/drive/drive.odrive.ros2_control.xacro" />
 
   <!-- create link fixed to the "world" -->
   <link name="world"/>

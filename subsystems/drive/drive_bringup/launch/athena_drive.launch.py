@@ -63,7 +63,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "controllers_file",
-            default_value="drive_controllers.yaml",
+            default_value="athena_drive_controllers.yaml",
             description="YAML file with the controllers configuration.",
         )
     )
