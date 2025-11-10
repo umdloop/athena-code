@@ -34,7 +34,11 @@
   <!-- Import odrive ros2_control description -->
   <xacro:include filename="$(find description)/ros2_control/drive/drive.odrive.ros2_control.xacro" />
 
+<<<<<<< HEAD
   <!-- Contains description of drive -->
+=======
+
+>>>>>>> a44562b (Fixed simulation bugs to enable rover control in gazebo)
   <xacro:description/>
 
   <xacro:if value="$(arg use_mock_hardware)">
