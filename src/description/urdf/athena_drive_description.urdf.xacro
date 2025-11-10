@@ -50,7 +50,7 @@
             </collision>
         </link>
 
-        <joint name="suspension_front_left_joint" type="revolute">
+        <joint name="suspension_front_left_joint" type="fixed">
             <origin xyz="0.61263 0.22146 -0.74592" rpy="1.5708 0 0.094743" />
             <parent link="chassis_base_link" />
             <child link="suspension_front_left_link" />
@@ -323,7 +323,7 @@
             </collision>
         </link>
 
-        <joint name="suspension_front_right_joint" type="revolute">
+        <joint name="suspension_front_right_joint" type="fixed">
             <origin xyz="0.66803 -0.36146 -0.74592" rpy="1.5708 0 0.094743" />
             <parent link="chassis_base_link" />
             <child link="suspension_front_right_link" />
