@@ -38,7 +38,8 @@
 #include <rclcpp/node.hpp>
 #include <rclcpp/publisher.hpp>
 #include <rclcpp/subscription.hpp>
-#include "msgs/msg/cana.hpp"
+#include "umdloop_can_library/SocketCanBus.hpp"
+#include "umdloop_can_library/CanFrame.hpp"
 
 namespace smc_ros2_control
 {
@@ -83,6 +84,8 @@ public:
 
   hardware_interface::return_type write(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
+
+  void onCanMessage(const CANLib::CanFrame& frame);
   
   // Helper Functions
   double calculate_joint_position_from_motor_position(double motor_position, int gear_ratio);
@@ -106,19 +109,17 @@ private:
   std::vector<double> joint_command_position_;
   std::vector<double> joint_command_velocity_;
 
-  double encoder_position;
-  double motor_position;
-  double motor_velocity;
+  std::vector<double> encoder_position;
+  std::vector<double> motor_velocity;
+  std::vector<double> motor_position;
 
   std::vector<bool> joint_initialization_;
 
-  rclcpp::Publisher<msgs::msg::CANA>::SharedPtr smc_can_publisher_;
-  rclcpp::Subscription<msgs::msg::CANA>::SharedPtr smc_can_subscriber_;
-  rclcpp::Node::SharedPtr node_;
-  uint16_t current_iteration;
+  CANLib::SocketCanBus canBus;
+  CANLib::CanFrame can_tx_frame_;
+  CANLib::CanFrame can_rx_frame_;
 
-
-  msgs::msg::CANA received_joint_data_;
+  // umdloop_theseus_can_messages::msg::CANA received_joint_data_;
 
   std::vector<int> joint_node_ids;
   std::vector<int> joint_gear_ratios;
@@ -139,4 +140,3 @@ private:
 }  // namespace smc_hardware_interface
 
 #endif  // SMC_HARDWARE_INTERACE_HPP_
-
