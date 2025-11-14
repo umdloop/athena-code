@@ -98,6 +98,7 @@ public:
 private:
 
   int num_joints;
+  int current_joint;
 
   // Store the state for the simulated robot
   std::vector<double> joint_state_position_;
@@ -119,8 +120,6 @@ private:
   std::vector<int> joint_node_read_ids;
   std::vector<int> joint_gear_ratios;
   std::vector<int> joint_orientation;
-
-
 
   enum integration_level_t : std::uint8_t
   {

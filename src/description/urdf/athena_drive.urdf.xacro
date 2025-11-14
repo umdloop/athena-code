@@ -50,8 +50,8 @@
     simulation_controllers="$(arg simulation_controllers)"/>
   </xacro:if>
   <xacro:unless value="$(arg use_mock_hardware)">
-    <xacro:rmd_ros2_control name="rmd"/>
     <xacro:odrive_ros2_control name="odrive"/>
+    <xacro:rmd_ros2_control name="rmd"/>
   </xacro:unless>
 
   

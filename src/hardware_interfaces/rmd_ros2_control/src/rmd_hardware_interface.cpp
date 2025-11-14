@@ -79,6 +79,8 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
 
   control_level_.resize(num_joints, integration_level_t::POSITION);
 
+  current_joint = 0;
+
   for (size_t i = 0; i < joint_command_velocity_.size(); ++i) {
     RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Joint %zu command vel in on_init: %f", i, joint_command_velocity_[i]);
   }
@@ -308,36 +310,52 @@ hardware_interface::return_type RMDHardwareInterface::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
+  current_joint+=1;
+  current_joint = current_joint % num_joints;
   for(int i = 0; i < num_joints; i++) {
-    can_tx_frame_ = CANLib::CanFrame();
-    can_tx_frame_.id = joint_node_write_ids[i];
-    can_tx_frame_.dlc = 8;
+    if(current_joint == i){
+      can_tx_frame_ = CANLib::CanFrame();
+      can_tx_frame_.id = joint_node_write_ids[i];
+      can_tx_frame_.dlc = 8;
 
-    // Command to read multi-turn angle
-    can_tx_frame_.data = {0x92, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    canBus.send(can_tx_frame_);
+      // Command to read multi-turn angle
+      can_tx_frame_.data = {0x92, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+      canBus.send(can_tx_frame_);
 
-    // Command to read motor status 2
-    can_tx_frame_.data = {0x9C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    canBus.send(can_tx_frame_);
-  }
+      // Command to read motor status 2
+      can_tx_frame_.data = {0x9C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+      canBus.send(can_tx_frame_);
 
-  // Values retrieved
-  for(int i = 0; i < num_joints; i++){  
+      // // CALCULATING JOINT STATE
+      // joint_state_velocity_[i] = calculate_joint_velocity_from_motor_velocity(motor_velocity[i], joint_gear_ratios[i]);
+      // joint_state_position_[i] = calculate_joint_position_from_motor_position(motor_position[i], joint_gear_ratios[i]);
 
-    // CALCULATING JOINT STATE
-    joint_state_velocity_[i] = calculate_joint_velocity_from_motor_velocity(motor_velocity[i], joint_gear_ratios[i]);
-    joint_state_position_[i] = calculate_joint_position_from_motor_position(motor_position[i], joint_gear_ratios[i]);
-
-    if(DEBUG_MODE == 1) {
-      RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Reading for joint: %s Motor Position: %f Joint position: %f Joint velocity: %f \n", 
-                                                        info_.joints[i].name.c_str(),
-                                                        motor_position[i],
-                                                        joint_state_position_[i], 
-                                                        joint_state_velocity_[i]);
+      if(DEBUG_MODE == 1) {
+        RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Reading for joint: %s Motor Position: %f Joint position: %f Joint velocity: %f \n", 
+                                                          info_.joints[i].name.c_str(),
+                                                          motor_position[i],
+                                                          joint_state_position_[i], 
+                                                          joint_state_velocity_[i]);
+      }
     }
   }
+
+  // // Values retrieved
+  // for(int i = 0; i < num_joints; i++){  
+  //   if(current_joint == i){
+  //     // CALCULATING JOINT STATE
+  //     joint_state_velocity_[i] = calculate_joint_velocity_from_motor_velocity(motor_velocity[i], joint_gear_ratios[i]);
+  //     joint_state_position_[i] = calculate_joint_position_from_motor_position(motor_position[i], joint_gear_ratios[i]);
+
+  //     if(DEBUG_MODE == 1) {
+  //       RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Reading for joint: %s Motor Position: %f Joint position: %f Joint velocity: %f \n", 
+  //                                                         info_.joints[i].name.c_str(),
+  //                                                         motor_position[i],
+  //                                                         joint_state_position_[i], 
+  //                                                         joint_state_velocity_[i]);
+  //     }
+  //   }
+  // }
     
   return hardware_interface::return_type::OK;
 }
