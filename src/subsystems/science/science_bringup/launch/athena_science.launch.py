@@ -274,7 +274,7 @@ def generate_launch_description():
             robot_state_pub_node,
             rviz_node,
             delay_joint_state_broadcaster_spawner_after_ros2_control_node,
-            umdloop_can_node,
+            # umdloop_can_node,
             controller_switcher_node,
         ]
         + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner
