@@ -98,9 +98,6 @@ private:
 
   int num_joints;
 
-  // EXPERIMENTING
-  std::vector<double> initial_position_;
-
   // Store the state for the simulated robot
   std::vector<double> joint_state_position_;
   std::vector<double> joint_state_velocity_;

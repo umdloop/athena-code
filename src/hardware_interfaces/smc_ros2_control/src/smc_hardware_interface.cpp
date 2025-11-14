@@ -58,7 +58,6 @@ hardware_interface::CallbackReturn SMCHardwareInterface::on_init(
   for (auto& joint : info_.joints) {
     joint_node_ids.push_back(std::stoi(joint.parameters.at("node_id")));
     joint_gear_ratios.push_back(std::stoi(joint.parameters.at("gear_ratio")));
-    initial_position_.push_back(std::stof(joint.state_interfaces[0].initial_value));
   }
 
   num_joints = static_cast<int>(info_.joints.size());
@@ -254,9 +253,8 @@ hardware_interface::CallbackReturn SMCHardwareInterface::on_activate(
   }
 
   // Sets initial command to joint state
-  joint_command_position_ = joint_state_position_;
-  for (size_t i = 0; i < initial_position_.size(); ++i) {
-    RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Joint %zu initial position in on_activate: %f", i, initial_position_[i]);
+  // joint_command_position_ = joint_state_position_;
+  for (size_t i = 0; i < joint_state_velocity_.size(); ++i) {
     RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Joint %zu command vel in on_init: %f", i, joint_state_velocity_[i]);    
     RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Joint %zu joint command in on_activate: %f", i, joint_command_position_[i]);
   }
@@ -403,7 +401,7 @@ hardware_interface::return_type smc_ros2_control::SMCHardwareInterface::write(
     
     }
     else{
-      RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Joint command value not found or undefined command state");
+      // RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Joint command value not found or undefined command state");
     }
 
     // Cast data to uint8_t

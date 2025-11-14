@@ -61,7 +61,6 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
     joint_node_write_ids.push_back(std::stoi(joint.parameters.at("node_write_id")));
     joint_node_read_ids.push_back(std::stoi(joint.parameters.at("node_read_id")));
     joint_gear_ratios.push_back(std::stoi(joint.parameters.at("gear_ratio")));
-    initial_position_.push_back(std::stof(joint.state_interfaces[0].initial_value));
     joint_orientation.push_back(std::stoi(joint.parameters.at("joint_orientation")));
   }
 
@@ -80,8 +79,7 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
 
   control_level_.resize(num_joints, integration_level_t::POSITION);
 
-  for (size_t i = 0; i < initial_position_.size(); ++i) {
-    RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Joint %zu initial position in on_init: %f", i, initial_position_[i]);
+  for (size_t i = 0; i < joint_command_velocity_.size(); ++i) {
     RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Joint %zu command vel in on_init: %f", i, joint_command_velocity_[i]);
   }
 
@@ -249,15 +247,8 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_activate(
 
   // Sets initial command to joint state
   joint_command_position_ = joint_state_position_;
-  for (size_t i = 0; i < initial_position_.size(); ++i) {
-    RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Joint %zu initial position in on_activate: %f", i, initial_position_[i]);
-  }
   
-  // Initialize command positions to initial values to avoid NaN
-  // Controllers will override these once they start
-  joint_command_position_ = initial_position_;
-  
-  for (size_t i = 0; i < initial_position_.size(); ++i) {
+  for (size_t i = 0; i < joint_command_position_.size(); ++i) {
     RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Joint %zu command position initialized to: %f", i, joint_command_position_[i]);
   }
 
@@ -411,7 +402,7 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
     
     }
     else{
-      RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Joint command value not found or undefined command state");
+      // RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Joint command value not found or undefined command state");
     }
 
     // Cast data to uint8_t
