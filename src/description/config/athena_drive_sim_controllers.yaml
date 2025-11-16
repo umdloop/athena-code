@@ -15,9 +15,9 @@ controller_manager:
 ackermann_steering_controller:
   ros__parameters:
 
-    rear_wheels_names: ["propulsion_1_joint", "propulsion_2_joint"]
+    rear_wheels_names: ["propulsion_fl_joint", "propulsion_fr_joint"]
     
-    front_wheels_names: ["steer_1_joint", "steer_2_joint"]
+    front_wheels_names: ["steer_fl_joint", "steer_fr_joint"]
     
     front_wheel_track: 0.6604
     rear_wheel_track: 0.6604
@@ -30,6 +30,6 @@ ackermann_steering_controller:
 rear_steer_position_controller:
   ros__parameters:
     joints:
-      - steer_3_joint
-      - steer_4_joint
+      - steer_br_joint
+      - steer_bl_joint
     interface_name: position
