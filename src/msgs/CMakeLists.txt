@@ -12,8 +12,6 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/CANA.msg"
-  "msg/CANB.msg"
   "msg/Currentdraw.msg"
   "msg/JointReceiver.msg"
   "msg/SystemInfo.msg"
