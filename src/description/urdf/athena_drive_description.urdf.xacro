@@ -50,14 +50,6 @@
             </collision>
         </link>
 
-        <!-- base_joint fixes base_link to the environment -->
-        <joint name="base_joint" type="fixed">
-            <parent link="world"/>
-            <child link="chassis_base_link"/>
-            <origin xyz="0 0 0" rpy="0 0 3.141592653"/>
-            <axis xyz="0 0 1"/>
-        </joint>
-
         <joint name="suspension_front_left_joint" type="fixed">
             <origin xyz="0.61263 0.22146 -0.74592" rpy="1.5708 0 0.094743" />
             <parent link="chassis_base_link" />

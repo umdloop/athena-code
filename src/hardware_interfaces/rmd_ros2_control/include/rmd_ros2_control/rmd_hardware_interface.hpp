@@ -100,6 +100,9 @@ private:
   int num_joints;
   int current_joint;
 
+  // Mutex
+  std::mutex state_mutex_;
+
   // Store the state for the simulated robot
   std::vector<double> joint_state_position_;
   std::vector<double> joint_state_velocity_;

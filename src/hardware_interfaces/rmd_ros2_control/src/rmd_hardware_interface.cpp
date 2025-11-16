@@ -309,6 +309,8 @@ int32_t RMDHardwareInterface::calculate_motor_velocity_from_desired_joint_veloci
 hardware_interface::return_type RMDHardwareInterface::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  
   int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   current_joint+=1;
   current_joint = current_joint % num_joints;

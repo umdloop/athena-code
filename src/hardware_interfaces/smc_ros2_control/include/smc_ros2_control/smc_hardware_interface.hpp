@@ -116,8 +116,6 @@ private:
   CANLib::CanFrame can_tx_frame_;
   CANLib::CanFrame can_rx_frame_;
 
-  // umdloop_theseus_can_messages::msg::CANA received_joint_data_;
-
   std::vector<int> joint_node_ids;
   std::vector<int> joint_gear_ratios;
 
