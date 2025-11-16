@@ -111,7 +111,7 @@
             </collision>
         </link>
 
-        <joint name="steer_1_joint" type="revolute">
+        <joint name="steer_fl_joint" type="revolute">
             <origin xyz="0 0 0.059903" rpy="3.1416 0.094743 3.1416" />
             <parent link="swerve_mount_1_link" />
             <child link="steer_1_link" />
@@ -172,7 +172,7 @@
             </collision>
         </link>
 
-        <joint name="propulsion_1_joint" type="continuous">
+        <joint name="propulsion_fl_joint" type="continuous">
             <origin xyz="0 -0.054545 -0.10628" rpy="0 0 0" />
             <parent link="wheel_bracket_1_link" />
             <child link="propulsion_1_link" />
@@ -232,7 +232,7 @@
             </collision>
         </link>
 
-        <joint name="steer_4_joint" type="revolute">
+        <joint name="steer_bl_joint" type="revolute">
             <origin xyz="0 0 0.059903" rpy="0 -0.094743 0" />
             <parent link="swerve_mount_4_link" />
             <child link="steer_4_link" />
@@ -293,7 +293,7 @@
             </collision>
         </link>
 
-        <joint name="propulsion_4_joint" type="continuous">
+        <joint name="propulsion_bl_joint" type="continuous">
             <origin xyz="0 -0.054545 -0.10628" rpy="0 0 0" />
             <parent link="wheel_bracket_4_link" />
             <child link="propulsion_4_link" />
@@ -384,7 +384,7 @@
             </collision>
         </link>
 
-        <joint name="steer_2_joint" type="revolute">
+        <joint name="steer_fr_joint" type="revolute">
             <origin xyz="0 0 0.059903" rpy="3.1416 0.094743 3.1416" />
             <parent link="swerve_mount_2_link" />
             <child link="steer_2_link" />
@@ -445,7 +445,7 @@
             </collision>
         </link>
 
-        <joint name="propulsion_2_joint" type="continuous">
+        <joint name="propulsion_fr_joint" type="continuous">
             <origin xyz="0 -0.054545 -0.10628" rpy="0 0 0" />
             <parent link="wheel_bracket_2_link" />
             <child link="propulsion_2_link" />
@@ -505,7 +505,7 @@
             </collision>
         </link>
 
-        <joint name="steer_3_joint" type="revolute">
+        <joint name="steer_br_joint" type="revolute">
             <origin xyz="0 0 0.0599025014000917" rpy="0 -0.0947430505373176 0" />
             <parent link="swerve_mount_3_link" />
             <child link="steer_3_link" />
@@ -566,7 +566,7 @@
             </collision>
         </link>
 
-        <joint name="propulsion_3_joint" type="continuous">
+        <joint name="propulsion_br_joint" type="continuous">
             <origin xyz="0 -0.054545 -0.10628" rpy="0 0 0" />
             <parent link="wheel_bracket_3_link" />
             <child link="propulsion_3_link" />
