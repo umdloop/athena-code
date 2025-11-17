@@ -348,6 +348,17 @@ def generate_launch_description():
         parameters = [teleop_twist_config],
     )
 
+    twist_stamper_node = Node(
+        package="drive_bringup",
+        executable="twist_stamper.py",
+        name="twist_stamper",
+        output="screen",
+        parameters=[{
+            "in_topic": "/cmd_vel",
+            "out_topic": "/ackermann_steering_controller/reference",
+        }]
+    )
+
 
     return LaunchDescription(
         declared_arguments + 
@@ -356,6 +367,7 @@ def generate_launch_description():
             robot_state_pub_node,
             joystick_publisher,
             teleop_twist_joy,
+            twist_stamper_node,
             joint_state_publisher,
             # delay_can_node_after_control_node,
             delay_joint_state_broadcaster_spawner_after_ros2_control_node,

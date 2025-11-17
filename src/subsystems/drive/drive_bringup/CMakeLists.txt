@@ -18,6 +18,7 @@ install(
 
 install(PROGRAMS
   scripts/controller_switcher.py
+  scripts/twist_stamper.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
