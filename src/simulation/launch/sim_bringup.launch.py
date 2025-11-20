@@ -6,23 +6,6 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 ARGUMENTS = [
     DeclareLaunchArgument(
-        'namespace',
-        default_value='',
-        description='Robot namespace'
-    ),
-    DeclareLaunchArgument(
-        'rviz',
-        default_value='false',
-        choices=['true', 'false'],
-        description='Start RViz for visualization'
-    ),
-    DeclareLaunchArgument(
-        'use_sim_time',
-        default_value='true',
-        choices=['true', 'false'],
-        description='Use simulation time from Gazebo'
-    ),
-    DeclareLaunchArgument(
         'world',
         default_value='empty.sdf',
         description='Gazebo world file to load'
@@ -32,20 +15,19 @@ ARGUMENTS = [
         default_value='default',  
         description='Name of the world inside Gazebo'
     ),
+    DeclareLaunchArgument(
+        'use_sim_time',
+        default_value='true',
+        choices=['true', 'false'],
+        description='Use simulation time from Gazebo'
+    ),
 ]
+
 
 def generate_launch_description():
     pkg_sim = get_package_share_directory('simulation')
 
-    gazebo_launch = PathJoinSubstitution(
-        [pkg_sim, 'launch', 'gz_sim.launch.py'])
-    robot_spawn_launch = PathJoinSubstitution(
-        [pkg_sim, 'launch', 'spawn.launch.py'])
-    bridge_launch = PathJoinSubstitution(
-        [pkg_sim, 'launch', 'bridge.launch.py'])
-    control_launch = PathJoinSubstitution(
-        [pkg_sim, 'launch', 'control.launch.py'])
-
+    gazebo_launch = PathJoinSubstitution([pkg_sim, 'launch', 'gz_sim.launch.py'])
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([gazebo_launch]),
         launch_arguments=[
@@ -68,13 +50,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource([bridge_launch])
     )
 
-    control = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([control_launch])
-    )
-
     ld = LaunchDescription(ARGUMENTS)
     ld.add_action(gazebo)
-    ld.add_action(robot_spawn)
     ld.add_action(bridge)
-    ld.add_action(control)
     return ld
