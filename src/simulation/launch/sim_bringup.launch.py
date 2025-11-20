@@ -16,6 +16,16 @@ ARGUMENTS = [
         choices=['true', 'false'],
         description='Use simulation time from Gazebo'
     ),
+    DeclareLaunchArgument(
+        'world',
+        default_value='empty.sdf',
+        description='Gazebo world file to load'
+    ),
+    DeclareLaunchArgument(
+        'world_name',
+        default_value='default',  
+        description='Name of the world inside Gazebo'
+    ),
 ]
 
 
@@ -31,7 +41,16 @@ def generate_launch_description():
         ]
     )
 
-    bridge_launch = PathJoinSubstitution([pkg_sim, 'launch', 'bridge.launch.py'])
+    robot_spawn = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([robot_spawn_launch]),
+        launch_arguments=[
+            ('namespace', LaunchConfiguration('namespace')),
+            ('rviz', LaunchConfiguration('rviz')),
+            ('use_sim_time', LaunchConfiguration('use_sim_time')),
+            ('world_name', LaunchConfiguration('world_name'))
+        ]
+    )
+
     bridge = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([bridge_launch])
     )
