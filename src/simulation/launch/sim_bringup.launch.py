@@ -11,20 +11,15 @@ ARGUMENTS = [
         description='Gazebo world file to load'
     ),
     DeclareLaunchArgument(
+        'world_name',
+        default_value='default',  
+        description='Name of the world inside Gazebo'
+    ),
+    DeclareLaunchArgument(
         'use_sim_time',
         default_value='true',
         choices=['true', 'false'],
         description='Use simulation time from Gazebo'
-    ),
-    DeclareLaunchArgument(
-        'world',
-        default_value='empty.sdf',
-        description='Gazebo world file to load'
-    ),
-    DeclareLaunchArgument(
-        'world_name',
-        default_value='default',  
-        description='Name of the world inside Gazebo'
     ),
 ]
 
