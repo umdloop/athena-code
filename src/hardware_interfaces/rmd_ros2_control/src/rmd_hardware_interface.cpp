@@ -1,21 +1,3 @@
-// Copyright (c) 2021, Stogl Robotics Consulting UG (haftungsbeschränkt)
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//
-// Authors: Denis Stogl
-//
-
 #include "rmd_ros2_control/rmd_hardware_interface.hpp"
 
 #include <netdb.h>
@@ -155,6 +137,8 @@ void RMDHardwareInterface::onCanMessage(const CANLib::CanFrame& frame) {
   std::string result;
 
   int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  double raw_motor_velocity = 0.0;
+  double raw_motor_position = 0.0;
 
   for(int i = 0; i < num_joints; i++){
     if(can_rx_frame_.id == joint_node_read_ids[i] && 
@@ -174,7 +158,7 @@ void RMDHardwareInterface::onCanMessage(const CANLib::CanFrame& frame) {
       // uint16 -> int16 -> double (for calcs)
       motor_position[i] = static_cast<double>(static_cast<int16_t>((data[7] << 8) | data[6]));
 
-      // SPEED
+      // VELOCITY
       // uint16 -> int16 -> double (for calcs)
       motor_velocity[i] = static_cast<double>(static_cast<int16_t>((data[5] << 8) | data[4]));
     }
@@ -385,6 +369,7 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
       canBus.send(can_tx_frame_);
     }
   }
+  RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Period passed to write: %f seconds", period.seconds());
    
   return hardware_interface::return_type::OK;
 }
