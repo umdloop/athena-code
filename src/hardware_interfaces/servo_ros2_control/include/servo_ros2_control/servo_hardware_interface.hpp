@@ -1,21 +1,3 @@
-// Copyright (c) 2021, Stogl Robotics Consulting UG (haftungsbeschränkt)
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//
-// Authors: Denis Stogl
-//
-
 #ifndef SERVO_HARDWARE_INTERACE_HPP_
 #define SERVO_HARDWARE_INTERACE_HPP_
 
@@ -38,7 +20,9 @@
 #include <rclcpp/node.hpp>
 #include <rclcpp/publisher.hpp>
 #include <rclcpp/subscription.hpp>
-#include "msgs/msg/cana.hpp"
+
+#include "umdloop_can_library/SocketCanBus.hpp"
+#include "umdloop_can_library/CanFrame.hpp"
 
 namespace servo_ros2_control
 {
@@ -57,11 +41,13 @@ public:
 
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
-  // Establish communications and set initial values for state and command interfaces
-  // hardware_interface::CallbackReturn on_configure(
-  //   const rclcpp_lifecycle::State & previous_state) override;
-
   // Lifecycle
+  hardware_interface::CallbackReturn on_configure(
+    const rclcpp_lifecycle::State & previous_state) override;
+
+  hardware_interface::CallbackReturn on_cleanup(
+    const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_activate(
     const rclcpp_lifecycle::State & previous_state) override;
 
@@ -82,9 +68,25 @@ public:
   hardware_interface::return_type write(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
+  void onCanMessage(const CANLib::CanFrame& frame);
+
+  // Helper Functions
+  double calculate_joint_position_from_motor_position(double motor_position, int gear_ratio);
+  double calculate_joint_velocity_from_motor_velocity(double motor_velocity, int gear_ratio);
+
+  int32_t calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio);
+  int32_t calculate_motor_velocity_from_desired_joint_velocity(double joint_velocity, int gear_ratio);
+
 private:
 
   int num_joints;
+  int current_joint;
+  int update_rate;
+  double elapsed_update_time;
+  std::string can_interface;
+
+  int can_command_id;
+  int can_response_id;
 
   // Store the state for the simulated robot
   std::vector<double> joint_state_position_;
@@ -94,18 +96,16 @@ private:
   std::vector<double> joint_command_position_;
   std::vector<double> joint_command_velocity_;
 
-  double encoder_position;
-  double motor_speed;
+  std::vector<double> encoder_position;
+  std::vector<double> motor_velocity;
+  std::vector<double> motor_position;
 
-  rclcpp::Publisher<msgs::msg::CANA>::SharedPtr actuator_can_publisher_;
-  rclcpp::Subscription<msgs::msg::CANA>::SharedPtr actuator_can_subscriber_;
-  rclcpp::Node::SharedPtr node_;
-
-  msgs::msg::CANA received_joint_data_;
+  CANLib::SocketCanBus canBus;
+  CANLib::CanFrame can_tx_frame_;
+  CANLib::CanFrame can_rx_frame_;
 
   std::vector<int> joint_node_ids;
   std::vector<int> joint_gear_ratios;
-
 
   enum integration_level_t : std::uint8_t
   {
@@ -114,7 +114,7 @@ private:
     VELOCITY = 2,
   };
 
-  // Active control mode for each servok
+  // Active control mode for each actuator
   std::vector<integration_level_t> control_level_;
 
 };
@@ -122,4 +122,3 @@ private:
 }  // namespace servo_hardware_interface
 
 #endif  // SERVO_HARDWARE_INTERACE_HPP_
-

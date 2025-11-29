@@ -97,6 +97,9 @@ public:
 private:
 
   int num_joints;
+  int update_rate;
+  double elapsed_update_time;
+  std::string can_interface;
 
   // Store the state for the simulated robot
   std::vector<double> joint_state_position_;
@@ -109,6 +112,9 @@ private:
   std::vector<double> encoder_position;
   std::vector<double> motor_velocity;
   std::vector<double> motor_position;
+    
+  // Velocity at which **joint** rotates to reach position in 1 dps
+  uint16_t operating_velocity;
 
   std::vector<bool> joint_initialization_;
 

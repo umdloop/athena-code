@@ -98,10 +98,9 @@ public:
 private:
 
   int num_joints;
-  int current_joint;
-
-  // Mutex
-  std::mutex state_mutex_;
+  int update_rate;
+  double elapsed_update_time;
+  std::string can_interface;
 
   // Store the state for the simulated robot
   std::vector<double> joint_state_position_;
@@ -111,16 +110,19 @@ private:
   std::vector<double> joint_command_position_;
   std::vector<double> joint_command_velocity_;
 
-  std::vector<double> encoder_position;
+  // Place holders for data from the canBus, will be accessed in read()
   std::vector<double> motor_velocity;
   std::vector<double> motor_position;
+  
+  // Velocity at which **joint** rotates to reach position in 1 dps
+  uint16_t operating_velocity;
 
   CANLib::SocketCanBus canBus;
   CANLib::CanFrame can_tx_frame_;
   CANLib::CanFrame can_rx_frame_;
 
-  std::vector<int> joint_node_write_ids;
-  std::vector<int> joint_node_read_ids;
+  std::vector<uint32_t> joint_node_write_ids;
+  std::vector<uint32_t> joint_node_read_ids;
   std::vector<int> joint_gear_ratios;
   std::vector<int> joint_orientation;
 

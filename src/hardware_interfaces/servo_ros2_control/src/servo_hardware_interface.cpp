@@ -1,21 +1,3 @@
-// Copyright (c) 2021, Stogl Robotics Consulting UG (haftungsbeschränkt)
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//
-// Authors: Denis Stogl
-//
-
 #include "servo_ros2_control/servo_hardware_interface.hpp"
 
 #include <netdb.h>
@@ -36,6 +18,10 @@
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+#define DEBUG_MODE 0 // 0 for off 1 for on
+
+using std::placeholders::_1;
+
 namespace servo_ros2_control
 {
 hardware_interface::CallbackReturn SERVOHardwareInterface::on_init(
@@ -48,51 +34,47 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_init(
     return hardware_interface::CallbackReturn::ERROR;
   }
   
-  /*
-  IF YOU WANT TO USE PARAMETERS FROM ROS2_CONTROL XACRO, DO THAT HERE!!!
-  */
-  
   // This stores the can ids for each joint aka motor
-  /* for (auto& joint : info_.joints) {
-    joint_node_ids.push_back(std::stoi(joint.parameters.at("node_id")));
-  } */
+  for (auto& joint : info_.joints) {
+    joint_node_ids.push_back(std::clamp(std::stoi(joint.parameters.at("node_id"), nullptr, 0), 0x0, 0xF));
+    joint_gear_ratios.push_back(std::abs(std::stoi(joint.parameters.at("gear_ratio"))));
+  }
 
   num_joints = static_cast<int>(info_.joints.size());
+  update_rate = std::stoi(info_.hardware_parameters.at("update_rate"));
+  can_interface = info_.hardware_parameters.at("can_interface");
+  can_command_id = std::stoi(info_.hardware_parameters.at("can_id"), nullptr, 0);
+  can_response_id = can_command_id+0x1;
   
   // Initializes command and state interface values
-  joint_state_position_.assign(num_joints, 0);
+  joint_state_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
   joint_state_velocity_.assign(num_joints, 0);
 
-  joint_command_position_.assign(num_joints, 0);
+  joint_command_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
   joint_command_velocity_.assign(num_joints, 0);
 
-  encoder_position = 0;
-  motor_speed = 0;
+  encoder_position.assign(num_joints, 0.0);
+  motor_position.assign(num_joints, 0.0);
+  motor_velocity.assign(num_joints, 0.0);
 
-  control_level_.resize(num_joints, integration_level_t::UNDEFINED);
+  control_level_.resize(num_joints, integration_level_t::POSITION);
 
-  node_ = rclcpp::Node::make_shared("servo_hardware_node");
-  actuator_can_publisher_ = node_->create_publisher<msgs::msg::CANA>("can_tx", 10);
+  current_joint = 0;
 
-  // Lambda function that takes the message as a shared pointer, dereferences it, 
-  // and stores it in received_joint_data_ to be used
-  actuator_can_subscriber_ = node_->create_subscription<msgs::msg::CANA>(
-      "can_rx", 
-      10, 
-      [this](const msgs::msg::CANA::SharedPtr received_message) 
-      {
-        received_joint_data_ = *received_message;
-      });
+  for (size_t i = 0; i < joint_command_velocity_.size(); ++i) {
+    RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %zu command vel in on_init: %f", i, joint_command_velocity_[i]);
+  }
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 
 hardware_interface::CallbackReturn SERVOHardwareInterface::on_shutdown(
-  const rclcpp_lifecycle::State & /*previous_state*/)
+  const rclcpp_lifecycle::State & previous_state)
 {
-  // may not need this either
-  return hardware_interface::CallbackReturn::SUCCESS;
+  // Reuse cleanup logic which shuts down the motor and then deinitializes shared pointers.
+  // Need this in case on_cleanup never gets called
+  return this->on_cleanup(previous_state);
 }
 
 
@@ -129,11 +111,100 @@ SERVOHardwareInterface::export_command_interfaces()
   return command_interfaces;
 }
 
+hardware_interface::CallbackReturn SERVOHardwareInterface::on_configure(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  if (!canBus.open(can_interface, std::bind(&SERVOHardwareInterface::onCanMessage, this, std::placeholders::_1))) {
+    RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Failed to open CAN interface");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
+
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
+
+void SERVOHardwareInterface::onCanMessage(const CANLib::CanFrame& frame) {
+  can_rx_frame_ = frame; // Store the received frame for processing in read()
+
+  std::string result;
+
+  int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  int8_t command_nibble = ((can_rx_frame_.data[0]>>4) & 0x0F);
+  int8_t device_id_nibble = (can_rx_frame_.data[0] & 0x0F);
+  double raw_motor_position = 0.0;
+  double raw_motor_velocity = 0.0;
+
+  for(int i = 0; i < num_joints; i++){
+    if(can_rx_frame_.id == can_response_id && command_nibble == 0x07 && device_id_nibble == joint_node_ids[i]){
+      
+      // DECODING CAN MESSAGE FOR VELOCITY
+      data[0] = 0x9C;
+      data[1] = can_rx_frame_.data[1]; // Motor Temperature
+      data[2] = can_rx_frame_.data[2]; // Position low byte
+      data[3] = can_rx_frame_.data[3]; // Position high byte
+      data[4] = can_rx_frame_.data[4]; // Velocity low byte
+      data[5] = can_rx_frame_.data[5]; // Velocity high byte
+      data[6] = can_rx_frame_.data[6]; // Torque position low byte
+      data[7] = can_rx_frame_.data[7]; // Torque position high byte
+
+      // POSITION
+      // uint32 -> int16 -> double (for calcs)
+      raw_motor_position = static_cast<double>(static_cast<int32_t>((data[3] << 8) | data[2]));
+
+      // VELOCITY
+      // uint16 -> int16 -> double (for calcs)
+      raw_motor_velocity = static_cast<double>(static_cast<int16_t>((data[5] << 8) | data[4]));
+
+      // TORQUE
+      // TODO
+
+      // CALCULATING JOINT STATE
+      motor_position[i] = calculate_joint_position_from_motor_position(raw_motor_position, joint_gear_ratios[i]);
+      motor_velocity[i] = calculate_joint_velocity_from_motor_velocity(raw_motor_velocity, joint_gear_ratios[i]);
+    }
+    else{
+      if(DEBUG_MODE == 1) {
+        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Reply not heard.");
+      }
+    }
+  }
+
+}
+
+hardware_interface::CallbackReturn SERVOHardwareInterface::on_cleanup(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Cleaning up ...please wait...");
+  int8_t command_nibble = 0x5;
+  int8_t device_id_nibble;
+  // If cleanup occurs before shutdown, this is the last opportunity to shutdown motor since pointers must be deleted here
+  for(int i = 0; i < num_joints; i++){
+    can_tx_frame_ = CANLib::CanFrame();
+    can_tx_frame_.id = can_command_id;
+    can_tx_frame_.dlc = 1;
+        
+    // Motor Shutdown Command
+    device_id_nibble = joint_node_ids[i] & 0x0F;
+    can_tx_frame_.data = { static_cast<uint8_t>((command_nibble << 4) | device_id_nibble) };
+    canBus.send(can_tx_frame_);
+  }
+
+  canBus.close();
+  RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Cleaning up successful!");
+
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
 
 hardware_interface::CallbackReturn SERVOHardwareInterface::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Activating ...please wait...");
+
+  // Sets initial command to joint state
+  joint_command_position_ = joint_state_position_;
+  
+  for (size_t i = 0; i < joint_command_position_.size(); ++i) {
+    RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %zu command position initialized to: %f", i, joint_command_position_[i]);
+  }
 
   RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Successfully activated!");
 
@@ -144,18 +215,81 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_activate(
 hardware_interface::CallbackReturn SERVOHardwareInterface::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  auto joint_tx = msgs::msg::CANA();
   RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Deactivating ...please wait...");
+  int8_t command_nibble = 0x6;
+  int8_t device_id_nibble;
+
+  for(int i = 0; i < num_joints; i++){
+    can_tx_frame_ = CANLib::CanFrame();
+    can_tx_frame_.id = can_command_id;
+    can_tx_frame_.dlc = 1;
+        
+    // Motor Stop Command
+    device_id_nibble = joint_node_ids[i] & 0x0F;
+    can_tx_frame_.data = { static_cast<uint8_t>((command_nibble << 4) | device_id_nibble) };
+    canBus.send(can_tx_frame_);
+  }
 
   RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Successfully deactivated all SERVO motors!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
+double SERVOHardwareInterface::calculate_joint_position_from_motor_position(double motor_position, int gear_ratio){
+  // Converts from 0.1 deg to deg to radians
+  return (motor_position * 0.1 * (M_PI/180.0))/gear_ratio;
+}
+
+double SERVOHardwareInterface::calculate_joint_velocity_from_motor_velocity(double motor_velocity, int gear_ratio){
+  // Converts from dps to radians/s
+  return (motor_velocity * (M_PI/180.0))/gear_ratio;
+}
+
+int32_t SERVOHardwareInterface::calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio){
+  // radians -> deg -> 0.01 deg
+  return static_cast<int32_t>(std::round((joint_position*(180/M_PI)*100)*gear_ratio));
+}
+
+int32_t SERVOHardwareInterface::calculate_motor_velocity_from_desired_joint_velocity(double joint_velocity, int gear_ratio){
+  // radians/s -> deg/s -> 0.01 deg/s
+  return static_cast<int32_t>(std::round((joint_velocity*(180/M_PI)*100)*gear_ratio));
+}
+
+
 
 hardware_interface::return_type SERVOHardwareInterface::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
+  int8_t command_nibble = 0x7;
+  int8_t device_id_nibble;
+
+  current_joint+=1;
+  current_joint = current_joint % num_joints;
+  for(int i = 0; i < num_joints; i++) {
+    if(current_joint == i){
+      can_tx_frame_ = CANLib::CanFrame();
+      can_tx_frame_.id = can_command_id;
+      can_tx_frame_.dlc = 1;
+
+      // Command to read motor status command
+      device_id_nibble = joint_node_ids[i] & 0x0F;
+      can_tx_frame_.data = { static_cast<uint8_t>((command_nibble << 4) | device_id_nibble) };
+      canBus.send(can_tx_frame_);
+
+      // CALCULATING JOINT STATE
+      joint_state_velocity_[i] = motor_velocity[i];
+      joint_state_position_[i] = motor_position[i];
+
+      if(DEBUG_MODE == 1) {
+        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Reading for joint: %s Motor Position: %f Joint position: %f Joint velocity: %f \n", 
+                                                          info_.joints[i].name.c_str(),
+                                                          motor_position[i],
+                                                          joint_state_position_[i], 
+                                                          joint_state_velocity_[i]);
+      }
+    }
+  }
+    
   return hardware_interface::return_type::OK;
 }
 
@@ -163,6 +297,74 @@ hardware_interface::return_type SERVOHardwareInterface::read(
 hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
+  int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  int32_t joint_angle = 0;
+  int16_t operating_velocity = 20; // dps
+  int32_t joint_velocity = 0;
+  
+  for(int i = 0; i < num_joints; i++) {
+    can_tx_frame_ = CANLib::CanFrame(); // Must reinstantiate else data from past iteration gets repeated
+    can_tx_frame_.id = can_command_id;
+    can_tx_frame_.dlc = 8;
+    
+    if(control_level_[i] == integration_level_t::POSITION && std::isfinite(joint_command_position_[i])) {
+
+      // CALCULATE DESIRED JOINT ANGLE
+      joint_angle = calculate_motor_position_from_desired_joint_position(joint_command_position_[i], joint_gear_ratios[i]);
+
+      if(DEBUG_MODE == 1) {
+        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Writing positions for: %s Joint angle of motor (0.01 deg): %d Joint command: %f", 
+                                                              info_.joints[i].name.c_str(),
+                                                              joint_angle,
+                                                              joint_command_position_[i]);
+      }
+      
+      // ENCODING CAN MESSAGE
+      data[0] = 0xA4;
+      data[1] = 0x00;
+      data[2] = operating_velocity & 0xFF;
+      data[3] = (operating_velocity >> 8) & 0xFF;
+      data[4] = joint_angle & 0xFF;
+      data[5] = (joint_angle >> 8) & 0xFF;
+      data[6] = (joint_angle >> 16) & 0xFF;
+      data[7] = (joint_angle >> 24) & 0xFF;
+      
+    }
+    else if(control_level_[i] == integration_level_t::VELOCITY && std::isfinite(joint_command_velocity_[i])) {
+      
+      // CALCULATE DESIRED JOINT VELOCITY
+      joint_velocity = calculate_motor_velocity_from_desired_joint_velocity(joint_command_velocity_[i], joint_gear_ratios[i]);
+
+      if(DEBUG_MODE == 1) {
+        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Writing velocities for: %s Joint velocity of motor (0.01 dps): %d", 
+                                                        info_.joints[i].name.c_str(),
+                                                        joint_velocity);
+      }
+      
+      // ENCODING CAN MESSAGE
+      data[0] = 0xA2;
+      data[1] = 0x00;
+      data[2] = 0x00;
+      data[3] = 0x00;  
+      data[4] = joint_velocity & 0xFF;
+      data[5] = (joint_velocity >> 8) & 0xFF;
+      data[6] = (joint_velocity >> 16) & 0xFF;
+      data[7] = (joint_velocity >> 24) & 0xFF;
+    
+    }
+    else{
+      // RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint command value not found or undefined command state");
+    }
+
+    // Cast data to uint8_t
+    for(int j = 0; j < 8; j++){
+      data[j] = static_cast<uint8_t>(data[j]);
+      can_tx_frame_.data[j] = data[j];
+    }
+    
+    canBus.send(can_tx_frame_);
+  }
+   
   return hardware_interface::return_type::OK;
 }
 
@@ -177,29 +379,28 @@ hardware_interface::return_type SERVOHardwareInterface::perform_command_mode_swi
   ss << "] stop_interfaces: [";
   for (auto &s : stop_interfaces) ss << s << ",";
   ss << "]";
-  RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "%s", ss.str().c_str());
+  RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), ss.str().c_str());
 
   // For each joint, decide its new control mode based on start/stop interfaces.
+  // We allow partial starts/stops: only affected joints are switched.
   std::vector<integration_level_t> requested_modes(num_joints, integration_level_t::UNDEFINED);
 
-  // -------- STOP INTERFACES --------
+  // Process stop interfaces first: mark those joints as UNDEFINED
   for (const auto &ifname : stop_interfaces) {
     for (int i = 0; i < num_joints; ++i) {
       const std::string pos_if = info_.joints[i].name + "/" + std::string(hardware_interface::HW_IF_POSITION);
       const std::string vel_if = info_.joints[i].name + "/" + std::string(hardware_interface::HW_IF_VELOCITY);
-
       if (ifname == pos_if || ifname == vel_if || ifname.find(info_.joints[i].name) != std::string::npos) {
         requested_modes[i] = integration_level_t::UNDEFINED;
       }
     }
   }
 
-  // -------- START INTERFACES --------
+  // Process start interfaces: set POSITION or VELOCITY per joint
   for (const auto &ifname : start_interfaces) {
     for (int i = 0; i < num_joints; ++i) {
       const std::string pos_if = info_.joints[i].name + "/" + std::string(hardware_interface::HW_IF_POSITION);
       const std::string vel_if = info_.joints[i].name + "/" + std::string(hardware_interface::HW_IF_VELOCITY);
-
       if (ifname == pos_if) {
         requested_modes[i] = integration_level_t::POSITION;
       } else if (ifname == vel_if) {
@@ -208,10 +409,12 @@ hardware_interface::return_type SERVOHardwareInterface::perform_command_mode_swi
     }
   }
 
-  // -------- APPLY MODES --------
+  // Now apply the requested_modes to control_level_.
+  // For any joint with UNDEFINED in requested_modes, we only change it if it was explicitly stopped.
   for (int i = 0; i < num_joints; ++i) {
-
     if (requested_modes[i] == integration_level_t::UNDEFINED) {
+      // if stop requested, set to UNDEFINED; otherwise leave existing mode
+      // (we only set to UNDEFINED if this joint was mentioned in stop_interfaces)
       bool was_stopped = false;
       for (const auto &ifname : stop_interfaces) {
         if (ifname.find(info_.joints[i].name) != std::string::npos) {
@@ -219,29 +422,29 @@ hardware_interface::return_type SERVOHardwareInterface::perform_command_mode_swi
           break;
         }
       }
-
       if (was_stopped) {
         control_level_[i] = integration_level_t::UNDEFINED;
         joint_command_velocity_[i] = 0;
+        // optional: reset position cmd to current state to be safe
         joint_command_position_[i] = joint_state_position_[i];
         RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"),
-          "Joint %s: stopped -> UNDEFINED",
-          info_.joints[i].name.c_str());
+          "Joint %s: stopped -> set UNDEFINED", info_.joints[i].name.c_str());
       }
-
+      // else, leave control_level_ as-is
     } else {
-
+      // Set the mode requested
       control_level_[i] = requested_modes[i];
-
+      // If switching to velocity, optionally set command velocity to current state to avoid jumps
       if (requested_modes[i] == integration_level_t::VELOCITY) {
-        joint_command_velocity_[i] = 0.0;
+        // joint_command_velocity_[i] = joint_state_velocity_[i];
+        joint_command_velocity_[i] = 0;
         RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"),
-          "Joint %s: switched to VELOCITY",
-          info_.joints[i].name.c_str());
+          "Joint %s: switched to VELOCITY (cmd vel initialized from state: %f)",
+          info_.joints[i].name.c_str(), joint_command_velocity_[i]);
       } else if (requested_modes[i] == integration_level_t::POSITION) {
         joint_command_position_[i] = joint_state_position_[i];
         RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"),
-          "Joint %s: switched to POSITION (init pos=%f)",
+          "Joint %s: switched to POSITION (cmd pos initialized from state: %f)",
           info_.joints[i].name.c_str(), joint_command_position_[i]);
       }
     }

@@ -268,7 +268,7 @@ controller_interface::return_type ManualArmJointByJointController::update(
     // RCLCPP_INFO(get_node()->get_logger(), "Talon: %f", joint_velocities_[5]);
   }
   else{
-    RCLCPP_INFO(get_node()->get_logger(), "Returning NaN");
+    // RCLCPP_INFO(get_node()->get_logger(), "Returning NaN");
     joint_velocities_.resize(6, 0.0);
   }
 

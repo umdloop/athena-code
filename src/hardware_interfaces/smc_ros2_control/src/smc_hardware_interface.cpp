@@ -30,6 +30,7 @@
 #include <memory>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/lexical_casts.hpp"
@@ -50,17 +51,31 @@ hardware_interface::CallbackReturn SMCHardwareInterface::on_init(
     return hardware_interface::CallbackReturn::ERROR;
   }
   
-  /*
-  IF YOU WANT TO USE PARAMETERS FROM ROS2_CONTROL XACRO, DO THAT HERE!!!
-  */
-  
-  // This stores the can ids for each joint aka motor
+  // Setting Parameters
   for (auto& joint : info_.joints) {
-    joint_node_ids.push_back(std::stoi(joint.parameters.at("node_id")));
-    joint_gear_ratios.push_back(std::stoi(joint.parameters.at("gear_ratio")));
+    int gear_ratio = std::abs(std::stoi(joint.parameters.at("gear_ratio")));
+    joint_node_ids.push_back(std::clamp(std::stoi(joint.parameters.at("node_id"), nullptr, 0), 0x141, 0x160));
+    joint_gear_ratios.push_back(gear_ratio);
+    operating_velocity = std::clamp(std::stoi(joint.parameters.at("operating_velocity")), 0, 65*gear_ratio);
   }
 
+  // Build a single log message
+  std::stringstream ss;
+  for (size_t i = 0; i < info_.joints.size(); ++i) {
+      ss << "Joint " << info_.joints[i].name << " configured:\n"
+        << "  node_id:           0x" << std::hex << joint_node_ids[i] << std::dec << "\n"
+        << "  gear_ratio:        " << joint_gear_ratios[i] << "\n";
+      }
+
+  // Log all joints at once
+  RCLCPP_INFO(rclcpp::get_logger("SMCHWI"), "%s", ss.str().c_str());
+
+
   num_joints = static_cast<int>(info_.joints.size());
+  update_rate = std::stoi(info_.hardware_parameters.at("update_rate"));
+  can_interface = info_.hardware_parameters.at("can_interface");
+
+  elapsed_update_time = 0.0;
   
   // Initializes command and state interface values
   joint_state_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
@@ -124,7 +139,7 @@ SMCHardwareInterface::export_command_interfaces()
 hardware_interface::CallbackReturn SMCHardwareInterface::on_configure(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  if (!canBus.open("can0", std::bind(&SMCHardwareInterface::onCanMessage, this, std::placeholders::_1))) {
+  if (!canBus.open(can_interface, std::bind(&SMCHardwareInterface::onCanMessage, this, std::placeholders::_1))) {
     RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Failed to open CAN interface");
     return hardware_interface::CallbackReturn::ERROR;
   }
@@ -139,11 +154,13 @@ void SMCHardwareInterface::onCanMessage(const CANLib::CanFrame& frame) {
 
   int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-for(int i = 0; i < num_joints; i++){  
-    if(can_rx_frame_.id == joint_node_ids[i] && can_rx_frame_.data[0] == 0x9C){
+  for(int i = 0; i < num_joints; i++){  
+    if(can_rx_frame_.id == joint_node_ids[i] && 
+      (can_rx_frame_.data[0] == 0xA2 || can_rx_frame_.data[0] == 0xA4) &&
+      can_rx_frame_.data[1] != 0x00){
 
       // DECODING CAN MESSAGE FOR VELOCITY
-      data[0] = 0x9C;
+      // data[0] = 0x9C;
       data[1] = can_rx_frame_.data[1]; // Motor Temperature
       data[2] = can_rx_frame_.data[2]; // Torque low byte
       data[3] = can_rx_frame_.data[3]; // Torque high byte
@@ -308,24 +325,6 @@ int32_t SMCHardwareInterface::calculate_motor_velocity_from_desired_joint_veloci
 hardware_interface::return_type SMCHardwareInterface::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
-  int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-  // Since you can't publish two messages in one sweep without a delay, every other iteration of read
-  // will call angle or velocity messages
-  for(int i = 0; i < num_joints; i++){
-    can_tx_frame_ = CANLib::CanFrame();
-    can_tx_frame_.id = joint_node_ids[i];
-    can_tx_frame_.dlc = 8;
-
-    // Command to read multi-turn angle
-    can_tx_frame_.data = {0x92, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    canBus.send(can_tx_frame_);
-    
-    // Command to read motor status 2
-    can_tx_frame_.data = {0x9C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    canBus.send(can_tx_frame_);
-  }
-
   // Values retrieved
   for(int i = 0; i < num_joints; i++){  
 
@@ -345,72 +344,91 @@ hardware_interface::return_type SMCHardwareInterface::read(
 
 
 hardware_interface::return_type smc_ros2_control::SMCHardwareInterface::write(
-  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
+  elapsed_update_time+=period.seconds();
   int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   int32_t joint_angle = 0;
   int16_t operating_velocity = 200;
   int32_t joint_velocity = 0;
-  
-  for(int i = 0; i < num_joints; i++) {
-    can_tx_frame_ = CANLib::CanFrame(); // Must reinstantiate else data from past iteration gets repeated
-    can_tx_frame_.id = joint_node_ids[i];
-    can_tx_frame_.dlc = 8;
 
-    if(control_level_[i] == integration_level_t::POSITION && std::isfinite(joint_command_position_[i])) {
+  double update_period = 1.0/update_rate;
+
+  // HWI can only go as fast as the controller manager. To limit frequency of bus messages,
+  // keep track of time passed over iterations of this function and if it exceeds the 
+  // desired frequency of the HWI, skip message
+  if(update_period > elapsed_update_time){
+    return hardware_interface::return_type::OK;
+  }
+  else{
+    elapsed_update_time = 0.0;
+    for(int i = 0; i < num_joints; i++) {
+      can_tx_frame_ = CANLib::CanFrame(); // Must reinstantiate else data from past iteration gets repeated
+      can_tx_frame_.id = joint_node_ids[i];
+      can_tx_frame_.dlc = 8;
+
+      if(control_level_[i] == integration_level_t::POSITION && std::isfinite(joint_command_position_[i])) {
+        
+        // CALCULATE DESIRED JOINT ANGLE
+        joint_angle = calculate_motor_position_from_desired_joint_position(joint_command_position_[i], joint_gear_ratios[i]);
+        
+        if(DEBUG_MODE == 1) {
+          RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Writing positions for: %s Joint angle of motor (0.01 deg): %d", 
+                                                                info_.joints[i].name.c_str(),
+                                                                joint_angle);
+        }
+        
+        // ENCODING CAN MESSAGE
+        data[0] = 0xA4; 
+        data[1] = 0x00;
+        data[2] = operating_velocity & 0xFF;
+        data[3] = (operating_velocity >> 8) & 0xFF;
+        data[4] = joint_angle & 0xFF;
+        data[5] = (joint_angle >> 8) & 0xFF;
+        data[6] = (joint_angle >> 16) & 0xFF;
+        data[7] = (joint_angle >> 24) & 0xFF;
+      }
+      else if(control_level_[i] == integration_level_t::VELOCITY && std::isfinite(joint_command_velocity_[i])) {
+
+        // CALCULATE DESIRED JOINT VELOCITY
+        joint_velocity = calculate_motor_velocity_from_desired_joint_velocity(joint_command_velocity_[i], joint_gear_ratios[i]);
+
+        if(DEBUG_MODE == 1) {
+          RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Writing velocities for: %s Joint velocity of motor (0.01 dps): %d", 
+                                                            info_.joints[i].name.c_str(),
+                                                            joint_velocity);
+        }
+        
+        // ENCODING CAN MESSAGE
+        data[0] = 0xA2;
+        data[1] = 0x00;
+        data[2] = 0x00;
+        data[3] = 0x00;  
+        data[4] = joint_velocity & 0xFF;
+        data[5] = (joint_velocity >> 8) & 0xFF;
+        data[6] = (joint_velocity >> 16) & 0xFF;
+        data[7] = (joint_velocity >> 24) & 0xFF;
       
-      // CALCULATE DESIRED JOINT ANGLE
-      joint_angle = calculate_motor_position_from_desired_joint_position(joint_command_position_[i], joint_gear_ratios[i]);
-      
-      if(DEBUG_MODE == 1) {
-        RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Writing positions for: %s Joint angle of motor (0.01 deg): %d", 
-                                                              info_.joints[i].name.c_str(),
-                                                              joint_angle);
+      }
+      else{
+        // RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Joint command value not found or undefined command state");
+      }
+
+      // Cast data to uint8_t
+      for(int j = 0; j < 8; j++){
+        data[j] = static_cast<uint8_t>(data[j]);
+        can_tx_frame_.data[j] = data[j];
       }
       
-      // ENCODING CAN MESSAGE
-      data[0] = 0xA4; 
-      data[1] = 0x00;
-      data[2] = operating_velocity & 0xFF;
-      data[3] = (operating_velocity >> 8) & 0xFF;
-      data[4] = joint_angle & 0xFF;
-      data[5] = (joint_angle >> 8) & 0xFF;
-      data[6] = (joint_angle >> 16) & 0xFF;
-      data[7] = (joint_angle >> 24) & 0xFF;
-    }
-    else if(control_level_[i] == integration_level_t::VELOCITY && std::isfinite(joint_command_velocity_[i])) {
-
-      // CALCULATE DESIRED JOINT VELOCITY
-      joint_velocity = calculate_motor_velocity_from_desired_joint_velocity(joint_command_velocity_[i], joint_gear_ratios[i]);
-
-      if(DEBUG_MODE == 1) {
-        RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Writing velocities for: %s Joint velocity of motor (0.01 dps): %d", 
-                                                          info_.joints[i].name.c_str(),
-                                                          joint_velocity);
-      }
+      // RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Sent");
       
-      // ENCODING CAN MESSAGE
-      data[0] = 0xA2;
-      data[1] = 0x00;
-      data[2] = 0x00;
-      data[3] = 0x00;  
-      data[4] = joint_velocity & 0xFF;
-      data[5] = (joint_velocity >> 8) & 0xFF;
-      data[6] = (joint_velocity >> 16) & 0xFF;
-      data[7] = (joint_velocity >> 24) & 0xFF;
-    
-    }
-    else{
-      // RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Joint command value not found or undefined command state");
-    }
+      // Command for position/velocity control
+      canBus.send(can_tx_frame_);
 
-    // Cast data to uint8_t
-    for(int j = 0; j < 8; j++){
-      data[j] = static_cast<uint8_t>(data[j]);
-      can_tx_frame_.data[j] = data[j];
+      // Command to read multi-turn angle
+      can_tx_frame_.data = {0x92, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+      canBus.send(can_tx_frame_);
     }
-    
-    canBus.send(can_tx_frame_);
   }
    
   return hardware_interface::return_type::OK;
