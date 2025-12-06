@@ -71,6 +71,10 @@ controller_interface::CallbackReturn ScienceManual::on_configure(
   servo_joints_.push_back(params_.auger);
   servo_joints_.push_back(params_.cap);
 
+  rack_pinion_joints_.clear();
+  rack_pinion_joints_.push_back(params_.rack_and_pinion_left);
+  rack_pinion_joints_.push_back(params_.rack_and_pinion_right);
+
   // auger_spinner_ = params_.auger_spinner;
 
   if (!params_.state_joints.empty()) {
@@ -151,6 +155,10 @@ controller_interface::InterfaceConfiguration ScienceManual::command_interface_co
     cfg.names.push_back(joint + "/position");
   }
 
+  for (const auto & joint : rack_pinion_joints_) {
+    cfg.names.push_back(joint + "/position");
+  }
+
   // Auger spinner (if separate): velocity control
   // cfg.names.push_back(auger_spinner_ + "/velocity");
   return cfg; 
@@ -175,6 +183,10 @@ controller_interface::InterfaceConfiguration ScienceManual::state_interface_conf
 
   for (const auto & joint : servo_joints_)
   {
+    cfg.names.push_back(joint + "/position");
+  }
+
+  for (const auto & joint : rack_pinion_joints_) {
     cfg.names.push_back(joint + "/position");
   }
 
@@ -206,6 +218,7 @@ controller_interface::CallbackReturn ScienceManual::on_deactivate(
   stepper_joints_.clear();
   talon_joints_.clear();
   servo_joints_.clear();
+  rack_pinion_joints_.clear();
   state_joints_.clear();
 
   RCLCPP_INFO(get_node()->get_logger(), "Manual controller deactivated and released interfaces");
@@ -214,7 +227,7 @@ controller_interface::CallbackReturn ScienceManual::on_deactivate(
 
 controller_interface::return_type ScienceManual::update(
     const rclcpp::Time & /*time*/, 
-    const rclcpp::Duration & /*period*/)
+    const rclcpp::Duration & period)
 {
   
   auto current_ref = input_ref_.readFromRT();
@@ -242,6 +255,19 @@ controller_interface::return_type ScienceManual::update(
   double auger_cmd = (msg->buttons.size() > 5 && msg->buttons[5]) ? 
     params_.velocity_limits_auger[stage_idx] : 0.0;
 
+  double rack_speed = 0.1; // Default speed for rack and pinion movement (CHANGE LATER!)
+  double dt = period.seconds();
+
+  // Left rack: map from axis[1] (left stick vertical)
+  double axis_left = (msg->axes.size() > 1) ? msg->axes[1] : 0.0;
+
+  // Right rack: map from axis[2] (right stick vertical)
+  double axis_right = (msg->axes.size() > 2) ? msg->axes[2] : 0.0;
+
+  // Integrate axes into positions (position += axis * speed * dt)
+  rack_left_position  += axis_left  * rack_speed * dt;
+  rack_right_position += axis_right * rack_speed * dt;
+
   // Auger Spinner
   /*double auger_spinner_cmd = (msg->buttons.size() > 6 && msg->buttons[6]) ? 
     params_.velocity_limits_auger_spinner[stage_idx] : 0.0; */
@@ -249,6 +275,8 @@ controller_interface::return_type ScienceManual::update(
   scoop_position = std::clamp(scoop_position, 0.0, 1.0);
   auger_position = std::clamp(auger_position, 0.0, 1.0);
   cap_position   = std::clamp(cap_position, 0.0, 1.0);
+  rack_left_position  = std::clamp(rack_left_position,  0.0, 1.0);
+  rack_right_position = std::clamp(rack_right_position, 0.0, 1.0);
 
   // Stepper motors (position)
   command_interfaces_[IDX_STEPPER_A_POSITION].set_value(stepper_cmd);
@@ -262,9 +290,13 @@ controller_interface::return_type ScienceManual::update(
   command_interfaces_[IDX_SCOOP_A_POSITION].set_value(scoop_position);
   command_interfaces_[IDX_SCOOP_B_POSITION].set_value(scoop_position);
 
-  // Auger & cap
+  // Auger & cap servos
   command_interfaces_[IDX_AUGER_POSITION].set_value(auger_position);
   command_interfaces_[IDX_CAP_POSITION].set_value(cap_position);
+
+  // Rack and pinion servos
+  command_interfaces_[IDX_RACK_LEFT_POSITION].set_value(rack_left_position);
+  command_interfaces_[IDX_RACK_RIGHT_POSITION].set_value(rack_right_position);
 
   reset_controller_reference_msg(*(input_ref_.readFromRT)(), params_.joints);
 
@@ -274,7 +306,7 @@ controller_interface::return_type ScienceManual::update(
       state_publisher_->msg_.header.frame_id = joint_name;
       state_publisher_->msg_.set_point = stepper_cmd;
       state_publisher_->msg_.process_value = auger_cmd;
-      //state_publisher_->msg_.command = lift_cmd;
+      state_publisher_->msg_.command = lift_cmd;
       state_publisher_->unlockAndPublish();
     }
   }
