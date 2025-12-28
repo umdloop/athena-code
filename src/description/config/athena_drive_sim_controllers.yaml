@@ -28,7 +28,7 @@ ackermann_steering_controller:
     publish_rate: 50.0
 
     odom_frame_id: "odom"
-    base_frame_id: "chassis_base_link"
+    base_frame_id: "base_link"
     publish_odom: true   
     publish_odom_tf: true   
     reference_timeout: 0.2
