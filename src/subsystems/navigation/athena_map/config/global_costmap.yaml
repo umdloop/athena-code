@@ -1,0 +1,20 @@
+# config/global_costmap.yaml
+global_costmap:
+  ros__parameters:
+    global_frame: map
+    robot_base_frame: base_link
+    update_frequency: 5.0
+    publish_frequency: 1.0
+    static_map: false          # we’re using a live /map topic
+    plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+
+static_layer:
+  ros__parameters:
+    plugin: "nav2_costmap_2d::StaticLayer"
+    map_subscribe_transient_local: true
+    map_topic: "/map"          # <-- your DEM costmap
+
+inflation_layer:
+  ros__parameters:
+    plugin: "nav2_costmap_2d::InflationLayer"
+    inflation_radius: 0.5
