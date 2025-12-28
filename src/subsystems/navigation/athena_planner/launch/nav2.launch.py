@@ -37,15 +37,6 @@ def generate_launch_description():
         output='screen',
     )
 
-    static_chassis_to_base = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_chassis_to_base',
-        arguments=['0', '0', '0', '0', '0', '0',
-                   'chassis_base_link', 'base_link'],
-        output='screen',
-    )
-
     twist_stamper_node = Node(
         package='twist_stamper',
         executable='twist_stamper',
@@ -64,7 +55,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument('map_frame',  default_value='map'),
         DeclareLaunchArgument('odom_frame', default_value='odom'),
-        DeclareLaunchArgument('base_frame', default_value='chassis_base_link'),
+        DeclareLaunchArgument('base_frame', default_value='base_link'),
 
         SetRemap(src='cmd_vel', dst='/cmd_vel_nav2'),
 
