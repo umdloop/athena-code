@@ -2,7 +2,7 @@ bt_navigator:
   ros__parameters:
     use_sim_time: true
     global_frame: map
-    robot_base_frame: chassis_base_link
+    robot_base_frame: base_link
     default_bt_xml_filename: "$(find-pkg-share nav2_bt_navigator)/behavior_trees/navigate_w_replanning.xml"
 
 planner_server:
@@ -12,7 +12,7 @@ planner_server:
     planner_plugins: ["GridBased"]
 
     GridBased:
-      plugin: "nav2_smac_planner/SmacPlannerHybrid"   # Humble uses "/"
+      plugin: "nav2_smac_planner/SmacPlannerHybrid"  
       # Search / map handling
       downsample_costmap: false
       downsampling_factor: 1
@@ -59,25 +59,11 @@ planner_server:
         refinement_num: 2
 
 
-# global_costmap:
-#   ros__parameters:
-#     global_frame: map
-#     robot_base_frame: chassis_base_link
-#     track_unknown_space: true
-#     plugins:
-#       - {name: static_layer,    type: "nav2_costmap_2d::StaticLayer"}
-#       - {name: inflation_layer, type: "nav2_costmap_2d::InflationLayer"}
-#     static_layer:
-#       map_topic: map
-#       map_subscribe_transient_local: true
-#       lethal_cost_threshold: 90     # 90..100 from your map -> 254 (lethal)
-#       trinary_costmap: false        # keep gradient (0..89 -> 1..252)
-
 global_costmap:
   ros__parameters:
     use_sim_time: true
     global_frame: map
-    robot_base_frame: chassis_base_link
+    robot_base_frame: base_link
     update_frequency: 2.0
     publish_frequency: 2.0
     resolution: 1.0
@@ -91,34 +77,6 @@ global_costmap:
       - {name: static_layer,    type: "nav2_costmap_2d::StaticLayer"}
       - {name: inflation_layer, type: "nav2_costmap_2d::InflationLayer"}
 
-# global_costmap:
-#   global_costmap:
-#     ros__parameters:
-#       use_sim_time: true
-#       global_frame: map
-#       robot_base_frame: chassis_base_link
-#       update_frequency: 2.0
-#       publish_frequency: 2.0
-#       resolution: 1.0              # match your DEM
-#       size_x: 799
-#       size_y: 799
-#       origin_x: 0.0
-#       origin_y: 0.0
-#       rolling_window: false
-#       plugins: ["static_layer", "inflation_layer"]
-
-#       static_layer:
-#         plugin: "nav2_costmap_2d::StaticLayer"
-#         map_topic: "/map"
-#         subscribe_to_updates: false
-#         track_unknown_space: false
-
-#       inflation_layer:
-#         plugin: "nav2_costmap_2d::InflationLayer"
-#         inflation_radius: 2.0
-#         cost_scaling_factor: 3.0
-
-# Minimal controller so the BT tree is happy (even if you just want to see the plan)
 controller_server:
   ros__parameters:
     odom_topic: /ackermann_steering_controller/odometry
@@ -159,7 +117,7 @@ local_costmap:
   ros__parameters:
     use_sim_time: true
     global_frame: odom
-    robot_base_frame: chassis_base_link
+    robot_base_frame: base_link
     rolling_window: true
     width: 6.0
     height: 6.0
@@ -169,30 +127,6 @@ local_costmap:
       plugin: "nav2_costmap_2d::StaticLayer"
       map_subscribe_transient_local: true
       
-# local_costmap:
-#   local_costmap:
-#     ros__parameters:
-#       use_sim_time: true
-#       global_frame: odom
-#       robot_base_frame: chassis_base_link
-#       update_frequency: 10.0
-#       publish_frequency: 10.0
-#       rolling_window: true
-#       width: 20
-#       height: 20
-#       resolution: 1.0
-#       plugins: ["static_layer", "inflation_layer"]
-
-#       static_layer:
-#         plugin: "nav2_costmap_2d::StaticLayer"
-#         map_topic: "/map"
-#         subscribe_to_updates: false
-#         track_unknown_space: false
-
-#       inflation_layer:
-#         plugin: "nav2_costmap_2d::InflationLayer"
-#         inflation_radius: 2.0
-#         cost_scaling_factor: 3.0
 
 lifecycle_manager:
   ros__parameters:
