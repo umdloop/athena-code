@@ -61,7 +61,6 @@ def generate_launch_description():
 
         # Static TFs (identity by default)
         static_map_to_odom,
-        static_chassis_to_base,
         twist_stamper_node,
 
         IncludeLaunchDescription(PythonLaunchDescriptionSource(dem_launch)),
