@@ -99,6 +99,7 @@ private:
   std::vector<double> encoder_position;
   std::vector<double> motor_velocity;
   std::vector<double> motor_position;
+  std::vector<double> rated_max;
 
   CANLib::SocketCanBus canBus;
   CANLib::CanFrame can_tx_frame_;
@@ -107,7 +108,7 @@ private:
   std::vector<int> joint_node_ids;
   std::vector<int> joint_gear_ratios;
 
-  enum integration_level_t : std::uint8_t
+  enum class integration_level_t : std::uint8_t
   {
     UNDEFINED = 0,
     POSITION = 1,
@@ -116,6 +117,26 @@ private:
 
   // Active control mode for each actuator
   std::vector<integration_level_t> control_level_;
+
+  enum class servo_type_t : std::uint8_t
+  {
+    UNDEFINED = 0,
+    STANDARD = 1,
+    CONTINUOUS = 2,
+  };
+
+  // Type of servo for each actuator
+  std::vector<servo_type_t> servo_type_;
+
+  enum class joint_type_t : std::uint8_t
+  {
+    UNDEFINED = 0,
+    REVOLUTE = 1,
+    PRISMATIC = 2,
+  };
+
+  // Type of joint for each actuator
+  std::vector<joint_type_t> joint_type_;
 
 };
 

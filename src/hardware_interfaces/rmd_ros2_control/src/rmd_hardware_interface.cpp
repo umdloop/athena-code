@@ -145,7 +145,6 @@ void RMDHardwareInterface::onCanMessage(const CANLib::CanFrame& frame) {
       (can_rx_frame_.data[0] == 0xA2 || can_rx_frame_.data[0] == 0xA4)){
       
       // DECODING CAN MESSAGE (A2, A4, and 9C all share the same reply)
-      // data[0] = 0x9C;
       data[1] = can_rx_frame_.data[1]; // Motor Temperature
       data[2] = can_rx_frame_.data[2]; // Torque low byte
       data[3] = can_rx_frame_.data[3]; // Torque high byte
@@ -369,7 +368,10 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
       canBus.send(can_tx_frame_);
     }
   }
-  RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Period passed to write: %f seconds", period.seconds());
+
+  if(DEBUG_MODE == 1) {
+    RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "RMD - Period passed to write: %f seconds", period.seconds());
+  }
    
   return hardware_interface::return_type::OK;
 }
