@@ -1,0 +1,10 @@
+<library path="killswitch_ros2_control">
+  <class name="killswitch_ros2_control/KillswitchHardwareInterface"
+         type="killswitch_ros2_control::KillswitchHardwareInterface"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Drive killswitch hardware interface via ros2_control.
+      Monitors physical killswitch button and controls power kill relays.
+    </description>
+  </class>
+</library>

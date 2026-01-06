@@ -9,6 +9,9 @@
   <xacro:include filename="$(find description)/ros2_control/science/science.stepper.ros2_control.xacro" />
   <xacro:include filename="$(find description)/ros2_control/science/science.servo.ros2_control.xacro" />
   <xacro:include filename="$(find description)/ros2_control/science/science.talon.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/ros2_control/science/science.laser.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/ros2_control/science/science.killswitch.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/ros2_control/science/science.led.ros2_control.xacro"/>
   
   <!-- create link fixed to the "world" -->
   <link name="world"/>
@@ -30,7 +33,21 @@
     <xacro:servo_ros2_control name="servo"/>
 
     <!-- Import talon ros2_control description -->
-    <xacro:talon_ros2_control name="talon"/> 
+    <xacro:talon_ros2_control name="talon"/>
+
+    <!-- Import laser ros2_control description -->
+    <xacro:laser_ros2_control name="spectrometry_laser" gpio_pin="17"/>
+
+    <!-- Import killswitch ros2_control description -->
+    <xacro:killswitch_ros2_control 
+      name="drive_killswitch" 
+      button_gpio_pin="27" 
+      main_power_gpio_pin="22" 
+      jetson_power_gpio_pin="23" 
+      all_power_gpio_pin="24"/>
+
+    <!-- Import LED ros2_control description -->
+    <xacro:led_ros2_control name="status_led" gpio_pin="25"/>
   </xacro:unless>
 
 </robot>

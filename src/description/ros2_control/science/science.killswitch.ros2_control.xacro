@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:macro name="killswitch_ros2_control" params="name button_gpio_pin main_power_gpio_pin jetson_power_gpio_pin all_power_gpio_pin active_high:=true">
+
+        <ros2_control name="${name}" type="system">
+
+            <hardware>
+                <plugin>killswitch_ros2_control/KillswitchHardwareInterface</plugin>
+                <param name="button_gpio_pin">${button_gpio_pin}</param>
+                <param name="main_power_gpio_pin">${main_power_gpio_pin}</param>
+                <param name="jetson_power_gpio_pin">${jetson_power_gpio_pin}</param>
+                <param name="all_power_gpio_pin">${all_power_gpio_pin}</param>
+                <param name="active_high">${active_high}</param>
+            </hardware>
+
+            <joint name="${name}">
+                <state_interface name="button_state"/>
+                <state_interface name="main_power_killed"/>
+                <state_interface name="jetson_power_killed"/>
+                <state_interface name="all_power_killed"/>
+                <state_interface name="is_connected"/>
+                <command_interface name="kill_main_power"/>
+                <command_interface name="kill_jetson_power"/>
+                <command_interface name="kill_all_power"/>
+            </joint>
+
+        </ros2_control>
+
+    </xacro:macro>
+
+</robot>
+
