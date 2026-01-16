@@ -59,7 +59,6 @@ def generate_launch_description():
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([gazebo_launch]),
         launch_arguments=[
-            ('use_sim_time', LaunchConfiguration('use_sim_time')),
             ('world', LaunchConfiguration('world')),
         ]
     )

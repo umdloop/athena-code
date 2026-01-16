@@ -7,9 +7,6 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 ARGUMENTS = [
-    DeclareLaunchArgument('use_sim_time', default_value='true',
-                          choices=['true', 'false'],
-                          description='use_sim_time'),
     DeclareLaunchArgument('world', default_value='empty.sdf',
                           description='Gazebo world file'),
 ]
