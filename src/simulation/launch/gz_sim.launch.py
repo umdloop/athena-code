@@ -34,7 +34,7 @@ def generate_launch_description():
         launch_arguments=[
             ('gz_args', [world_path,
                         ' -r',
-                        ' -v 4']
+                        ' -v 4']        # Verbosity level, 0=errors only, 4=debug
             )
         ]
     )

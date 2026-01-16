@@ -59,7 +59,7 @@ def generate_launch_description():
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([gazebo_launch]),
         launch_arguments=[
-            ('world', LaunchConfiguration('world')),
+            ('world', LaunchConfiguration('world')),                    # World file taken from description/worlds/
         ]
     )
 
