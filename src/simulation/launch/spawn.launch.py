@@ -20,10 +20,10 @@ ARGUMENTS = [
 ]
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory('description')
+    pkg_description = get_package_share_directory('description')
     
-    urdf_file = os.path.join(pkg_share, 'urdf', 'athena_drive.urdf.xacro')
-    controllers_file = os.path.join(pkg_share, 'config', 'athena_drive_sim_controllers.yaml')
+    urdf_file = os.path.join(pkg_description, 'urdf', 'athena_drive.urdf.xacro')
+    controllers_file = os.path.join(pkg_description, 'config', 'athena_drive_sim_controllers.yaml')
 
     
     namespace = LaunchConfiguration('namespace')
