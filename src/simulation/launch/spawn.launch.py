@@ -27,7 +27,7 @@ def generate_launch_description():
 
     
     namespace = LaunchConfiguration('namespace')
-    robot_name = 'rover'
+    robot_name = 'athena'
 
     robot_description_content = Command([
         'xacro ', urdf_file,
