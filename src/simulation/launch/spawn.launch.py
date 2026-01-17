@@ -16,6 +16,8 @@ ARGUMENTS = [
                           description='use_sim_time'),
     DeclareLaunchArgument('namespace', default_value='',
                           description='Robot namespace'),
+    DeclareLaunchArgument('world_name', default_value='',
+                          description='World name'),
     
 ]
 
@@ -57,6 +59,7 @@ def generate_launch_description():
             package='ros_gz_sim',
             executable='create',
             arguments=['-name', robot_name,
+                       '-world', LaunchConfiguration('world_name'),
                        '-x', '0.0',
                        '-y', '0.0',
                        '-z', '3.0',
