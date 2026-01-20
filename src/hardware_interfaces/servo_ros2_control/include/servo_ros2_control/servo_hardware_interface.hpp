@@ -74,8 +74,8 @@ public:
   double calculate_joint_position_from_motor_position(double motor_position, int gear_ratio);
   double calculate_joint_velocity_from_motor_velocity(double motor_velocity, int gear_ratio);
 
-  int32_t calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio);
-  int32_t calculate_motor_velocity_from_desired_joint_velocity(double joint_velocity, int gear_ratio);
+  int16_t calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio);
+  int16_t calculate_motor_velocity_from_desired_joint_velocity(double joint_velocity, int gear_ratio);
 
 private:
 
@@ -120,9 +120,8 @@ private:
 
   enum class servo_type_t : std::uint8_t
   {
-    UNDEFINED = 0,
-    STANDARD = 1,
-    CONTINUOUS = 2,
+    STANDARD = 0,
+    CONTINUOUS = 1,
   };
 
   // Type of servo for each actuator
@@ -130,9 +129,8 @@ private:
 
   enum class joint_type_t : std::uint8_t
   {
-    UNDEFINED = 0,
-    REVOLUTE = 1,
-    PRISMATIC = 2,
+    REVOLUTE = 0,
+    PRISMATIC = 1,
   };
 
   // Type of joint for each actuator
