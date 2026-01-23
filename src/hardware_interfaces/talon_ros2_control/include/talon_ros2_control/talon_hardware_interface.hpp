@@ -68,10 +68,11 @@ public:
 private:
 
   int num_joints;
-  
-  // EXPERIMENTING
-  std::vector<double> initial_position_;
+  int update_rate;
+  std::string can_interface;
 
+  // Maximum displacement for prismatic joints
+  std::vector<double> max_disp;
 
   // Store the state for the simulated robot
   std::vector<double> joint_state_position_;
@@ -92,6 +93,15 @@ private:
 
   // Active control mode
   std::vector<integration_level_t> control_level_;
+
+  enum class joint_type_t : std::uint8_t
+  {
+    REVOLUTE = 0,
+    PRISMATIC = 1,
+  };
+
+  // Type of joint for each actuator
+  std::vector<joint_type_t> joint_type_;
 
   std::vector<TalonSRX*> talon_motors;
   std::thread worker;
