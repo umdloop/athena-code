@@ -72,15 +72,18 @@ public:
 
   // Helper Functions
   double calculate_joint_position_from_motor_position(double motor_position, int gear_ratio);
-  double calculate_joint_velocity_from_motor_velocity(double motor_velocity, int gear_ratio);
+  double calculate_joint_displacement_from_motor_position(double motor_position, int gear_ratio, double meters_per_deg);
+  double calculate_joint_angular_velocity_from_motor_velocity(double motor_velocity, int gear_ratio);
+  double calculate_joint_linear_velocity_from_motor_velocity(double motor_velocity, int gear_ratio, double meters_per_deg);
 
   int16_t calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio);
-  int16_t calculate_motor_velocity_from_desired_joint_velocity(double joint_velocity, int gear_ratio);
+  int16_t calculate_motor_position_from_desired_joint_displacement(double joint_position, int gear_ratio, double meters_per_deg);
+  int16_t calculate_motor_velocity_from_desired_joint_angular_velocity(double joint_velocity, int gear_ratio);
+  int16_t calculate_motor_velocity_from_desired_joint_linear_velocity(double joint_velocity, int gear_ratio, double meters_per_deg);
 
 private:
 
   int num_joints;
-  int current_joint;
   int update_rate;
   double elapsed_update_time;
   std::string can_interface;
@@ -100,6 +103,8 @@ private:
   std::vector<double> motor_velocity;
   std::vector<double> motor_position;
   std::vector<double> rated_max;
+  std::vector<double> meters_per_deg;
+  std::vector<int> device_status;
 
   CANLib::SocketCanBus canBus;
   CANLib::CanFrame can_tx_frame_;

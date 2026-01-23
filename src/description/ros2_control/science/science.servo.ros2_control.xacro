@@ -28,7 +28,7 @@
             <joint name="scoop_a">
                 <param name="node_id">0x2</param>
                 <param name="gear_ratio">1</param>
-                <param name="rated_max">178</param> <!-- degrees -->
+                <param name="max_pos">178</param> <!-- degrees -->
                 <param name="servo_type">standard</param> <!-- standard / continuous -->
                 <param name="joint_type">revolute</param> <!-- revolute / prismatic -->
                 <command_interface name="position"/>
@@ -39,7 +39,7 @@
             <joint name="scoop_b">
                 <param name="node_id">0x3</param>
                 <param name="gear_ratio">1</param>
-                <param name="rated_max">178</param> <!-- degrees -->
+                <param name="max_pos">178</param> <!-- degrees -->
                 <param name="servo_type">standard</param> <!-- standard / continuous -->
                 <param name="joint_type">revolute</param> <!-- revolute / prismatic -->
                 <command_interface name="position"/>
@@ -50,7 +50,8 @@
             <joint name="auger">
                 <param name="node_id">0x4</param>
                 <param name="gear_ratio">1</param>
-                <param name="rated_max">90</param> <!-- degrees -->
+                <param name="max_pos">90</param> <!-- degrees -->
+                <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
                 <param name="servo_type">standard</param> <!-- standard / continuous -->
                 <param name="joint_type">prismatic</param> <!-- revolute / prismatic -->
                 <command_interface name="position"/>
@@ -62,7 +63,8 @@
             <joint name="cap">
                 <param name="node_id">0x5</param>
                 <param name="gear_ratio">1</param>
-                <param name="rated_max">270</param> <!-- degrees -->
+                <param name="max_pos">270</param> <!-- degrees -->
+                <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
                 <param name="servo_type">standard</param> <!-- standard / continuous -->
                 <param name="joint_type">prismatic</param> <!-- revolute / prismatic -->
                 <command_interface name="position"/>
