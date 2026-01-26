@@ -20,12 +20,8 @@ ARGUMENTS = [
                           description='use_sim_time'),
     DeclareLaunchArgument('namespace', default_value='',
                           description='Robot namespace'),
-<<<<<<< HEAD
     DeclareLaunchArgument('world_name', default_value='',
                           description='World name'),
-=======
-                          
->>>>>>> upstream/main
     
 ]
 
