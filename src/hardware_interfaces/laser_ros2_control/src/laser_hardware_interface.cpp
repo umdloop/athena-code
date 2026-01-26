@@ -15,77 +15,11 @@
 
 #include "laser_ros2_control/laser_hardware_interface.hpp"
 
-#include <cmath>
-#include <fcntl.h>
-#include <sstream>
-#include <unistd.h>
-
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 namespace laser_ros2_control
 {
-
-// GPIO utility functions implementation
-namespace gpio_utils
-{
-
-int setup_gpio_output(int pin)
-{
-  // Export GPIO
-  int fd = ::open("/sys/class/gpio/export", O_WRONLY);
-  if (fd >= 0) {
-    std::string pin_str = std::to_string(pin);
-    ::write(fd, pin_str.c_str(), pin_str.length());
-    ::close(fd);
-    usleep(100000);  // Wait for GPIO to be exported
-  }
-
-  // Set direction to output
-  std::stringstream direction_path;
-  direction_path << "/sys/class/gpio/gpio" << pin << "/direction";
-  fd = ::open(direction_path.str().c_str(), O_WRONLY);
-  if (fd < 0) {
-    return -1;
-  }
-  ::write(fd, "out", 3);
-  ::close(fd);
-
-  // Open value file
-  std::stringstream value_path;
-  value_path << "/sys/class/gpio/gpio" << pin << "/value";
-  int value_fd = ::open(value_path.str().c_str(), O_RDWR);
-  
-  return value_fd;
-}
-
-void cleanup_gpio(int pin, int fd)
-{
-  if (fd >= 0) {
-    ::close(fd);
-  }
-
-  // Unexport GPIO
-  int export_fd = ::open("/sys/class/gpio/unexport", O_WRONLY);
-  if (export_fd >= 0) {
-    std::string pin_str = std::to_string(pin);
-    ::write(export_fd, pin_str.c_str(), pin_str.length());
-    ::close(export_fd);
-  }
-}
-
-bool write_gpio(int fd, bool value)
-{
-  if (fd < 0) return false;
-  
-  char val = value ? '1' : '0';
-  lseek(fd, 0, SEEK_SET);
-  return (::write(fd, &val, 1) == 1);
-}
-
-}  // namespace gpio_utils
-
-// Hardware Interface Implementation
 
 hardware_interface::CallbackReturn LaserHardwareInterface::on_init(
   const hardware_interface::HardwareInfo & info)
@@ -98,40 +32,31 @@ hardware_interface::CallbackReturn LaserHardwareInterface::on_init(
 
   // Initialize state variables
   laser_state_ = 0.0;      // OFF
-  power_level_ = 0.0;
-  is_ready_ = 0.0;
+  temperature_ = 0.0;
+  is_connected_ = 0.0;
 
   // Initialize command variables
   laser_command_ = 0.0;    // OFF
-  power_command_ = 0.0;
 
   // Parse hardware parameters
-  if (!info_.hardware_parameters.count("gpio_pin")) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("LaserHardwareInterface"),
-      "gpio_pin parameter is required");
-    return hardware_interface::CallbackReturn::ERROR;
-  }
-  gpio_pin_ = std::stoi(info_.hardware_parameters.at("gpio_pin"));
-  
-  if (info_.hardware_parameters.count("min_power")) {
-    min_power_ = std::stod(info_.hardware_parameters.at("min_power"));
+  if (info_.hardware_parameters.count("can_interface")) {
+    can_interface_ = info_.hardware_parameters.at("can_interface");
   } else {
-    min_power_ = 0.0;
-  }
-  
-  if (info_.hardware_parameters.count("max_power")) {
-    max_power_ = std::stod(info_.hardware_parameters.at("max_power"));
-  } else {
-    max_power_ = 1.0;
+    can_interface_ = "can0";
   }
 
-  gpio_fd_ = -1;
-  hw_connected_ = false;
+  if (info_.hardware_parameters.count("can_id")) {
+    can_id_ = static_cast<uint32_t>(std::stoi(info_.hardware_parameters.at("can_id")));
+  } else {
+    can_id_ = 0x130;  // Default laser CAN ID
+  }
+
+  can_connected_ = false;
 
   RCLCPP_INFO(
     rclcpp::get_logger("LaserHardwareInterface"),
-    "Initialized laser on GPIO pin %d", gpio_pin_);
+    "Initialized laser on CAN interface %s with ID 0x%X", 
+    can_interface_.c_str(), can_id_);
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -143,23 +68,43 @@ hardware_interface::CallbackReturn LaserHardwareInterface::on_configure(
     rclcpp::get_logger("LaserHardwareInterface"),
     "Configuring laser hardware...");
 
-  // Setup GPIO output
-  gpio_fd_ = gpio_utils::setup_gpio_output(gpio_pin_);
-  if (gpio_fd_ < 0) {
-    RCLCPP_ERROR(
+  // Open CAN bus
+  if (!canBus_.open(can_interface_, 
+      std::bind(&LaserHardwareInterface::onCanMessage, this, std::placeholders::_1))) 
+  {
+    RCLCPP_WARN(
       rclcpp::get_logger("LaserHardwareInterface"),
-      "Failed to setup GPIO output on pin %d", gpio_pin_);
-    return hardware_interface::CallbackReturn::ERROR;
+      "Failed to open CAN interface %s - running in SIMULATION mode", 
+      can_interface_.c_str());
+    can_connected_ = false;
+  } else {
+    can_connected_ = true;
+    RCLCPP_INFO(
+      rclcpp::get_logger("LaserHardwareInterface"),
+      "Successfully opened CAN interface %s", can_interface_.c_str());
   }
 
-  hw_connected_ = true;
-  is_ready_ = 1.0;
+  is_connected_ = can_connected_ ? 1.0 : 0.0;
 
   RCLCPP_INFO(
     rclcpp::get_logger("LaserHardwareInterface"),
-    "Successfully configured laser hardware");
+    "Laser hardware configured (%s)", can_connected_ ? "CAN MODE" : "SIMULATION");
 
   return hardware_interface::CallbackReturn::SUCCESS;
+}
+
+void LaserHardwareInterface::onCanMessage(const CANLib::CanFrame& frame)
+{
+  // Handle incoming CAN messages (e.g., temperature readings)
+  if (frame.id == can_id_) {
+    // Parse response based on command byte
+    if (frame.dlc > 0 && frame.data[0] == CMD_READ_TEMP) {
+      // Temperature response - parse if available
+      if (frame.dlc >= 2) {
+        temperature_ = static_cast<double>(frame.data[1]);
+      }
+    }
+  }
 }
 
 std::vector<hardware_interface::StateInterface> 
@@ -167,20 +112,20 @@ LaserHardwareInterface::export_state_interfaces()
 {
   std::vector<hardware_interface::StateInterface> state_interfaces;
 
-  // Use the joint name from URDF
-  const std::string& name = info_.joints[0].name;
+  // Use the gpio name from URDF
+  const std::string& name = info_.gpios[0].name;
 
   // Laser state (ON/OFF)
   state_interfaces.emplace_back(
     hardware_interface::StateInterface(name, "laser_state", &laser_state_));
 
-  // Power level
+  // Temperature
   state_interfaces.emplace_back(
-    hardware_interface::StateInterface(name, "power_level", &power_level_));
+    hardware_interface::StateInterface(name, "temperature", &temperature_));
 
-  // Hardware ready status
+  // Connection status
   state_interfaces.emplace_back(
-    hardware_interface::StateInterface(name, "is_ready", &is_ready_));
+    hardware_interface::StateInterface(name, "is_connected", &is_connected_));
 
   RCLCPP_INFO(
     rclcpp::get_logger("LaserHardwareInterface"),
@@ -194,16 +139,12 @@ LaserHardwareInterface::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  // Use the joint name from URDF
-  const std::string& name = info_.joints[0].name;
+  // Use the gpio name from URDF
+  const std::string& name = info_.gpios[0].name;
 
   // Laser command (ON/OFF)
   command_interfaces.emplace_back(
     hardware_interface::CommandInterface(name, "laser_command", &laser_command_));
-
-  // Power command
-  command_interfaces.emplace_back(
-    hardware_interface::CommandInterface(name, "power_command", &power_command_));
 
   RCLCPP_INFO(
     rclcpp::get_logger("LaserHardwareInterface"),
@@ -230,15 +171,19 @@ hardware_interface::CallbackReturn LaserHardwareInterface::on_deactivate(
     "Deactivating laser hardware...");
 
   // Safety: Turn laser OFF on deactivation
-  if (hw_connected_ && gpio_fd_ >= 0) {
-    gpio_utils::write_gpio(gpio_fd_, false);
-    laser_state_ = 0.0;
-    power_level_ = 0.0;
+  if (can_connected_) {
+    can_tx_frame_ = CANLib::CanFrame();
+    can_tx_frame_.id = can_id_;
+    can_tx_frame_.dlc = 1;
+    can_tx_frame_.data[0] = CMD_LASER_OFF;
+    canBus_.send(can_tx_frame_);
     
     RCLCPP_INFO(
       rclcpp::get_logger("LaserHardwareInterface"),
       "Laser turned OFF (safety)");
   }
+
+  laser_state_ = 0.0;
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -251,18 +196,18 @@ hardware_interface::CallbackReturn LaserHardwareInterface::on_cleanup(
     "Cleaning up laser hardware...");
 
   // Ensure laser is OFF before cleanup
-  if (gpio_fd_ >= 0) {
-    gpio_utils::write_gpio(gpio_fd_, false);
+  if (can_connected_) {
+    can_tx_frame_ = CANLib::CanFrame();
+    can_tx_frame_.id = can_id_;
+    can_tx_frame_.dlc = 1;
+    can_tx_frame_.data[0] = CMD_LASER_OFF;
+    canBus_.send(can_tx_frame_);
+    
+    canBus_.close();
   }
 
-  // Cleanup GPIO - unexport and close file descriptor
-  if (gpio_fd_ >= 0) {
-    gpio_utils::cleanup_gpio(gpio_pin_, gpio_fd_);
-    gpio_fd_ = -1;
-  }
-
-  hw_connected_ = false;
-  is_ready_ = 0.0;
+  can_connected_ = false;
+  is_connected_ = 0.0;
 
   RCLCPP_INFO(
     rclcpp::get_logger("LaserHardwareInterface"),
@@ -278,7 +223,6 @@ hardware_interface::CallbackReturn LaserHardwareInterface::on_shutdown(
     rclcpp::get_logger("LaserHardwareInterface"),
     "Shutting down laser hardware...");
 
-  // Delegate to cleanup to release resources
   return on_cleanup(previous_state);
 }
 
@@ -286,7 +230,8 @@ hardware_interface::return_type LaserHardwareInterface::read(
   const rclcpp::Time & /*time*/,
   const rclcpp::Duration & /*period*/)
 {
-  // Laser state is known from commands, no need to read from GPIO
+  // CAN messages are handled asynchronously via callback
+  // State is updated in onCanMessage()
   return hardware_interface::return_type::OK;
 }
 
@@ -294,35 +239,25 @@ hardware_interface::return_type LaserHardwareInterface::write(
   const rclcpp::Time & /*time*/,
   const rclcpp::Duration & /*period*/)
 {
-  if (!hw_connected_ || gpio_fd_ < 0) {
-    return hardware_interface::return_type::OK;
-  }
-
   // Check if laser command changed
   bool commanded_on = (laser_command_ > 0.5);
   bool currently_on = (laser_state_ > 0.5);
 
   if (commanded_on != currently_on) {
-    if (gpio_utils::write_gpio(gpio_fd_, commanded_on)) {
-      laser_state_ = commanded_on ? 1.0 : 0.0;
-      
-      RCLCPP_INFO(
-        rclcpp::get_logger("LaserHardwareInterface"),
-        "Laser turned %s", commanded_on ? "ON" : "OFF");
+    if (can_connected_) {
+      can_tx_frame_ = CANLib::CanFrame();
+      can_tx_frame_.id = can_id_;
+      can_tx_frame_.dlc = 1;
+      can_tx_frame_.data[0] = commanded_on ? CMD_LASER_ON : CMD_LASER_OFF;
+      canBus_.send(can_tx_frame_);
     }
-  }
 
-  // Update power level (clamped to min/max)
-  double commanded_power = power_command_;
-  if (commanded_power < min_power_) commanded_power = min_power_;
-  if (commanded_power > max_power_) commanded_power = max_power_;
-  
-  if (std::abs(commanded_power - power_level_) > 0.01) {
-    power_level_ = commanded_power;
+    laser_state_ = commanded_on ? 1.0 : 0.0;
     
-    RCLCPP_DEBUG(
+    RCLCPP_INFO(
       rclcpp::get_logger("LaserHardwareInterface"),
-      "Power level set to %.2f", power_level_);
+      "Laser turned %s%s", commanded_on ? "ON" : "OFF",
+      can_connected_ ? "" : " (simulated)");
   }
 
   return hardware_interface::return_type::OK;
@@ -335,4 +270,3 @@ hardware_interface::return_type LaserHardwareInterface::write(
 PLUGINLIB_EXPORT_CLASS(
   laser_ros2_control::LaserHardwareInterface,
   hardware_interface::SystemInterface)
-

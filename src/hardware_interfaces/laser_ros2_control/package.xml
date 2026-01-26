@@ -3,7 +3,7 @@
 <package format="3">
   <name>laser_ros2_control</name>
   <version>0.1.0</version>
-  <description>Laser hardware interface for ros2_control - GPIO-based spectrometry laser control</description>
+  <description>Laser hardware interface for ros2_control - CAN-based spectrometry laser control</description>
   <maintainer email="dwarakeshbaraneetharan@gmail.com">Dwarakesh Baraneetharan</maintainer>
   <license>Apache-2.0</license>
 
@@ -14,6 +14,10 @@
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
+
+  <!-- Real-time CAN communication library -->
+  <build_depend>umdloop_can_library</build_depend>
+  <exec_depend>umdloop_can_library</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

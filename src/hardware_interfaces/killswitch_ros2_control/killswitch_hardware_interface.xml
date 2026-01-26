@@ -3,8 +3,8 @@
          type="killswitch_ros2_control::KillswitchHardwareInterface"
          base_class_type="hardware_interface::SystemInterface">
     <description>
-      Drive killswitch hardware interface via ros2_control.
-      Monitors physical killswitch button and controls power kill relays.
+      Killswitch hardware interface via ros2_control.
+      CAN-based power kill commands for main, jetson, and all systems.
     </description>
   </class>
 </library>

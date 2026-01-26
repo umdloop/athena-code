@@ -19,43 +19,45 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <array>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "rclcpp/macros.hpp"
+#include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+
+#include "umdloop_can_library/SocketCanBus.hpp"
+#include "umdloop_can_library/CanFrame.hpp"
 
 namespace laser_ros2_control
 {
 
-// GPIO utility functions (Linux sysfs)
-namespace gpio_utils
-{
-  int setup_gpio_output(int pin);
-  void cleanup_gpio(int pin, int fd);
-  bool write_gpio(int fd, bool value);
-}
-
 /**
- * @brief Hardware interface for GPIO-controlled laser via ros2_control
+ * @brief Hardware interface for CAN-controlled spectrometry laser via ros2_control
  * 
- * This interface controls a spectrometry laser through GPIO pins.
+ * This interface controls a spectrometry laser through CAN bus.
+ * 
+ * CAN Protocol (ID: 0x130):
+ * - ON:  DATA[0] = 0x60
+ * - OFF: DATA[0] = 0x80
+ * - Read Temperature: DATA[0] = 0x85
+ * - Read Wavelength:  DATA[0] = 0x90
  * 
  * State Interfaces (read by controllers):
  * - laser_state: 0.0 = OFF, 1.0 = ON
- * - power_level: Current power level (0.0 to 1.0)
- * - is_ready: Is hardware connected and ready (0.0 or 1.0)
+ * - temperature: Laser temperature (if available)
+ * - is_connected: Is CAN connected (0.0 or 1.0)
  * 
  * Command Interfaces (written by controllers):
  * - laser_command: 0.0 = turn OFF, 1.0 = turn ON
- * - power_command: Desired power level (0.0 to 1.0)
  * 
  * Hardware Parameters (from URDF):
- * - gpio_pin: GPIO pin number for laser control (required)
- * - min_power: Minimum power level (default: 0.0)
- * - max_power: Maximum power level (default: 1.0)
+ * - can_interface: CAN interface name (default: "can0")
+ * - can_id: CAN ID for laser commands (default: 0x130)
  */
 class LaserHardwareInterface : public hardware_interface::SystemInterface
 {
@@ -93,26 +95,33 @@ public:
     const rclcpp::Duration & period) override;
 
 private:
+  // CAN message handler
+  void onCanMessage(const CANLib::CanFrame& frame);
+
   // Configuration parameters
-  int gpio_pin_;
-  double min_power_;
-  double max_power_;
+  std::string can_interface_;
+  uint32_t can_id_;
+
+  // CAN bus
+  CANLib::SocketCanBus canBus_;
+  CANLib::CanFrame can_tx_frame_;
+  bool can_connected_;
 
   // State variables (hardware → ros2_control)
   double laser_state_;      // Current state: 0.0 = OFF, 1.0 = ON
-  double power_level_;      // Current power level
-  double is_ready_;         // Hardware ready status
+  double temperature_;      // Laser temperature
+  double is_connected_;     // CAN connected status
 
   // Command variables (ros2_control → hardware)
   double laser_command_;    // Commanded state
-  double power_command_;    // Commanded power level
 
-  // GPIO interface
-  int gpio_fd_;
-  bool hw_connected_;
+  // CAN command bytes
+  static constexpr uint8_t CMD_LASER_ON = 0x60;
+  static constexpr uint8_t CMD_LASER_OFF = 0x80;
+  static constexpr uint8_t CMD_READ_TEMP = 0x85;
+  static constexpr uint8_t CMD_READ_WAVELENGTH = 0x90;
 };
 
 }  // namespace laser_ros2_control
 
 #endif  // LASER_ROS2_CONTROL__LASER_HARDWARE_INTERFACE_HPP_
-

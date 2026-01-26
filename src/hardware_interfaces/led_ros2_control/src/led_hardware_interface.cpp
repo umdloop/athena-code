@@ -139,21 +139,24 @@ hardware_interface::CallbackReturn LEDHardwareInterface::on_configure(
   // Setup GPIO output
   gpio_fd_ = gpio_utils::setup_gpio_output(gpio_pin_);
   if (gpio_fd_ < 0) {
-    RCLCPP_ERROR(
+    RCLCPP_WARN(
       rclcpp::get_logger("LEDHardwareInterface"),
-      "Failed to setup GPIO output on pin %d", gpio_pin_);
-    return hardware_interface::CallbackReturn::ERROR;
+      "Failed to setup GPIO output on pin %d - running in SIMULATION mode", gpio_pin_);
+    hw_connected_ = false;  // Mark as simulation mode
+  } else {
+    hw_connected_ = true;
+    // Set initial state on real hardware
+    gpio_utils::write_gpio(gpio_fd_, default_state_);
+    RCLCPP_INFO(
+      rclcpp::get_logger("LEDHardwareInterface"),
+      "Successfully configured LED hardware (GPIO mode)");
   }
 
-  hw_connected_ = true;
-  is_connected_ = 1.0;
-
-  // Set initial state
-  gpio_utils::write_gpio(gpio_fd_, default_state_);
+  is_connected_ = hw_connected_ ? 1.0 : 0.0;
 
   RCLCPP_INFO(
     rclcpp::get_logger("LEDHardwareInterface"),
-    "Successfully configured LED hardware");
+    "LED hardware configured (%s)", hw_connected_ ? "REAL GPIO" : "SIMULATION");
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -163,8 +166,8 @@ LEDHardwareInterface::export_state_interfaces()
 {
   std::vector<hardware_interface::StateInterface> state_interfaces;
 
-  // Use the joint name from URDF
-  const std::string& name = info_.joints[0].name;
+  // Use the gpio name from URDF
+  const std::string& name = info_.gpios[0].name;
 
   // LED state
   state_interfaces.emplace_back(
@@ -186,8 +189,8 @@ LEDHardwareInterface::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  // Use the joint name from URDF
-  const std::string& name = info_.joints[0].name;
+  // Use the gpio name from URDF
+  const std::string& name = info_.gpios[0].name;
 
   // LED command
   command_interfaces.emplace_back(
@@ -281,22 +284,22 @@ hardware_interface::return_type LEDHardwareInterface::write(
   const rclcpp::Time & /*time*/,
   const rclcpp::Duration & /*period*/)
 {
-  if (!hw_connected_ || gpio_fd_ < 0) {
-    return hardware_interface::return_type::OK;
-  }
-
   // Check if LED command changed
   bool commanded_on = (led_command_ > 0.5);
   bool currently_on = (led_state_ > 0.5);
 
   if (commanded_on != currently_on) {
-    if (gpio_utils::write_gpio(gpio_fd_, commanded_on)) {
-      led_state_ = commanded_on ? 1.0 : 0.0;
-      
-      RCLCPP_DEBUG(
-        rclcpp::get_logger("LEDHardwareInterface"),
-        "LED turned %s", commanded_on ? "ON" : "OFF");
+    // Write to real GPIO if available, otherwise simulate
+    if (hw_connected_ && gpio_fd_ >= 0) {
+      gpio_utils::write_gpio(gpio_fd_, commanded_on);
     }
+    
+    led_state_ = commanded_on ? 1.0 : 0.0;
+    
+    RCLCPP_DEBUG(
+      rclcpp::get_logger("LEDHardwareInterface"),
+      "LED turned %s%s", commanded_on ? "ON" : "OFF",
+      hw_connected_ ? "" : " (simulated)");
   }
 
   return hardware_interface::return_type::OK;

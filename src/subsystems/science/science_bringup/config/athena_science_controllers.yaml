@@ -36,26 +36,9 @@ controller_manager:
     science_controller:
       type: science_controllers/ScienceManual
 
-    # Laser Controllers
-    laser_onoff_controller:
-      type: forward_command_controller/ForwardCommandController
-
-    laser_power_controller:
-      type: forward_command_controller/ForwardCommandController
-
-    # Killswitch Controllers (one per relay)
-    killswitch_main_controller:
-      type: forward_command_controller/ForwardCommandController
-
-    killswitch_jetson_controller:
-      type: forward_command_controller/ForwardCommandController
-
-    killswitch_all_controller:
-      type: forward_command_controller/ForwardCommandController
-
-    # LED Controller
-    led_controller:
-      type: forward_command_controller/ForwardCommandController
+    # Laser GPIO Controller (CAN-based)
+    laser_gpio_controller:
+      type: gpio_controllers/GpioCommandController
 
 joint_group_position_controller:                
   ros__parameters:
@@ -115,41 +98,18 @@ science_controller:
     command_interfaces: [position, velocity]
     state_interfaces: [position, velocity]
 
-# Laser Controller Configurations
-laser_onoff_controller:
+# Laser GPIO Controller Configuration
+laser_gpio_controller:
   ros__parameters:
-    joints:
+    gpios:
       - spectrometry_laser
-    interface_name: laser_command
-
-laser_power_controller:
-  ros__parameters:
-    joints:
-      - spectrometry_laser
-    interface_name: power_command
-
-# Killswitch Controller Configurations
-killswitch_main_controller:
-  ros__parameters:
-    joints:
-      - drive_killswitch
-    interface_name: kill_main_power
-
-killswitch_jetson_controller:
-  ros__parameters:
-    joints:
-      - drive_killswitch
-    interface_name: kill_jetson_power
-
-killswitch_all_controller:
-  ros__parameters:
-    joints:
-      - drive_killswitch
-    interface_name: kill_all_power
-
-# LED Controller Configuration
-led_controller:
-  ros__parameters:
-    joints:
-      - status_led
-    interface_name: led_command
+    command_interfaces:
+      spectrometry_laser:
+        interfaces:
+          - laser_command
+    state_interfaces:
+      spectrometry_laser:
+        interfaces:
+          - laser_state
+          - temperature
+          - is_connected

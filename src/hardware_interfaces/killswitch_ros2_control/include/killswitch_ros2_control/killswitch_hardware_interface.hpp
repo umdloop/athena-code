@@ -19,51 +19,47 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <array>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "rclcpp/macros.hpp"
+#include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+
+#include "umdloop_can_library/SocketCanBus.hpp"
+#include "umdloop_can_library/CanFrame.hpp"
 
 namespace killswitch_ros2_control
 {
 
-// GPIO utility functions (Linux sysfs)
-namespace gpio_utils
-{
-  int setup_gpio_input(int pin);
-  int setup_gpio_output(int pin);
-  void cleanup_gpio(int pin, int fd);
-  bool read_gpio(int fd);
-  bool write_gpio(int fd, bool value);
-}
-
 /**
- * @brief Hardware interface for drive killswitch system via ros2_control
+ * @brief Hardware interface for CAN-controlled killswitch via ros2_control
  * 
- * This is a SystemInterface that monitors a physical killswitch button
- * and controls power kill relays for main power, Jetson power, and all power.
+ * This interface sends kill commands to the voltage monitoring board via CAN.
+ * 
+ * CAN Protocol (ID: 0x100):
+ * - Kill All Power:    DATA[0] = 0x01
+ * - Kill Main Power:   DATA[0] = 0x03
+ * - Kill Jetson Power: DATA[0] = 0x05
  * 
  * State Interfaces (read by controllers):
- * - button_state: Physical button state (0.0 = not pressed, 1.0 = pressed)
- * - main_power_killed: Main power relay state (0.0 = on, 1.0 = killed)
- * - jetson_power_killed: Jetson power relay state (0.0 = on, 1.0 = killed)
- * - all_power_killed: All power relay state (0.0 = on, 1.0 = killed)
- * - is_connected: Hardware ready status
+ * - kill_all_sent: 1.0 if kill all command was sent
+ * - kill_main_sent: 1.0 if kill main command was sent
+ * - kill_jetson_sent: 1.0 if kill jetson command was sent
+ * - is_connected: Is CAN connected (0.0 or 1.0)
  * 
  * Command Interfaces (written by controllers):
- * - kill_main_power: Set to 1.0 to kill main power, 0.0 to restore
- * - kill_jetson_power: Set to 1.0 to kill Jetson power, 0.0 to restore
- * - kill_all_power: Set to 1.0 to kill all power, 0.0 to restore
+ * - kill_all: Set to 1.0 to kill all power
+ * - kill_main: Set to 1.0 to kill main power
+ * - kill_jetson: Set to 1.0 to kill jetson power
  * 
  * Hardware Parameters (from URDF):
- * - button_gpio_pin: GPIO pin for killswitch button input (required)
- * - main_power_gpio_pin: GPIO pin for main power relay output (required)
- * - jetson_power_gpio_pin: GPIO pin for Jetson power relay output (required)
- * - all_power_gpio_pin: GPIO pin for all-power relay output (required)
- * - active_high: If true, HIGH = button pressed (default: true)
+ * - can_interface: CAN interface name (default: "can0")
+ * - can_id: CAN ID for killswitch commands (default: 0x100)
  */
 class KillswitchHardwareInterface : public hardware_interface::SystemInterface
 {
@@ -101,34 +97,35 @@ public:
     const rclcpp::Duration & period) override;
 
 private:
-  // Configuration parameters (GPIO pins)
-  int button_gpio_pin_;
-  int main_power_gpio_pin_;
-  int jetson_power_gpio_pin_;
-  int all_power_gpio_pin_;
-  bool active_high_;
+  // CAN message handler
+  void onCanMessage(const CANLib::CanFrame& frame);
 
-  // State variables (hardware → ros2_control)
-  double button_state_;           // Physical button: 0.0 = not pressed, 1.0 = pressed
-  double main_power_killed_;      // 0.0 = power on, 1.0 = killed
-  double jetson_power_killed_;    // 0.0 = power on, 1.0 = killed
-  double all_power_killed_;       // 0.0 = power on, 1.0 = killed
-  double is_connected_;           // Hardware ready status
+  // Configuration parameters
+  std::string can_interface_;
+  uint32_t can_id_;
 
-  // Command variables (ros2_control → hardware)
-  double cmd_kill_main_power_;
-  double cmd_kill_jetson_power_;
-  double cmd_kill_all_power_;
+  // CAN bus
+  CANLib::SocketCanBus canBus_;
+  CANLib::CanFrame can_tx_frame_;
+  bool can_connected_;
 
-  // GPIO file descriptors
-  int button_fd_;
-  int main_power_fd_;
-  int jetson_power_fd_;
-  int all_power_fd_;
-  bool hw_connected_;
+  // State variables (track what was sent)
+  double kill_all_sent_;
+  double kill_main_sent_;
+  double kill_jetson_sent_;
+  double is_connected_;
+
+  // Command variables
+  double cmd_kill_all_;
+  double cmd_kill_main_;
+  double cmd_kill_jetson_;
+
+  // CAN command bytes
+  static constexpr uint8_t CMD_KILL_ALL = 0x01;
+  static constexpr uint8_t CMD_KILL_MAIN = 0x03;
+  static constexpr uint8_t CMD_KILL_JETSON = 0x05;
 };
 
 }  // namespace killswitch_ros2_control
 
 #endif  // KILLSWITCH_ROS2_CONTROL__KILLSWITCH_HARDWARE_INTERFACE_HPP_
-

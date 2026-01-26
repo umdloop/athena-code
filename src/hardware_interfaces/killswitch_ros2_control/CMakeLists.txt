@@ -10,10 +10,12 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   pluginlib
   rclcpp
   rclcpp_lifecycle
+  umdloop_can_library
 )
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
@@ -35,9 +37,15 @@ $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include/killswitch_ros2_control>
 )
 
+# Link CAN library
+target_link_libraries(killswitch_ros2_control PUBLIC umdloop_can_library::umdloop_can_library)
+
 ament_target_dependencies(
   killswitch_ros2_control PUBLIC
-  ${THIS_PACKAGE_INCLUDE_DEPENDS}
+  hardware_interface
+  pluginlib
+  rclcpp
+  rclcpp_lifecycle
 )
 
 # Export hardware plugins
