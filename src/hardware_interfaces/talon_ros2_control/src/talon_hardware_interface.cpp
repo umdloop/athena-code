@@ -19,11 +19,45 @@
 
 #include "talon_ros2_control/talon_control.h"
 
-#define DEBUG_MODE 0 // 0 for off 1 for on
-
 namespace talon_ros2_control
 {
 TALONHardwareInterface::TALONHardwareInterface() {
+}
+
+void TALONHardwareInterface::logger_function(){
+
+  // Prevents breaking the logger
+  if (num_joints == 0) return;
+
+  // Building Message
+  std::string log_msg = "\033[2J\033[H \nTALON Logger";
+  std::ostringstream oss;
+  std::string status;
+  
+  // HWI Specific
+  oss << "\n--- HWI Specific ---\n"
+      << "CAN Interface: " << can_interface
+      << " | HWI Update Rate: " << update_rate
+      << " | Logger Update Rate: " << logger_rate << "\n"
+      << "Elapsed Time since first update: " << elapsed_time << "\n"
+      << "\n--- Joint Specific ---";
+
+  for (int i = 0; i < num_joints; i++) {
+
+    oss << "\nJOINT: " << info_.joints[i].name << "\n"
+        << "Parameters: Node ID: 0x" << std::hex << std::uppercase << joint_node_ids[i] << "\n"
+        // << " | Gear Ratio: " << joint_gear_ratios[i]
+        << "-- Commands --\n"
+        << "Control Mode: " << static_cast<int>(control_level_[i]) << "\n"
+        << "Joint Command Position: " << joint_command_position_[i] << "\n"
+        << "Joint Command Velocity: " << joint_command_velocity_[i] << "\n"
+        << "-- State --\n"
+        << "Joint Position: " << joint_state_position_[i] << "\n"
+        << "Joint Velocity: " << joint_state_velocity_[i] << "\n";
+  }
+
+  log_msg += oss.str();
+  RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"), log_msg.c_str());
 }
 
 hardware_interface::CallbackReturn TALONHardwareInterface::on_init(
@@ -37,6 +71,8 @@ hardware_interface::CallbackReturn TALONHardwareInterface::on_init(
   // -- Parameters --
   can_interface = info_.hardware_parameters.at("can_interface");
   update_rate = std::stoi(info_.hardware_parameters.at("update_rate"));
+  logger_rate = std::stoi(info_.hardware_parameters.at("logger_rate"));
+  logger_state = std::stoi(info_.hardware_parameters.at("logger_state"));
 
   for (auto& joint : info_.joints) {
     joint_node_ids.push_back(std::stoi(joint.parameters.at("node_id")));
@@ -51,7 +87,7 @@ hardware_interface::CallbackReturn TALONHardwareInterface::on_init(
       joint_type_.push_back(joint_type_t::PRISMATIC);
       max_disp.push_back(std::abs(std::stod(joint.parameters.at("max_disp"))));
     } else {
-      RCLCPP_ERROR(rclcpp::get_logger("SERVOHardwareInterface"), "Invalid joint_type parameter for joint %s. Must be 'revolute' or 'prismatic'. If prismatic, it must have a 'max_disp' parameter.", joint.name.c_str());
+      RCLCPP_ERROR(rclcpp::get_logger("TALONHardwareInterface"), "Invalid joint_type parameter for joint %s. Must be 'revolute' or 'prismatic'. If prismatic, it must have a 'max_disp' parameter.", joint.name.c_str());
       return hardware_interface::CallbackReturn::ERROR;
     }
   }
@@ -190,53 +226,64 @@ hardware_interface::return_type TALONHardwareInterface::read(
   for(int i = 0; i < num_joints; i++){
     joint_state_position_[i] = getPositionDistance(talon_motors[i]); // meters
     joint_state_velocity_[i] = getClawVelocity(talon_motors[i]); // m/s
-
-    if(DEBUG_MODE == 1) {
-      RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"), "Reading for Talon - Joint position: %f Joint velocity: %f \n", 
-                                                          joint_state_position_[i], 
-                                                          joint_state_velocity_[i]);
-    }
   }
   return hardware_interface::return_type::OK;
 }
 
 hardware_interface::return_type talon_ros2_control::TALONHardwareInterface::write(
-  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
-  for(int i = 0; i < num_joints; i++){
-    if(control_level_[i] == integration_level_t::POSITION && joint_type_[i] == joint_type_t::PRISMATIC && std::isfinite(joint_command_position_[i])) {
+  elapsed_update_time+=period.seconds();
+  double update_period = 1.0/update_rate;
+  int32_t joint_angle = 0;
+  int32_t joint_velocity = 0;
 
-      // TO DO: implement joint limits so i dont gotta do this
-      joint_command_position_[i] = std::clamp(joint_command_position_[i], 0.0, max_disp[i]);
-      // COMMAND PRISMATIC POSITION
-      setPositionFromDisplacement(talon_motors[i], joint_command_position_[i], 50);
-
-    } else if(control_level_[i] == integration_level_t::VELOCITY && joint_type_[i] == joint_type_t::PRISMATIC && std::isfinite(joint_command_velocity_[i])) {
-
-      // COMMAND PRISMATIC VELOCITY
-      setVelocityFromLinearVelocity(talon_motors[i], joint_command_velocity_[i], 50);
-
-    } else if(control_level_[i] == integration_level_t::POSITION && joint_type_[i] == joint_type_t::REVOLUTE && std::isfinite(joint_command_position_[i])) {
-
-      // COMMAND REVOLUTE POSITION
-      setPositionFromJointCommand(talon_motors[i], joint_command_position_[i], 50);
-
-    } else if(control_level_[i] == integration_level_t::VELOCITY && joint_type_[i] == joint_type_t::REVOLUTE && std::isfinite(joint_command_velocity_[i])) {
-
-      // COMMAND REVOLUTE VELOCITY
-      setVelocityFromAngularVelocity(talon_motors[i], joint_command_velocity_[i], 50);
-
+  elapsed_time+=period.seconds();
+  
+  // Logger update
+  elapsed_logger_time+=period.seconds();
+  double logging_period = 1.0/logger_rate;
+  if(elapsed_logger_time > logging_period){
+    elapsed_logger_time = 0.0;
+    if (logger_state == 1) {
+      logger_function();
     }
-    else {
-      // RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"), "Joint command value not found or undefined command state");
-    }
-    
-    if(control_level_[i] == integration_level_t::POSITION && DEBUG_MODE == 1) {
-        RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"), "Writing positions for Talon - Joint command: %f",
-                                                              joint_command_position_[i]);
-    } else if(control_level_[i] == integration_level_t::VELOCITY && DEBUG_MODE == 1) {
-        RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"), "Writing velocities for Talon - Joint command: %f",
-                                                              joint_command_velocity_[i]);
+  }
+
+  // HWI can only go as fast as the controller manager. To limit frequency of bus messages,
+  // keep track of time passed over iterations of this function and if it exceeds the 
+  // desired frequency of the HWI, skip message
+  if(elapsed_update_time > update_period){
+    elapsed_update_time = 0.0;
+
+    // Motor Command for each joint at given frequency
+    for(int i = 0; i < num_joints; i++){
+      if(control_level_[i] == integration_level_t::POSITION && joint_type_[i] == joint_type_t::PRISMATIC && std::isfinite(joint_command_position_[i])) {
+
+        // TO DO: implement joint limits so i dont gotta do this
+        joint_command_position_[i] = std::clamp(joint_command_position_[i], 0.0, max_disp[i]);
+        // COMMAND PRISMATIC POSITION
+        setPositionFromDisplacement(talon_motors[i], joint_command_position_[i], 50);
+
+      } else if(control_level_[i] == integration_level_t::VELOCITY && joint_type_[i] == joint_type_t::PRISMATIC && std::isfinite(joint_command_velocity_[i])) {
+
+        // COMMAND PRISMATIC VELOCITY
+        setVelocityFromLinearVelocity(talon_motors[i], joint_command_velocity_[i], 50);
+
+      } else if(control_level_[i] == integration_level_t::POSITION && joint_type_[i] == joint_type_t::REVOLUTE && std::isfinite(joint_command_position_[i])) {
+
+        // COMMAND REVOLUTE POSITION
+        setPositionFromJointCommand(talon_motors[i], joint_command_position_[i], 50);
+
+      } else if(control_level_[i] == integration_level_t::VELOCITY && joint_type_[i] == joint_type_t::REVOLUTE && std::isfinite(joint_command_velocity_[i])) {
+
+        // COMMAND REVOLUTE VELOCITY
+        setVelocityFromAngularVelocity(talon_motors[i], joint_command_velocity_[i], 50);
+
+      }
+      else {
+        // RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"), "Joint command value not found or undefined command state");
+      }
     }
   }
   

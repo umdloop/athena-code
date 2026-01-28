@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-
     <xacro:macro name="servo_ros2_control" params="name">
-
         <ros2_control name="${name}" type="system">
             <hardware>
                 <plugin>servo_ros2_control/SERVOHardwareInterface</plugin>
                 <param name="update_rate">10</param> <!-- Hz -->
+                <param name="logger_rate">5</param> <!-- Hz -->
+                <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
                 <param name="can_interface">can0</param>
                 <param name="can_id">0x80</param>
             </hardware>
@@ -72,7 +72,5 @@
                 <state_interface name="position"/>
             </joint>
         </ros2_control>
-    
     </xacro:macro>
-
 </robot>

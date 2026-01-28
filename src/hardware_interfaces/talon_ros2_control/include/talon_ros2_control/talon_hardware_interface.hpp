@@ -36,8 +36,6 @@ public:
 
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
-  void enable_system_thread();
-
   // Lifecycle
   hardware_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override;
@@ -65,11 +63,21 @@ public:
   hardware_interface::return_type write(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
-private:
+  // Helper Functions
+  void logger_function();
+  void enable_system_thread();
 
-  int num_joints;
+private:
+  // Hardware Interface Parameters
   int update_rate;
-  std::string can_interface;
+  double elapsed_update_time; // Time since last hardware interface update
+  double elapsed_time; // Time since first hardware interface update
+  double elapsed_logger_time; // Time since last logger update
+  int logger_rate; // Logger update rate
+  int logger_state; // Logger on/off state
+
+  // Keeps track of amount of joints
+  int num_joints;
 
   // Maximum displacement for prismatic joints
   std::vector<double> max_disp;
@@ -82,8 +90,14 @@ private:
   std::vector<double> joint_command_position_;
   std::vector<double> joint_command_velocity_;
 
+  // Talon specific information
   std::vector<int> joint_node_ids;
+  std::string can_interface;
+  std::vector<TalonSRX*> talon_motors;
+  std::thread worker;
+  std::atomic<bool> is_running = false;
 
+  // Modes for control mode
   enum integration_level_t : std::uint8_t
   {
     UNDEFINED = 0,
@@ -94,6 +108,7 @@ private:
   // Active control mode
   std::vector<integration_level_t> control_level_;
 
+  // Types of joints
   enum class joint_type_t : std::uint8_t
   {
     REVOLUTE = 0,
@@ -102,10 +117,6 @@ private:
 
   // Type of joint for each actuator
   std::vector<joint_type_t> joint_type_;
-
-  std::vector<TalonSRX*> talon_motors;
-  std::thread worker;
-  std::atomic<bool> is_running = false;
 };
 
 }  // namespace talon_hardware_interface

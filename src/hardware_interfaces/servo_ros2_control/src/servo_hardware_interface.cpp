@@ -18,12 +18,111 @@
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-#define DEBUG_MODE 0 // 0 for off 1 for on
-
 using std::placeholders::_1;
 
 namespace servo_ros2_control
 {
+
+double SERVOHardwareInterface::calculate_joint_position_from_motor_position(double motor_position, int gear_ratio){
+  // Converts from deg to radians with gear ratio
+  return (motor_position * (M_PI/180.0))/gear_ratio;
+}
+
+double SERVOHardwareInterface::calculate_joint_displacement_from_motor_position(double motor_position, int gear_ratio, double meters_per_deg){
+  // Converts from deg to meters with gear ratio
+  return (motor_position * meters_per_deg)/gear_ratio;
+}
+
+double SERVOHardwareInterface::calculate_joint_angular_velocity_from_motor_velocity(double motor_velocity, int gear_ratio){
+  // Converts from dps to radians/s with gear ratio
+  return (motor_velocity * (M_PI/180.0))/gear_ratio;
+}
+
+double SERVOHardwareInterface::calculate_joint_linear_velocity_from_motor_velocity(double motor_velocity, int gear_ratio, double meters_per_deg){
+  // Converts from dps to meters/s with gear ratio
+  return (motor_velocity * meters_per_deg)/gear_ratio;
+}
+
+int16_t SERVOHardwareInterface::calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio){
+  // radians -> deg with gear ratio
+  return static_cast<int16_t>(std::round((joint_position*(180/M_PI))*gear_ratio));
+}
+
+int16_t SERVOHardwareInterface::calculate_motor_position_from_desired_joint_displacement(double joint_position, int gear_ratio, double meters_per_deg){
+  // m -> deg with gear ratio
+  return static_cast<int16_t>(std::round((joint_position*meters_per_deg*gear_ratio)));
+}
+
+int16_t SERVOHardwareInterface::calculate_motor_velocity_from_desired_joint_angular_velocity(double joint_velocity, int gear_ratio){
+  // radians/s -> deg/s with gear ratio
+  return static_cast<int16_t>(std::round((joint_velocity*(180/M_PI))*gear_ratio));
+}
+
+int16_t SERVOHardwareInterface::calculate_motor_velocity_from_desired_joint_linear_velocity(double joint_velocity, int gear_ratio, double meters_per_deg){
+  // m/s -> deg/s with gear ratio
+  return static_cast<int16_t>(std::round((joint_velocity*meters_per_deg*gear_ratio)));
+}
+
+void SERVOHardwareInterface::logger_function(){
+
+  // Prevents breaking the logger
+  if (num_joints == 0) return;
+
+  // Building Message
+  std::string log_msg = "\033[2J\033[H \nSERVO Logger";
+  std::ostringstream oss;
+  std::string status;
+  
+  // HWI Specific
+  oss << "\n--- HWI Specific ---\n"
+      << "CAN Interface: " << can_interface
+      << " | Command CAN ID: 0x" << std::hex << std::uppercase << can_command_id
+      << " | Response CAN ID: 0x" << std::hex << std::uppercase << can_response_id
+      << " | HWI Update Rate: " << update_rate
+      << " | Logger Update Rate: " << logger_rate << "\n"
+      << "Elapsed Time since first update: " << elapsed_time << "\n"
+      << "\n--- Joint Specific ---";
+
+  for (int i = 0; i < num_joints; i++) {
+    switch (device_status[i]) {
+      case 0x00:
+        status = "IDLE (ready)";
+        break;
+      case 0x01:
+        status = "ACTIVE (busy)";
+        break;
+      case 0x02:
+        status = "DOES NOT EXIST";
+        break;
+      case 0x03:
+        status = "ERROR";
+        break;
+      default:
+        status = "UNDEFINED";
+        break;
+    }
+
+    oss << "\nJOINT: " << info_.joints[i].name << "\n"
+        << "Parameters: Node ID: 0x" << std::hex << std::uppercase << joint_node_ids[i]
+        << " | Gear Ratio: " << joint_gear_ratios[i]
+        << " | Device Status: " << std::hex << std::uppercase << device_status[i] 
+        << "- " << status << "\n"
+        << "-- Commands --\n"
+        << "Control Mode: " << static_cast<int>(control_level_[i]) << "\n"
+        << "Motor Position: " << motor_position[i]
+        << " | Joint Command Position: " << joint_command_position_[i] << "\n"
+        << "Motor Velocity: " << motor_velocity[i]
+        << " | Joint Command Velocity: " << joint_command_velocity_[i] << "\n"
+        << "-- State --\n"
+        << "Joint Position: " << joint_state_position_[i]
+        << " | Joint Velocity: " << joint_state_velocity_[i] << "\n";
+  }
+
+  log_msg += oss.str();
+  RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), log_msg.c_str());
+}
+
+
 hardware_interface::CallbackReturn SERVOHardwareInterface::on_init(
   const hardware_interface::HardwareInfo & info) // Info stores all parameters in xacro file
 {
@@ -80,9 +179,15 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_init(
 
   num_joints = static_cast<int>(info_.joints.size());
   update_rate = std::stoi(info_.hardware_parameters.at("update_rate"));
+  logger_rate = std::stoi(info_.hardware_parameters.at("logger_rate"));
+  logger_state = std::stoi(info_.hardware_parameters.at("logger_state"));
   can_interface = info_.hardware_parameters.at("can_interface");
   can_command_id = std::stoi(info_.hardware_parameters.at("can_id"), nullptr, 0);
   can_response_id = can_command_id+0x01;
+
+  elapsed_update_time = 0.0;
+  elapsed_time = 0.0;
+  elapsed_logger_time = 0.0;
   
   // -- Command and State Interface initialization --
   joint_state_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
@@ -91,7 +196,6 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_init(
   joint_command_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
   joint_command_velocity_.assign(num_joints, 0);
 
-  encoder_position.assign(num_joints, 0.0);
   motor_position.assign(num_joints, 0.0);
   motor_velocity.assign(num_joints, 0.0);
   device_status.assign(num_joints, -1);
@@ -106,10 +210,6 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_init(
     } else{
       control_level_[i] = integration_level_t::UNDEFINED;
     }
-  }
-
-  for (size_t i = 0; i < joint_command_velocity_.size(); ++i) {
-    RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %zu command vel in on_init: %f", i, joint_command_velocity_[i]);
   }
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -161,7 +261,7 @@ SERVOHardwareInterface::export_command_interfaces()
 hardware_interface::CallbackReturn SERVOHardwareInterface::on_configure(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  if (!canBus.open(can_interface, std::bind(&SERVOHardwareInterface::onCanMessage, this, std::placeholders::_1))) {
+  if (!canBus.open(can_interface, std::bind(&SERVOHardwareInterface::on_can_message, this, std::placeholders::_1))) {
     RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Failed to open CAN interface");
     return hardware_interface::CallbackReturn::ERROR;
   }
@@ -169,7 +269,7 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_configure(
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-void SERVOHardwareInterface::onCanMessage(const CANLib::CanFrame& frame) {
+void SERVOHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
   can_rx_frame_ = frame; // Store the received frame for processing in read()
 
   std::string result;
@@ -216,8 +316,8 @@ void SERVOHardwareInterface::onCanMessage(const CANLib::CanFrame& frame) {
       device_status[i] = data[6];
     }
     else{
-      if(DEBUG_MODE == 1) {
-        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Reply not heard.");
+      if(logger_state == 1) {
+        // RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Reply not heard.");
       }
     }
   }
@@ -291,47 +391,6 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_deactivate(
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-double SERVOHardwareInterface::calculate_joint_position_from_motor_position(double motor_position, int gear_ratio){
-  // Converts from deg to radians with gear ratio
-  return (motor_position * (M_PI/180.0))/gear_ratio;
-}
-
-double SERVOHardwareInterface::calculate_joint_displacement_from_motor_position(double motor_position, int gear_ratio, double meters_per_deg){
-  // Converts from deg to meters with gear ratio
-  return (motor_position * meters_per_deg)/gear_ratio;
-}
-
-double SERVOHardwareInterface::calculate_joint_angular_velocity_from_motor_velocity(double motor_velocity, int gear_ratio){
-  // Converts from dps to radians/s with gear ratio
-  return (motor_velocity * (M_PI/180.0))/gear_ratio;
-}
-
-double SERVOHardwareInterface::calculate_joint_linear_velocity_from_motor_velocity(double motor_velocity, int gear_ratio, double meters_per_deg){
-  // Converts from dps to meters/s with gear ratio
-  return (motor_velocity * meters_per_deg)/gear_ratio;
-}
-
-int16_t SERVOHardwareInterface::calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio){
-  // radians -> deg with gear ratio
-  return static_cast<int16_t>(std::round((joint_position*(180/M_PI))*gear_ratio));
-}
-
-int16_t SERVOHardwareInterface::calculate_motor_position_from_desired_joint_displacement(double joint_position, int gear_ratio, double meters_per_deg){
-  // m -> deg with gear ratio
-  return static_cast<int16_t>(std::round((joint_position*meters_per_deg*gear_ratio)));
-}
-
-int16_t SERVOHardwareInterface::calculate_motor_velocity_from_desired_joint_angular_velocity(double joint_velocity, int gear_ratio){
-  // radians/s -> deg/s with gear ratio
-  return static_cast<int16_t>(std::round((joint_velocity*(180/M_PI))*gear_ratio));
-}
-
-int16_t SERVOHardwareInterface::calculate_motor_velocity_from_desired_joint_linear_velocity(double joint_velocity, int gear_ratio, double meters_per_deg){
-  // m/s -> deg/s with gear ratio
-  return static_cast<int16_t>(std::round((joint_velocity*meters_per_deg*gear_ratio)));
-}
-
-
 
 hardware_interface::return_type SERVOHardwareInterface::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
@@ -345,31 +404,6 @@ hardware_interface::return_type SERVOHardwareInterface::read(
     if(device_status[i] != 0x00 && device_status[i] != 0x01 && device_status[i] != -1){
       return hardware_interface::return_type::ERROR;
     }
-
-    if(DEBUG_MODE == 1) {
-      if(device_status[i] == 0x00){
-        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is IDLE. Ready to receive commands.", info_.joints[i].name.c_str());
-      }
-      else if(device_status[i] == 0x01){
-        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is ACTIVE. Currently not receiving commands.", info_.joints[i].name.c_str());
-      }
-      else if(device_status[i] == 0x02){
-        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s DOES NOT EXIST!", info_.joints[i].name.c_str());
-      }
-      else if(device_status[i] == 0x03){
-        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is in ERROR state!", info_.joints[i].name.c_str());
-      }
-      else{ // This includes -1 case. In order to avoid killing the HWI, it will operate as normal but print this warning.
-        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is in UNDEFINED state! Operation will continue.", info_.joints[i].name.c_str());
-      }
-
-      RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"),
-          "Reading for joint: %s Motor Position: %f Joint position: %f Joint velocity: %f \n",
-          info_.joints[i].name.c_str(),
-          motor_position[i],
-          joint_state_position_[i], 
-          joint_state_velocity_[i]);
-    }
   }
     
   return hardware_interface::return_type::OK;
@@ -380,21 +414,29 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
   elapsed_update_time+=period.seconds();
+  double update_period = 1.0/update_rate;
   int data[3] = {0x00, 0x00, 0x00};
   int8_t command_nibble;
   int8_t device_id_nibble;
   int16_t joint_angle = 0;
   int16_t joint_velocity = 0;
 
-  double update_period = 1.0/update_rate;
+  elapsed_time+=period.seconds();
+  
+  // Logger update
+  elapsed_logger_time+=period.seconds();
+  double logging_period = 1.0/logger_rate;
+  if(elapsed_logger_time > logging_period){
+    elapsed_logger_time = 0.0;
+    if (logger_state == 1) {
+      logger_function();
+    }
+  }
 
   // HWI can only go as fast as the controller manager. To limit frequency of bus messages,
   // keep track of time passed over iterations of this function and if it exceeds the 
   // desired frequency of the HWI, skip message
-  if(update_period > elapsed_update_time){
-    return hardware_interface::return_type::OK;
-  }
-  else{
+  if(elapsed_update_time > update_period){
     elapsed_update_time = 0.0;
       
     // Motor Command for each joint at given frequency
@@ -430,13 +472,6 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
         data[0] = 0x20 + joint_node_ids[i];
         data[1] = joint_angle & 0xFF;
         data[2] = (joint_angle >> 8) & 0xFF;
-
-        if(DEBUG_MODE == 1) {
-          RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Writing positions for: %s Joint angle of motor (0.01 deg): %d Joint command: %f", 
-                                                                info_.joints[i].name.c_str(),
-                                                                joint_angle,
-                                                                joint_command_position_[i]);
-        }
         
       }
       else if(control_level_[i] == integration_level_t::VELOCITY && servo_type_[i] == servo_type_t::CONTINUOUS && std::isfinite(joint_command_velocity_[i])) {
@@ -458,25 +493,20 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
         data[1] = joint_velocity & 0xFF;
         data[2] = (joint_velocity >> 8) & 0xFF;
 
-        if(DEBUG_MODE == 1) {
-          RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Writing velocities for: %s Joint velocity of motor (0.01 dps): %d", 
-                                                          info_.joints[i].name.c_str(),
-                                                          joint_velocity);
-        }
       }
       else if (control_level_[i] == integration_level_t::POSITION && servo_type_[i] == servo_type_t::CONTINUOUS) {
-        if (DEBUG_MODE == 1) {
-          RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is continuous type and cannot be position controlled.", info_.joints[i].name.c_str());
+        if (logger_state == 1) {
+          RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is continuous type and cannot be position controlled.", info_.joints[i].name.c_str());
         }
       }
       else if (control_level_[i] == integration_level_t::VELOCITY && servo_type_[i] == servo_type_t::STANDARD) {
-        if (DEBUG_MODE == 1) {
-          RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is standard type and cannot be velocity controlled.", info_.joints[i].name.c_str());
+        if (logger_state == 1) {
+          RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is standard type and cannot be velocity controlled.", info_.joints[i].name.c_str());
         }
       }
       else{
-        if (DEBUG_MODE == 1) {
-          RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Joint command value not found or undefined command state");
+        if (logger_state == 1) {
+          RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint command value not found or undefined command state");
         }
       }
 
@@ -488,10 +518,6 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
       
       canBus.send(can_tx_frame_);
     }
-  }
-
-  if(DEBUG_MODE == 1) {
-    RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Servo - Period passed to write: %f seconds", period.seconds());
   }
 
   return hardware_interface::return_type::OK;

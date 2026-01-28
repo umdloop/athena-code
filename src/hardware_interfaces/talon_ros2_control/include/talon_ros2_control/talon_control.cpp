@@ -101,7 +101,6 @@ float getClawVelocity(TalonSRX *motor) {
 }
 
 void setDutyCycle(TalonSRX *motor, double dutyCycle, int ms) {
-    // printf("Spin command received...\n\r");
 	motor->Set(ctre::phoenix::motorcontrol::ControlMode::PercentOutput, dutyCycle);
 	ctre::phoenix::unmanaged::Unmanaged::FeedEnable(ms); // activate motor for (ms) milliseconds
 }
@@ -112,7 +111,6 @@ float setVelocityFromLinearVelocity(TalonSRX *motor, double claw_vel, int ms) {
 
 	//TO DO: why does the 5 fix this. I dont have a clue rn
 	float desired_talon_units_per_100ms = convertRevtoTalonUnits(convertDistanceToRev((claw_vel*5)/10)); // m/s -> m/100ms -> rev/100ms -> talon/100ms
-    // printf("Spin command received...\n\r");
 
 	motor->Set(ctre::phoenix::motorcontrol::ControlMode::Velocity, desired_talon_units_per_100ms);
 	ctre::phoenix::unmanaged::Unmanaged::FeedEnable(ms); // activate motor for (ms) milliseconds
@@ -122,7 +120,6 @@ float setVelocityFromLinearVelocity(TalonSRX *motor, double claw_vel, int ms) {
 
 float setVelocityFromAngularVelocity(TalonSRX *motor, double joint_velocity, int ms) {
 	float desired_talon_units_per_100ms = convertRevtoTalonUnits(joint_velocity / (2*M_PI*10)); // rad/s -> rad/100ms -> rev/100ms -> talon/100ms
-    // printf("Spin command received...\n\r");
 
 	motor->Set(ctre::phoenix::motorcontrol::ControlMode::Velocity, desired_talon_units_per_100ms);
 	ctre::phoenix::unmanaged::Unmanaged::FeedEnable(ms); // activate motor for (ms) milliseconds
