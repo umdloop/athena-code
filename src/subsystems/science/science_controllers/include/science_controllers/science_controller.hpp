@@ -165,6 +165,7 @@ private:
 
   enum CommandInterfaces
   {
+    // ----- Steppers (position control) -----
     IDX_STEPPER_A_POSITION = 0,
     IDX_STEPPER_B_POSITION = 1,
 
@@ -185,7 +186,7 @@ private:
     // ----- Rack and Pinion servos -----
     IDX_RACK_LEFT_POSITION  = 8,
     IDX_RACK_RIGHT_POSITION = 9,
-
+    
     // Total number of interfaces
     CMD_ITFS_COUNT
   };
