@@ -46,7 +46,8 @@ hardware_interface::CallbackReturn LaserHardwareInterface::on_init(
   }
 
   if (info_.hardware_parameters.count("can_id")) {
-    can_id_ = static_cast<uint32_t>(std::stoi(info_.hardware_parameters.at("can_id")));
+    // Parse hex string (e.g., "0x130") - base 0 auto-detects hex/decimal
+    can_id_ = static_cast<uint32_t>(std::stoul(info_.hardware_parameters.at("can_id"), nullptr, 0));
   } else {
     can_id_ = 0x130;  // Default laser CAN ID
   }
