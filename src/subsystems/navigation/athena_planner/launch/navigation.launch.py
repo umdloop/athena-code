@@ -17,8 +17,14 @@ def generate_launch_description():
     athena_planner_share = get_package_share_directory('athena_planner')
     nav2_nav = os.path.join(athena_planner_share, 'launch', 'nav2_nodes.launch.py')
     
+    athena_map_share = get_package_share_directory('athena_map')
+    dem_costmap_launch_file = os.path.join(athena_map_share, 'launch', 'dem_costmap.launch.py')
+    
     localizer_share = get_package_share_directory('localizer')
     localizer_launch_file = os.path.join(localizer_share, 'launch', 'localizer.launch.py')
+    
+    gps_goal_share = get_package_share_directory('gps_goal')
+    gps_goal_launch_file = os.path.join(gps_goal_share, 'launch', 'gps_goal_server.launch.py')
     
     default_params = PathJoinSubstitution([
         FindPackageShare('athena_planner'), 'config', 'nav2_params.yaml'
@@ -39,13 +45,20 @@ def generate_launch_description():
         ],
     )
     
+    dem_costmap_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(dem_costmap_launch_file)
+    )
+    
     localizer_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(localizer_launch_file),
         launch_arguments={
             'use_sim_time': 'true',
         }.items()
     )
-
+    
+    gps_goal_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(gps_goal_launch_file)
+    )
     
 
     return LaunchDescription([
@@ -62,9 +75,9 @@ def generate_launch_description():
             description='Log level for nav2 nodes'),
 
         twist_stamper_node,
+        dem_costmap_launch, 
         localizer_launch,
-
-       #IncludeLaunchDescription(PythonLaunchDescriptionSource(dem_launch)),
+        gps_goal_launch,
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(nav2_nav),
