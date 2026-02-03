@@ -31,6 +31,7 @@ void TALONHardwareInterface::logger_function(){
 
   // Building Message
   std::string log_msg = "\033[2J\033[H \nTALON Logger";
+  std::string control_mode = "";
   std::ostringstream oss;
   std::string status;
   
@@ -43,12 +44,20 @@ void TALONHardwareInterface::logger_function(){
       << "\n--- Joint Specific ---";
 
   for (int i = 0; i < num_joints; i++) {
+    if(static_cast<int>(control_level_[i]) == 1) {
+      control_mode = "POSITION";
+    }
+    else if(static_cast<int>(control_level_[i]) == 2) {
+      control_mode = "VELOCITY";
+    }
+    else {
+      control_mode = "UNDEFINED";
+    }
 
     oss << "\nJOINT: " << info_.joints[i].name << "\n"
         << "Parameters: Node ID: 0x" << std::hex << std::uppercase << joint_node_ids[i] << "\n"
-        // << " | Gear Ratio: " << joint_gear_ratios[i]
         << "-- Commands --\n"
-        << "Control Mode: " << static_cast<int>(control_level_[i]) << "\n"
+        << "Control Mode: " << control_mode << "\n"
         << "Joint Command Position: " << joint_command_position_[i] << "\n"
         << "Joint Command Velocity: " << joint_command_velocity_[i] << "\n"
         << "-- State --\n"

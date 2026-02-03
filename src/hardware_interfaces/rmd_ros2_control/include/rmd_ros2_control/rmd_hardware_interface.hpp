@@ -69,6 +69,7 @@ public:
 
 
   // -- Helper Functions --
+  void send_command(int can_id, int cmd_id);
   void on_can_message(const CANLib::CanFrame& frame);
   void logger_function();
   double calculate_joint_position_from_motor_position(double motor_position, int gear_ratio);
@@ -125,6 +126,16 @@ private:
 
   // Active control mode for each actuator
   std::vector<integration_level_t> control_level_;
+
+  // CAN Commands
+  static constexpr uint8_t BRAKE_RELEASE_CMD = 0X77;
+  static constexpr uint8_t BRAKE_LOCK_CMD = 0x78;
+  static constexpr uint8_t MOTOR_SHUTDOWN_CMD = 0X80;
+  static constexpr uint8_t MOTOR_STOP_CMD = 0x81;
+  static constexpr uint8_t MOTOR_STATUS_2_CMD = 0X9C;
+  static constexpr uint8_t SPEED_CONTROL_CMD = 0xA2;
+  static constexpr uint8_t ABSOLUTE_POS_CONTROL_CMD = 0xA4;
+
 };
 
 }  // namespace rmd_hardware_interface

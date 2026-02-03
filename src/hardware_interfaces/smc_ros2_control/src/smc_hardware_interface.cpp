@@ -42,6 +42,15 @@ int32_t SMCHardwareInterface::calculate_motor_velocity_from_desired_joint_veloci
   return static_cast<int32_t>(std::round((joint_velocity*(180/M_PI)*100)*gear_ratio));
 }
 
+void SMCHardwareInterface::send_command(int can_id, int cmd_id){
+  CANLib::CanFrame frame;
+  frame.id  = can_id;
+  frame.dlc = 8;
+  frame.data.fill(0);
+  frame.data[0] = cmd_id;
+  canBus.send(frame);
+}
+
 void SMCHardwareInterface::logger_function(){
 
   // Prevents breaking the logger
@@ -49,6 +58,7 @@ void SMCHardwareInterface::logger_function(){
 
   // Building Message
   std::string log_msg = "\033[2J\033[H \nSMC Logger";
+  std::string control_mode = "";
   
   // HWI Specific
   std::ostringstream oss;
@@ -61,11 +71,20 @@ void SMCHardwareInterface::logger_function(){
       << "\n--- Joint Specific ---";
 
   for (int i = 0; i < num_joints; i++) {
+    if(static_cast<int>(control_level_[i]) == 1) {
+      control_mode = "POSITION";
+    }
+    else if(static_cast<int>(control_level_[i]) == 2) {
+      control_mode = "VELOCITY";
+    }
+    else {
+      control_mode = "UNDEFINED";
+    }
     oss << "\nJOINT: " << info_.joints[i].name << "\n"
         << "Parameters: CAN ID: 0x" << std::hex << std::uppercase << joint_node_ids[i]
         << " | Gear Ratio: " << joint_gear_ratios[i] << "\n"
         << "-- Commands --\n"
-        << "Control Mode: " << static_cast<int>(control_level_[i]) << "\n"
+        << "Control Mode: " << control_mode << "\n"
         << "Motor Position: " << motor_position[i]
         << " | Joint Command Position: " << joint_command_position_[i] << "\n"
         << "Motor Velocity: " << motor_velocity[i]
@@ -181,13 +200,13 @@ void SMCHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
 
   std::string result;
 
-  int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  int data[8] = {0x00};
 
   for(int i = 0; i < num_joints; i++){  
     if(can_rx_frame_.id == joint_node_ids[i] && 
-      (can_rx_frame_.data[0] == 0xA2  || 
-       can_rx_frame_.data[0] == 0xA4  || 
-       can_rx_frame_.data[0] == 0x9C) &&
+      (can_rx_frame_.data[0] == SPEED_CONTROL_CMD  || 
+       can_rx_frame_.data[0] == ABSOLUTE_POS_CONTROL_CMD  || 
+       can_rx_frame_.data[0] == MOTOR_STATUS_2_CMD) &&
        can_rx_frame_.data[1] != 0x00){
 
       // DECODING CAN MESSAGE FOR VELOCITY
@@ -244,13 +263,8 @@ hardware_interface::CallbackReturn SMCHardwareInterface::on_cleanup(
 {
   // If cleanup occurs before shutdown, this is the last opportunity to shutdown motor since pointers must be deleted here
   for(int i = 0; i < num_joints; i++){
-    can_tx_frame_ = CANLib::CanFrame();
-    can_tx_frame_.id = joint_node_ids[i];
-    can_tx_frame_.dlc = 8;
-        
     // Motor Off (Shutdown) Command
-    can_tx_frame_.data = {0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    canBus.send(can_tx_frame_);
+    send_command(joint_node_ids[i], MOTOR_SHUTDOWN_CMD);
   }
 
   canBus.close();
@@ -265,14 +279,7 @@ hardware_interface::CallbackReturn SMCHardwareInterface::on_activate(
   RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Activating ...please wait...");
 
   for(int i = 0; i < num_joints; i++){
-    can_tx_frame_ = CANLib::CanFrame();
-    can_tx_frame_.id = joint_node_ids[i];
-    can_tx_frame_.dlc = 8;
-
-
-    can_tx_frame_.data = {0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    canBus.send(can_tx_frame_);
-    control_level_[i] = integration_level_t::UNDEFINED;
+    send_command(joint_node_ids[i], MOTOR_RUNNING_CMD);
   }
 
   // Sets initial command to joint state
@@ -290,13 +297,7 @@ hardware_interface::CallbackReturn SMCHardwareInterface::on_deactivate(
   RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Deactivating ...please wait...");
 
   for(int i = 0; i < num_joints; i++){
-    can_tx_frame_ = CANLib::CanFrame();
-    can_tx_frame_.id = joint_node_ids[i];
-    can_tx_frame_.dlc = 8;
-
-    // Motor Stop Command
-    can_tx_frame_.data = {0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    canBus.send(can_tx_frame_);
+    send_command(joint_node_ids[i], MOTOR_STOP_CMD);
   }
 
   RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Successfully deactivated all SMC motors!");
@@ -323,7 +324,7 @@ hardware_interface::return_type smc_ros2_control::SMCHardwareInterface::write(
 {
   elapsed_update_time+=period.seconds();
   double update_period = 1.0/update_rate;
-  int data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  int data[8] = {0x00};
   int32_t joint_angle = 0;
   int16_t operating_velocity = 200;
   int32_t joint_velocity = 0;
@@ -357,7 +358,7 @@ hardware_interface::return_type smc_ros2_control::SMCHardwareInterface::write(
         joint_angle = calculate_motor_position_from_desired_joint_position(joint_command_position_[i], joint_gear_ratios[i]);
         
         // ENCODING CAN MESSAGE
-        data[0] = 0xA4; 
+        data[0] = ABSOLUTE_POS_CONTROL_CMD; 
         data[1] = 0x00;
         data[2] = operating_velocity & 0xFF;
         data[3] = (operating_velocity >> 8) & 0xFF;
@@ -372,7 +373,7 @@ hardware_interface::return_type smc_ros2_control::SMCHardwareInterface::write(
         joint_velocity = calculate_motor_velocity_from_desired_joint_velocity(joint_command_velocity_[i], joint_gear_ratios[i]);
    
         // ENCODING CAN MESSAGE
-        data[0] = 0xA2;
+        data[0] = SPEED_CONTROL_CMD;
         data[1] = 0x00;
         data[2] = 0x00;
         data[3] = 0x00;  
@@ -384,14 +385,7 @@ hardware_interface::return_type smc_ros2_control::SMCHardwareInterface::write(
       else{
         // RCLCPP_WARN(rclcpp::get_logger("SMCHardwareInterface"), "Joint command value not found or undefined command state. Sending Motor Status 3 commands for now.");
         // ENCODING CAN MESSAGE
-        data[0] = 0x9C;
-        data[1] = 0x00;
-        data[2] = 0x00;
-        data[3] = 0x00;  
-        data[4] = 0x00;
-        data[5] = 0x00;
-        data[6] = 0x00;
-        data[7] = 0x00;
+        data[0] = MOTOR_STATUS_2_CMD;
       }
 
       // Cast data to uint8_t

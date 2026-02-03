@@ -135,14 +135,15 @@ controller_interface::InterfaceConfiguration ManualArmJointByJointController::co
   command_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
   command_interfaces_config.names.reserve(num_joints);
-  for (const auto & joint : params_.position_joints)
-  {
-    command_interfaces_config.names.push_back(joint + "/position");
-  }
 
   for (const auto & joint : params_.velocity_joints)
   {
     command_interfaces_config.names.push_back(joint + "/velocity");
+  }
+
+  for (const auto & joint : params_.position_joints)
+  {
+    command_interfaces_config.names.push_back(joint + "/position");
   }
 
   return command_interfaces_config;
@@ -154,14 +155,12 @@ controller_interface::InterfaceConfiguration ManualArmJointByJointController::st
   state_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
   state_interfaces_config.names.reserve(num_joints);
-  for (const auto & joint : params_.position_joints)
-  {
-    state_interfaces_config.names.push_back(joint + "/position");
+  for (const auto & joint : params_.velocity_joints) {
+    state_interfaces_config.names.push_back(joint + "/velocity");
   }
 
-  for (const auto & joint : params_.velocity_joints)
-  {
-    state_interfaces_config.names.push_back(joint + "/velocity");
+  for (const auto & joint : params_.position_joints) {
+    state_interfaces_config.names.push_back(joint + "/position");
   }
 
   return state_interfaces_config;
@@ -170,10 +169,6 @@ controller_interface::InterfaceConfiguration ManualArmJointByJointController::st
 controller_interface::CallbackReturn ManualArmJointByJointController::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  // TODO(anyone): if you have to manage multiple interfaces that need to be sorted check
-  // `on_activate` method in `JointTrajectoryController` for exemplary use of
-  // `controller_interface::get_ordered_interfaces` helper function
-
   // Set default value in command
   reset_controller_reference_msg(*(input_ref_.readFromRT)(), joystick_axes, joystick_buttons);
 
@@ -183,8 +178,6 @@ controller_interface::CallbackReturn ManualArmJointByJointController::on_activat
 controller_interface::CallbackReturn ManualArmJointByJointController::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  // TODO(anyone): depending on number of interfaces, use definitions, e.g., `CMD_MY_ITFS`,
-  // instead of a loop
   for (size_t i = 0; i < command_interfaces_.size(); ++i)
   {
     command_interfaces_[i].set_value(std::numeric_limits<double>::quiet_NaN());
@@ -199,18 +192,22 @@ controller_interface::return_type ManualArmJointByJointController::update(
 
   if (!std::isnan((*current_ref)->axes[0]))
   {
-    // ODrive
+    // Base Yaw: L/R Left Stick
     joint_velocities_[0] = ((*current_ref)->buttons[1] == 1) ? 0.0 : (*current_ref)->axes[0] * max_velocities_[0];
 
-    // RMD
-    joint_velocities_[1] = ((*current_ref)->buttons[1] == 1) ? 0.0 : -(*current_ref)->axes[1] * max_velocities_[1]; // Shoulder Pitch
-    joint_velocities_[2] = (*current_ref)->axes[3] * max_velocities_[2];  // Elbow Pitch
+    // Shoulder Pitch: U/D Left Stick
+    joint_velocities_[1] = ((*current_ref)->buttons[1] == 1) ? 0.0 : -(*current_ref)->axes[1] * max_velocities_[1];
+    
+    // Elbow Pitch: U/D Right Stick
+    joint_velocities_[2] = (*current_ref)->axes[3] * max_velocities_[2];  
 
-    // SMC
+    // Wrist Pitch: U/D on Left Joystick AND O button 
     joint_velocities_[3] = -(*current_ref)->axes[1] * static_cast<float>((*current_ref)->buttons[1]) * max_velocities_[3];
+    
+    // Wrist Roll: L/R on Left Joystick AND O button
     joint_velocities_[4] = -(*current_ref)->axes[0] * static_cast<float>((*current_ref)->buttons[1]) * max_velocities_[4];
 
-    // Talons
+    // Gripper Claw: Bumpers and Triggers
     if ((*current_ref)->buttons[4] && (*current_ref)->buttons[5]) {
     // closeClaw(motor);
     } else if ((*current_ref)->buttons[4]) { // Left bumper
@@ -224,14 +221,13 @@ controller_interface::return_type ManualArmJointByJointController::update(
     } else{
       joint_velocities_[5] = 0.0;
     }
-    // RCLCPP_INFO(get_node()->get_logger(), "Talon: %f", joint_velocities_[5]);
 
     // Actuator (EXPERIMENTAL)
     // Pressing square activates actuator movement
     if((*current_ref)->buttons[3] == 1){
       actuator_active_ = true;
       actuator_iterator = 0.001;
-      joint_velocities_[6] == 0.001; // to start off
+      joint_velocities_[6] = 0.001; // to start off
     }
 
     // Once actuator reaches original position, stop movement
@@ -249,6 +245,8 @@ controller_interface::return_type ManualArmJointByJointController::update(
     // RCLCPP_INFO(get_node()->get_logger(), "Returning NaN");
     joint_velocities_.resize(7, 0.0);
   }
+
+  // RCLCPP_INFO(get_node()->get_logger(), "Size of Command Interface: %d", command_interfaces_.size());
 
   for (size_t i = 0; i < command_interfaces_.size(); ++i)
   {
