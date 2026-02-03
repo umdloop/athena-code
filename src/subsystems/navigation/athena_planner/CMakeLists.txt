@@ -9,7 +9,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
-find_package(nav2_util REQUIRED)  # <-- ADDED
+find_package(nav2_util REQUIRED)  
 
 add_library(bt_nodes SHARED
   plugins/nav_selector_node.cpp
@@ -17,7 +17,6 @@ add_library(bt_nodes SHARED
 
 target_compile_definitions(bt_nodes PRIVATE BT_PLUGIN_EXPORT)
 
-# Add both your public headers (include/) and any local plugin headers (plugins/)
 target_include_directories(bt_nodes PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plugins>
@@ -37,7 +36,6 @@ install(TARGETS bt_nodes
   RUNTIME DESTINATION bin
 )
 
-# Install public headers so downstream packages can include athena_planner/...
 install(DIRECTORY include/
   DESTINATION include
 )
@@ -55,7 +53,7 @@ install(DIRECTORY behavior_trees/
 )
 
 ament_export_libraries(bt_nodes)
-ament_export_dependencies(rclcpp std_msgs behaviortree_cpp_v3 nav2_util)  # <-- UPDATED
+ament_export_dependencies(rclcpp std_msgs behaviortree_cpp_v3 nav2_util)
 ament_export_include_directories(include)
 
 if(BUILD_TESTING)
