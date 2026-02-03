@@ -8,6 +8,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include "behaviortree_cpp_v3/bt_factory.h"
+
 namespace bt_nodes
 {
 
@@ -66,7 +68,6 @@ NavSelector::callbackNavSelect(const std_msgs::msg::String::SharedPtr msg)
 
 }  
 
-#include "behaviortree_cpp_v3/bt_factory.h"
 BT_REGISTER_NODES(factory)
 {
   factory.registerNodeType<bt_nodes::NavSelector>("NavSelector");
