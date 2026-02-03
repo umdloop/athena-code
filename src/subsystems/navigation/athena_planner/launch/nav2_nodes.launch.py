@@ -18,8 +18,13 @@ def generate_launch_description():
    default_bt_xml_path = PathJoinSubstitution([
        FindPackageShare('athena_planner'),
        'behavior_trees',
-       'navigate_w_replanning_time.xml'
+       'main_router.xml'
    ])
+
+   bt_dir = PathJoinSubstitution([
+        FindPackageShare('athena_planner'), 
+        'behavior_trees'
+    ])
 
 
    lifecycle_nodes = [
@@ -150,9 +155,10 @@ def generate_launch_description():
                respawn_delay=2.0,
                parameters=[
                    params_file,
-                   {'default_nav_to_pose_bt_xml': default_bt_xml_path}
+                   {'default_nav_to_pose_bt_xml': default_bt_xml_path},
                ],
                arguments=['--ros-args', '--log-level', log_level],
+               cwd=bt_dir,
                remappings=remappings,
        )
    )
