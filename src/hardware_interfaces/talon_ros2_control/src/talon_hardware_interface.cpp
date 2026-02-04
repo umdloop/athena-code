@@ -303,48 +303,82 @@ hardware_interface::return_type TALONHardwareInterface::perform_command_mode_swi
   const std::vector<std::string>& start_interfaces,
   const std::vector<std::string>& stop_interfaces)
 {
-  std::vector<integration_level_t> new_modes = {};
-  for (std::string key : start_interfaces)
-  {
-    for (int i = 0; i < num_joints; i++){
-      if (key == info_.joints[i].name + "/" + hardware_interface::HW_IF_POSITION){
-        new_modes.push_back(integration_level_t::POSITION);
-      }
-      if (key == info_.joints[i].name + "/" + hardware_interface::HW_IF_VELOCITY){
-        new_modes.push_back(integration_level_t::VELOCITY);
+  // Debug: print incoming requests
+  std::ostringstream ss;
+  ss << "perform_command_mode_switch called. start_interfaces: [";
+  for (auto &s : start_interfaces) ss << s << ",";
+  ss << "] stop_interfaces: [";
+  for (auto &s : stop_interfaces) ss << s << ",";
+  ss << "]";
+  RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"), ss.str().c_str());
+
+  // For each joint, decide its new control mode based on start/stop interfaces.
+  // We allow partial starts/stops: only affected joints are switched.
+  std::vector<integration_level_t> requested_modes(num_joints, integration_level_t::UNDEFINED);
+
+  // Process stop interfaces first: mark those joints as UNDEFINED
+  for (const auto &ifname : stop_interfaces) {
+    for (int i = 0; i < num_joints; ++i) {
+      const std::string pos_if = info_.joints[i].name + "/" + std::string(hardware_interface::HW_IF_POSITION);
+      const std::string vel_if = info_.joints[i].name + "/" + std::string(hardware_interface::HW_IF_VELOCITY);
+      if (ifname == pos_if || ifname == vel_if || ifname.find(info_.joints[i].name) != std::string::npos) {
+        requested_modes[i] = integration_level_t::UNDEFINED;
       }
     }
-  }
-  
-  // All joints must be given new command mode at the same time
-  if (new_modes.size() != static_cast<unsigned long>(num_joints)){
-    return hardware_interface::return_type::ERROR;
-  }
-  // All joints must have the same command mode
-  if (!std::all_of(
-        new_modes.begin() + 1, new_modes.end(),
-        [&](integration_level_t mode) { return mode == new_modes[0]; }))
-  {
-    return hardware_interface::return_type::ERROR;
   }
 
-  // Stop motion on all relevant joints that are stopping
-  for (std::string key : stop_interfaces) {
-    for (int i = 0; i < num_joints; i++){
-      if (key.find(info_.joints[i].name) != std::string::npos) {
-        joint_command_position_[i] = 0;
-        joint_command_velocity_[i] = 0;
-        control_level_[i] = integration_level_t::UNDEFINED;  // Revert to undefined
+  // Process start interfaces: set POSITION or VELOCITY per joint
+  for (const auto &ifname : start_interfaces) {
+    for (int i = 0; i < num_joints; ++i) {
+      const std::string pos_if = info_.joints[i].name + "/" + std::string(hardware_interface::HW_IF_POSITION);
+      const std::string vel_if = info_.joints[i].name + "/" + std::string(hardware_interface::HW_IF_VELOCITY);
+      if (ifname == pos_if) {
+        requested_modes[i] = integration_level_t::POSITION;
+      } else if (ifname == vel_if) {
+        requested_modes[i] = integration_level_t::VELOCITY;
       }
     }
   }
-  // Set the new command modes. By this point everything should be undefined after the "stop motion" loop
-  for (int i = 0; i < num_joints; i++){
-    if (control_level_[i] != integration_level_t::UNDEFINED) {
-      // Something else is using the joint! Abort!
-      return hardware_interface::return_type::ERROR;
+
+  // Now apply the requested_modes to control_level_.
+  // For any joint with UNDEFINED in requested_modes, we only change it if it was explicitly stopped.
+  for (int i = 0; i < num_joints; ++i) {
+    if (requested_modes[i] == integration_level_t::UNDEFINED) {
+      // if stop requested, set to UNDEFINED; otherwise leave existing mode
+      // (we only set to UNDEFINED if this joint was mentioned in stop_interfaces)
+      bool was_stopped = false;
+      for (const auto &ifname : stop_interfaces) {
+        if (ifname.find(info_.joints[i].name) != std::string::npos) {
+          was_stopped = true;
+          break;
+        }
+      }
+      if (was_stopped) {
+        control_level_[i] = integration_level_t::UNDEFINED;
+        joint_command_velocity_[i] = 0;
+        // optional: reset position cmd to current state to be safe
+        joint_command_position_[i] = joint_state_position_[i];
+        RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"),
+          "Joint %s: stopped -> set UNDEFINED", info_.joints[i].name.c_str());
+      }
+      // else, leave control_level_ as-is
+    } else {
+      // Set the mode requested
+      control_level_[i] = requested_modes[i];
+      // If switching to velocity, optionally set command velocity to current state to avoid jumps
+      if (requested_modes[i] == integration_level_t::VELOCITY) {
+        // joint_command_velocity_[i] = joint_state_velocity_[i];
+        joint_command_velocity_[i] = 0;
+        RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"),
+          "Joint %s: switched to VELOCITY (cmd vel initialized from state: %f)",
+          info_.joints[i].name.c_str(), joint_command_velocity_[i]);
+      } else if (requested_modes[i] == integration_level_t::POSITION) {
+        joint_command_position_[i] = joint_state_position_[i];
+        RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"),
+          "Joint %s: switched to POSITION (cmd pos initialized from state: %f)",
+          info_.joints[i].name.c_str(), joint_command_position_[i]);
+      }
     }
-    control_level_[i] = new_modes[i];
   }
 
   return hardware_interface::return_type::OK;
