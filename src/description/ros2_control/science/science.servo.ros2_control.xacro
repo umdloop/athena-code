@@ -12,6 +12,12 @@
             </hardware>
 
             <joint name="rack_and_pinion_left">
+                <param name="node_id">0x6</param>
+                <param name="gear_ratio">1</param>
+                <param name="max_pos">1800</param> <!-- degrees -->
+                <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
+                <param name="servo_type">standard</param> <!-- standard or continuous -->
+                <param name="joint_type">prismatic</param> <!-- revolute or prismatic -->
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
                 <state_interface name="position"/>
@@ -19,6 +25,12 @@
             </joint>
 
             <joint name="rack_and_pinion_right">
+                <param name="node_id">0x7</param>
+                <param name="gear_ratio">1</param>
+                <param name="max_pos">1800</param> <!-- degrees -->
+                <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
+                <param name="servo_type">standard</param> <!-- standard or continuous -->
+                <param name="joint_type">prismatic</param> <!-- revolute or prismatic -->
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
                 <state_interface name="position"/>

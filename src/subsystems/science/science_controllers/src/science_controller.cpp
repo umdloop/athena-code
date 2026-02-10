@@ -253,6 +253,13 @@ controller_interface::return_type ScienceManual::update(
   double scoop_cmd =
     (msg->buttons.size() > 4 && msg->buttons[4]) ?
     params_.velocity_limits_talon_scoop[stage_idx] : 0.0;
+  
+  // RCLCPP_INFO(
+  //   get_node()->get_logger(),
+  //   "scoop_cmd = %.3f",
+  //   scoop_cmd
+  // );
+
 
   // Auger
   double auger_cmd =
@@ -308,7 +315,7 @@ controller_interface::return_type ScienceManual::update(
   command_interfaces_[IDX_RACK_RIGHT_POSITION].set_value(rack_right_position);
 
   // Reset joystick input after processing
-  reset_controller_reference_msg(*(input_ref_.readFromRT)(), params_.joints);
+  // reset_controller_reference_msg(*(input_ref_.readFromRT)(), params_.joints);
 
   // Basic state publish (still reusing existing signals)
   for (const auto & joint_name : params_.joints) {

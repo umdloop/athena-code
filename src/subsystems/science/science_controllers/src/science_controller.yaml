@@ -48,7 +48,7 @@ science_manual:
 
   velocity_limits_talon_scoop:
     type: double_array
-    default_value: [0.0, 0.0, 0.6, 0.0]
+    default_value: [30.0, 0.0, 0.6, 0.0]
 
   velocity_limits_stepper:
     type: double_array
