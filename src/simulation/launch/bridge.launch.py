@@ -50,6 +50,5 @@ def generate_launch_description():
             output='screen',
             arguments=[
                 '/odom/ground_truth@nav_msgs/msg/Odometry@gz.msgs.Odometry',
-            ]
-        ),
+            ]        ),
     ])
