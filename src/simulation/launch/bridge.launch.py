@@ -6,6 +6,7 @@ def generate_launch_description():
         Node(
             package='ros_gz_bridge',
             executable='parameter_bridge',
+<<<<<<< HEAD
             name='zed_point_cloud_bridge',
             output='screen',
             arguments=[
@@ -16,6 +17,8 @@ def generate_launch_description():
         Node(
             package='ros_gz_bridge',
             executable='parameter_bridge',
+=======
+>>>>>>> cdc6b52 (refactored sensor handling)
             name='clock_bridge',
             output='screen',
             arguments=[
