@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cp umdloop-udev.rules /etc/udev/rules.d/99-umdloop-udev.rules
+
+echo "Reboot for the changes to take effect!
