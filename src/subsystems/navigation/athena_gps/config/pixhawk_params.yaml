@@ -1,6 +1,6 @@
 athena_gps:
   ros__parameters:
-    usb_path: "serial:///dev/ttyACM0:57600"
+    usb_path: "serial:///dev/ttyPixhawk:57600"
 
     imu_rate: 10.0
     gps_info_rate: 1.0
@@ -9,7 +9,7 @@ athena_gps:
     imu_frame_id: "imu_link"
     gps_frame_id: "gps_link"
 
-    imu_topic: "imu/data"
+    imu_topic: "imu"
     gps_topic: "gps/fix"
     heading_topic: "heading"
 
