@@ -1,0 +1,24 @@
+diff --git a/src/athena_sensors/launch/sensors.launch.py b/src/athena_sensors/launch/sensors.launch.py
+index 8c6b521..6d96514 100644
+--- a/src/athena_sensors/launch/sensors.launch.py
++++ b/src/athena_sensors/launch/sensors.launch.py
+@@ -41,7 +41,6 @@ def generate_launch_description():
+             'camera_model':    camera_model,
+             'publish_tf':      'true',
+             'publish_map_tf':  'false',
+-            'publish_urdf':   'false',
+         }.items(),
+     )
+ 
+diff --git a/src/subsystems/navigation/localizer/config/localizer_real.yaml b/src/subsystems/navigation/localizer/config/localizer_real.yaml
+index 26e876a..e866938 100644
+--- a/src/subsystems/navigation/localizer/config/localizer_real.yaml
++++ b/src/subsystems/navigation/localizer/config/localizer_real.yaml
+@@ -1,6 +1,6 @@
+ state_estimator:
+   ros__parameters:
+-    imu_topic: "/zed/zed_node/imu/data"
++    imu_topic: "/imu"
+     gnss_topic: "/gps/fix"
+     odom_topic: "/zed/zed_node/odom"
+     output_odom_topic: "/localization/odom"
