@@ -148,7 +148,7 @@ controller_interface::return_type MotorStatusBroadcaster::update(
       kv.key = iface;
 
       if (it != state_interface_map_.end()) {
-        double value = state_interfaces_[it->second].get_optional().value_or(0.0);
+        double value = state_interfaces_[it->second].get_value();
 
         // Format value with 2 decimal places
         std::ostringstream oss;
