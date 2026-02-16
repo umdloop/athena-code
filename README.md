@@ -15,12 +15,12 @@ When cloning, be sure to use `git clone --recursive [URL to Git repository]` to 
 
 _Hardware:_
 ```bash
-./src/tools/scripts/can_setup.sh
+./src/athena-code/src/tools/scripts/can_setup.sh
 ```
 
 _Virtual:_
 ```bash
-./src/tools/scripts/virtual_can_setup.sh
+./src/athena-code/src/tools/scripts/virtual_can_setup.sh
 ```
 
 Use `ip link` to verify that `can0` or `vcan0` is up.
