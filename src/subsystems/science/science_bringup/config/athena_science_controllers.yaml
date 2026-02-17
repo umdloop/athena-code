@@ -40,6 +40,9 @@ controller_manager:
     laser_gpio_controller:
       type: gpio_controllers/GpioCommandController
 
+    motor_status_broadcaster:
+      type: general_controllers/MotorStatusBroadcaster
+
 joint_group_position_controller:                
   ros__parameters:
     joints:
@@ -113,3 +116,12 @@ laser_gpio_controller:
           - laser_state
           - temperature
           - is_connected
+
+# Motor status broadcaster — inactive until science hardware exports motor_temperature/torque_current
+motor_status_broadcaster:
+  ros__parameters:
+    joints: []
+    interfaces:
+      - motor_temperature
+      - torque_current
+    publish_rate: 10.0
