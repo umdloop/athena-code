@@ -117,10 +117,13 @@ laser_gpio_controller:
           - temperature
           - is_connected
 
-# Motor status broadcaster — inactive until science hardware exports motor_temperature/torque_current
 motor_status_broadcaster:
   ros__parameters:
-    joints: []
+    joints:
+      - stepper_motor_a
+      - stepper_motor_b
+      - talon_lift
+      - talon_scoop
     interfaces:
       - motor_temperature
       - torque_current

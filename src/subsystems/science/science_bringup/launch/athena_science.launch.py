@@ -164,7 +164,7 @@ def generate_launch_description():
     motor_status_broadcaster_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["motor_status_broadcaster", "-c", "/controller_manager", "--inactive"],
+        arguments=["motor_status_broadcaster", "-c", "/controller_manager"],
     )
 
     # CONTROLLER MANAGERS
