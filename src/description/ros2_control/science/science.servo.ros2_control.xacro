@@ -6,13 +6,13 @@
                 <plugin>servo_ros2_control/SERVOHardwareInterface</plugin>
                 <param name="update_rate">10</param> <!-- Hz -->
                 <param name="logger_rate">5</param> <!-- Hz -->
-                <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
+                <param name="logger_state">1</param> <!-- 0 for off, 1 for on -->
                 <param name="can_interface">can0</param>
                 <param name="can_id">0x80</param>
             </hardware>
 
             <joint name="rack_and_pinion_left">
-                <param name="node_id">0x6</param>
+                <param name="node_id">0x2</param>
                 <param name="gear_ratio">1</param>
                 <param name="max_pos">235</param> <!-- degrees -->
                 <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
@@ -25,7 +25,7 @@
             </joint>
 
             <joint name="rack_and_pinion_right">
-                <param name="node_id">0x7</param>
+                <param name="node_id">0x1</param>
                 <param name="gear_ratio">1</param>
                 <param name="max_pos">235</param> <!-- degrees -->
                 <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
@@ -38,7 +38,7 @@
             </joint>
 
             <joint name="scoop_a">
-                <param name="node_id">0x2</param>
+                <param name="node_id">0x5</param>
                 <param name="gear_ratio">1</param>
                 <param name="max_pos">178</param> <!-- degrees -->
                 <param name="servo_type">standard</param> <!-- standard / continuous -->

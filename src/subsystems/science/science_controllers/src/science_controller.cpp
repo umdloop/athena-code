@@ -280,19 +280,19 @@ controller_interface::return_type ScienceManual::update(
   // Left rack: map from axis[1] (left stick vertical)
   double axis_left = (msg->axes.size() > 1) ? msg->axes[1] : 0.0;
 
-  // Right rack: map from axis[4] (right stick vertical)
-  double axis_right = (msg->axes.size() > 4) ? msg->axes[4] : 0.0;
+  // Right rack: map from axis[3] (right stick vertical)
+  double axis_right = (msg->axes.size() > 3) ? msg->axes[3] : 0.0;
 
   // Integrate axes into positions (position += axis * speed * dt)
   rack_left_position  += axis_left  * rack_speed * dt;
   rack_right_position += axis_right * rack_speed * dt;
 
   // Clamp all servo-like positions to [0, 1]
-  scoop_position      = std::clamp(scoop_position,      0.0, 1.0);
-  auger_position      = std::clamp(auger_position,      0.0, 1.0);
-  cap_position        = std::clamp(cap_position,        0.0, 1.0);
-  rack_left_position  = std::clamp(rack_left_position,  0.0, 1.0);
-  rack_right_position = std::clamp(rack_right_position, 0.0, 1.0);
+  scoop_position      = std::clamp(scoop_position,      0.0, 255.0);
+  auger_position      = std::clamp(auger_position,      0.0, 255.0);
+  cap_position        = std::clamp(cap_position,        0.0, 255.0);
+  rack_left_position  = std::clamp(rack_left_position,  0.0, 255.0);
+  rack_right_position = std::clamp(rack_right_position, 0.0, 255.0);
 
   // Stepper motors (position)
   command_interfaces_[IDX_STEPPER_A_POSITION].set_value(stepper_cmd);
@@ -303,8 +303,8 @@ controller_interface::return_type ScienceManual::update(
   command_interfaces_[IDX_SCOOP_TALON_VELOCITY].set_value(scoop_cmd);
 
   // Scoop servos
-  command_interfaces_[IDX_SCOOP_A_POSITION].set_value(scoop_position);
-  command_interfaces_[IDX_SCOOP_B_POSITION].set_value(scoop_position);
+  command_interfaces_[IDX_SCOOP_A_POSITION].set_value(msg->axes[4]*255);
+  command_interfaces_[IDX_SCOOP_B_POSITION].set_value(msg->axes[3]*255);
 
   // Auger & cap
   command_interfaces_[IDX_AUGER_POSITION].set_value(auger_position);
@@ -313,6 +313,15 @@ controller_interface::return_type ScienceManual::update(
   // NEW: Rack & pinion servos
   command_interfaces_[IDX_RACK_LEFT_POSITION].set_value(rack_left_position);
   command_interfaces_[IDX_RACK_RIGHT_POSITION].set_value(rack_right_position);
+
+  // RCLCPP_INFO(get_node()->get_logger(), "stepper_cmd    = %.3f", stepper_cmd);
+  // RCLCPP_INFO(get_node()->get_logger(), "lift_cmd       = %.3f", lift_cmd);
+  // RCLCPP_INFO(get_node()->get_logger(), "scoop_cmd      = %.3f", scoop_cmd);
+  // RCLCPP_INFO(get_node()->get_logger(), "scoop_position = %.3f", scoop_position);
+  // RCLCPP_INFO(get_node()->get_logger(), "auger_position = %.3f", auger_position);
+  // RCLCPP_INFO(get_node()->get_logger(), "cap_position   = %.3f", cap_position);
+  // RCLCPP_INFO(get_node()->get_logger(), "rack_left      = %.3f", rack_left_position);
+  // RCLCPP_INFO(get_node()->get_logger(), "rack_right     = %.3f", rack_right_position);
 
   // Reset joystick input after processing
   // reset_controller_reference_msg(*(input_ref_.readFromRT)(), params_.joints);
