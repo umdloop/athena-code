@@ -27,14 +27,14 @@ joint_group_position_controller:
     joints:
       - stepper_motor_a
       - stepper_motor_b
-      - talon_lift
+      - servo_rack_and_pinion_l
+      - servo_rack_and_pinion_r
+      - servo_scoop_a
+      - servo_scoop_b
       - talon_scoop
-      - rack_and_pinion_left
-      - rack_and_pinion_right
-      - scoop_a
-      - scoop_b
-      - auger
-      - cap
+      - servo_sampler_lift
+      - talon_auger
+      - servo_cap
     interface_name: position
 
 joint_group_velocity_controller:                 
@@ -42,40 +42,34 @@ joint_group_velocity_controller:
     joints:
       - stepper_motor_a
       - stepper_motor_b
-      - talon_lift
+      - servo_rack_and_pinion_l
+      - servo_rack_and_pinion_r
+      - servo_scoop_a
+      - servo_scoop_b
       - talon_scoop
-      - auger
-      - rack_and_pinion_left
-      - rack_and_pinion_right
-      - scoop_a
-      - scoop_b
-      - auger
-      - cap
+      - servo_sampler_lift
+      - talon_auger
+      - servo_cap
     interface_name: velocity
 
 science_controller:
   ros__parameters:
-    joints:
-      - stepper_motor_a
-      - stepper_motor_b
-      - talon_lift
-      - talon_scoop
-      - scoop_a
-      - scoop_b
-      - auger
-      - cap
-      - rack_and_pinion_left
-      - rack_and_pinion_right
-    stepper_motor_a: "stepper_motor_a"
-    stepper_motor_b: "stepper_motor_b"
-    rack_and_pinion_left: "rack_and_pinion_left"
-    rack_and_pinion_right: "rack_and_pinion_right"
-    talon_lift: ["talon_lift"]
-    talon_scoop: "talon_scoop"
-    scoop_servos: ["scoop_a", "scoop_b"]
-    #auger_spinner: "auger_spinner"
-    auger: "auger"
-    cap: "cap"
+    # Pumps
+    pump_a: "stepper_motor_a"
+    pump_b: "stepper_motor_b"
+    
+    # Lift
+    lift_rack_and_pinion_l: "servo_rack_and_pinion_l"
+    lift_rack_and_pinion_r: "servo_rack_and_pinion_r"
+    
+    # Scoops
+    scoop_servos: ["servo_scoop_a", "servo_scoop_b"]
+    scoop_spinner: "talon_scoop"
+
+    # Sampler
+    sampler_lift: "servo_sampler_lift"
+    auger_spinner: "talon_auger"
+    cap: "servo_cap"
     interface_name: position 
     command_interfaces: [position, velocity]
     state_interfaces: [position, velocity]

@@ -106,9 +106,9 @@ void SERVOHardwareInterface::logger_function(){
         << "Parameters: Node ID: 0x" << std::hex << std::uppercase << joint_node_ids[i]
         << " | Gear Ratio: " << joint_gear_ratios[i]
         << " | Device Status: " << std::hex << std::uppercase << device_status[i] 
+        << " | Control Mode: " << static_cast<int>(control_level_[i])
         << " - " << status << "\n"
         << "-- Commands --\n"
-        << "Control Mode: " << static_cast<int>(control_level_[i]) << "\n"
         << "Motor Position: " << motor_position[i]
         << " | Joint Command Position: " << joint_command_position_[i] << "\n"
         << "Motor Velocity: " << motor_velocity[i]
@@ -451,17 +451,21 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
       
       if(control_level_[i] == integration_level_t::POSITION && servo_type_[i] == servo_type_t::STANDARD && std::isfinite(joint_command_position_[i])) {
         // CALCULATE DESIRED JOINT ANGLE
-        joint_angle = std::clamp(joint_command_position_[i], 0.0, rated_max[i]); // Input must be within bounds of rated max (positive and either rad or m)
+        joint_command_position_[i] = std::clamp(joint_command_position_[i], 0.0, rated_max[i]); // Input must be within bounds of rated max (positive and either rad or m)
         if(joint_type_[i] == joint_type_t::REVOLUTE){
-          joint_angle = calculate_motor_position_from_desired_joint_position(joint_angle, joint_gear_ratios[i]);
+          joint_angle = calculate_motor_position_from_desired_joint_position(joint_command_position_[i], joint_gear_ratios[i]);
         }
         else if(joint_type_[i] == joint_type_t::PRISMATIC){
-          joint_angle = calculate_motor_position_from_desired_joint_displacement(joint_angle, joint_gear_ratios[i], meters_per_deg[i]);
+          joint_angle = calculate_motor_position_from_desired_joint_displacement(joint_command_position_[i], joint_gear_ratios[i], meters_per_deg[i]);
         }
         else{
           RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "The joint type for joint %s is undefined.", info_.joints[i].name.c_str());
         }
-       
+        
+        RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), 
+        "Joint %s: cmd_pos=%.4f, joint_angle=%d \n", 
+        info_.joints[i].name.c_str(), joint_command_position_[i], (int)joint_angle);
+
         // ENCODING CAN MESSAGE
         data[0] = ABSOLUTE_POS_CONTROL_CMD + joint_node_ids[i];
         data[1] = joint_angle & 0xFF;
@@ -477,7 +481,8 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
       else if(control_level_[i] == integration_level_t::VELOCITY && servo_type_[i] == servo_type_t::CONTINUOUS && std::isfinite(joint_command_velocity_[i])) {
         
         // CALCULATE DESIRED JOINT VELOCITY
-        joint_velocity = std::clamp(joint_command_velocity_[i], -rated_max[i], rated_max[i]); // Input must be within bounds of rated max (all real values and either rad or m)
+        joint_command_velocity_[i] = std::clamp(joint_command_velocity_[i], -rated_max[i], rated_max[i]); // Input must be within bounds of rated max (all real values and either rad or m)
+        joint_velocity = joint_command_velocity_[i];
         if(joint_type_[i] == joint_type_t::REVOLUTE){
           joint_velocity = calculate_motor_velocity_from_desired_joint_angular_velocity(joint_velocity, joint_gear_ratios[i]);
         }

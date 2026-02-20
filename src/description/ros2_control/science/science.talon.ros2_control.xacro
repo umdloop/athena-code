@@ -10,7 +10,7 @@
         <param name="can_interface">can0</param>
       </hardware>
 
-      <joint name="talon_lift">
+      <joint name="talon_auger">
         <param name="node_id">1</param>
         <param name="joint_type">revolute</param>
         <!-- Motor config (goBilda Saturn 5303 Series 360 RPM) -->

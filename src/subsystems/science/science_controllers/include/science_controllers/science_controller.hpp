@@ -39,6 +39,12 @@ static constexpr size_t STATE_MY_ITFS = 0;
 // name constants for command interfaces
 static constexpr size_t CMD_MY_ITFS = 0;
 
+// amount of joystick axes
+static constexpr int joystick_axes = 6;
+
+// amount of joystick buttons
+static constexpr int joystick_buttons = 13;
+
 // CONTROL MODE FOR DIFFERENT STAGES IN SCIENCE
 enum class control_mode_type : std::uint8_t
 {
@@ -98,12 +104,30 @@ protected:
   std::shared_ptr<science_manual::ParamListener> param_listener_;
   science_manual::Params params_;
 
+  bool pump_toggle = false;
+  bool prev_pump_button_ = false;
+
+  bool servo_scoop_toggle = false;
+  bool prev_servo_scoop_button_ = false;
+  int servo_scoop_b_counter; // TESTING
+
+  std::string pump_a;
+  std::string pump_b;
+  std::string lift_rack_and_pinion_l;
+  std::string lift_rack_and_pinion_r;
+  std::vector<std::string> scoop_servos;
+  std::string scoop_spinner;
+  std::string sampler_lift;
+  std::string auger_spinner;
+  std::string cap;
+
   std::vector<std::string> state_joints_;
-  std::vector<std::string> stepper_joints_;
+  std::vector<std::string> stepper_pump_joints_;
   std::vector<std::string> talon_joints_;
   std::vector<std::string> servo_joints_;
   std::vector<std::string> rack_pinion_joints_;
-  //std::string auger_spinner_;
+  std::vector<std::string> joints_;
+  //std::string talon_auger_;
 
   // Command subscribers and Controller State publisher
   rclcpp::Subscription<ControllerReferenceMsg>::SharedPtr ref_subscriber_ = nullptr;
@@ -134,7 +158,7 @@ private:
     double auger_cmd,
     double rack_left_cmd,
     double rack_right_cmd
-    //double auger_spinner_cmd
+    //double talon_auger_cmd
     );
   };
 
@@ -143,49 +167,45 @@ private:
   static constexpr double scoop_talon_velocity = 1.0;
   static constexpr double auger_velocity = 1.0;
   
-  // Closed = 0, Open = 1
-  double scoop_position = 0;
-  double auger_position = 0;
-  double cap_position = 0;
+  double stepper_cmd = 0.0;
+  double scoop_servo_position = 0.0;
+  double auger_position = 0.0;
+  double cap_position = 0.0;
   double rack_left_position = 0.0;
   double rack_right_position = 0.0;
 
-  /*enum CommandInterfaces
-  {
-    IDX_LIFT_TALON_VELOCITY = 0,
-    IDX_STEPPERS_VELOCITY_START,  
-    IDX_SCOOP_TALON_VELOCITY,
-    IDX_AUGER_VELOCITY,
-    IDX_SCOOP_SERVO_POSITION,
-    IDX_STEPPERS_PUMPING_MODE,
-    IDX_AUGER_SERVO_POSITION,
-    IDX_CAP_SERVO_POSITION,
-    CMD_ITFS_COUNT  
-  }; */
-
   enum CommandInterfaces
   {
-    // ----- Steppers (position control) -----
-    IDX_STEPPER_A_POSITION = 0,
-    IDX_STEPPER_B_POSITION = 1,
+    // ----- PUMPS -----
+    // --- Pump (position) ---
+    IDX_PUMP_A_VELOCITY = 0,
+    IDX_PUMP_B_VELOCITY = 1,
 
-    // ----- Talons (velocity control) -----
-    IDX_LIFT_TALON_VELOCITY = 2,
-    IDX_SCOOP_TALON_VELOCITY = 3,
 
-    // ----- Scoop servos (position) -----
-    IDX_SCOOP_A_POSITION = 4,
-    IDX_SCOOP_B_POSITION = 5,
+    // ----- LIFT -----
+    // --- Rack and Pinion (position) ---
+    IDX_LEFT_LIFT_POSITION  = 2,
+    IDX_RIGHT_LIFT_POSITION = 3,
 
-    // ----- Auger servo -----
-    IDX_AUGER_POSITION = 6,
 
-    // ----- Cap servo -----
-    IDX_CAP_POSITION = 7,
+    // ----- SCOOPS -----
+    // --- Spinner (velocity) ---
+    IDX_SCOOP_SPINNER_VELOCITY = 4,
 
-    // ----- Rack and Pinion servos -----
-    IDX_RACK_LEFT_POSITION  = 8,
-    IDX_RACK_RIGHT_POSITION = 9,
+    // --- Servos (position) ---
+    IDX_SCOOP_A_POSITION = 5,
+    IDX_SCOOP_B_POSITION = 6,
+
+
+    // ----- SAMPLER -----
+    // --- Lift (velocity) ----
+    IDX_SAMPLER_LIFT_VELOCITY = 7,
+    
+    // ----- Auger (velocity) -----
+    IDX_AUGER_SPINNER_VELOCITY = 8,
+
+    // ----- Cap (position) -----
+    IDX_CAP_POSITION = 9,
     
     // Total number of interfaces
     CMD_ITFS_COUNT
@@ -193,7 +213,6 @@ private:
 
   
 };
-
 // namespace science_controllers
 
 #endif  // SCIENCE_CONTROLLERS__SCIENCE_MANUAL_HPP_
