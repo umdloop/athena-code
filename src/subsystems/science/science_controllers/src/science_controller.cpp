@@ -332,9 +332,9 @@ controller_interface::return_type ScienceManual::update(
   // Scoop servos
   command_interfaces_[IDX_SCOOP_A_POSITION].set_value(scoop_servo_position * (M_PI / 180.0));
   servo_scoop_b_counter++; // TESTING
-  if (servo_scoop_b_counter % 100 == 0) {
+  // if (servo_scoop_b_counter % 100 == 0) { // TESTING
     command_interfaces_[IDX_SCOOP_B_POSITION].set_value(scoop_servo_position * (M_PI / 180.0));
-  }
+  // }
   // Auger & cap
   command_interfaces_[IDX_AUGER_SPINNER_VELOCITY].set_value(auger_spinner_cmd * (M_PI / 180.0));
   command_interfaces_[IDX_CAP_POSITION].set_value(cap_position * (M_PI / 180.0));
