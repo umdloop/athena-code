@@ -42,7 +42,7 @@ controller_interface::CallbackReturn ScienceManual::on_init()
 {
   control_mode_.initRT(control_mode_type::STAGE1);
 
-  servo_scoop_toggle = false;
+  servo_scoop_a_toggle = false;
   servo_scoop_b_counter = 0; // TESTING
 
   try {
@@ -128,8 +128,11 @@ controller_interface::CallbackReturn ScienceManual::on_configure(
   prev_buttons_.assign(joystick_buttons, 0);
 
   // Start the Rack and Pinions off at their intended "0" position
-  rack_left_position = params_.position_range_lift[1];
-  rack_right_position = params_.position_range_lift[1];
+  // rack_left_position = params_.position_range_lift_left[1];
+  // rack_right_position = params_.position_range_lift_right[0]; // Orientation is flipped, so we start from top
+
+  rack_left_position = 185;
+  rack_right_position = 185;
 
   // QoS
   auto subscribers_qos = rclcpp::SystemDefaultsQoS();
@@ -275,11 +278,24 @@ controller_interface::return_type ScienceManual::update(
   // Use stage-dependent "speed" for rack & pinion motion (reuse stepper limits)
   double rack_speed = params_.velocity_limits_lift[stage_idx];
   double axis_left = (msg->axes.size() > 1) ? msg->axes[1] : 0.0;
-  double axis_right = (msg->axes.size() > 1) ? msg->axes[1] : 0.0;
+  double axis_right = (msg->axes.size() > 1) ? msg->axes[3] : 0.0;
 
   // Integrate axes into positions (position += axis * speed * dt)
-  rack_left_position  += axis_left  * rack_speed * dt;
-  rack_right_position += axis_right * rack_speed * dt;
+
+  double left_gain = 1.0;
+  double right_gain = 1.0;
+  // TEMPORARY FOR SAR
+  // rack_left_position  += axis_left  * rack_speed * left_gain * dt;
+  // rack_right_position -= axis_right * rack_speed * right_gain * dt;
+
+  bool lift_button = (msg->buttons.size() > 11 && msg->buttons[12]);
+  if (lift_button && !prev_lift_button) {
+    lift_toggle = !lift_toggle;
+  }
+  prev_lift_button = lift_button;
+
+  rack_left_position  = lift_toggle ? 203.0 : 156.0;
+  rack_right_position = lift_toggle ? 137.0 : 225.0;
 
 
   // -- Scoops --
@@ -289,13 +305,21 @@ controller_interface::return_type ScienceManual::update(
   double scoop_spinner_cmd = scoop_axis * params_.velocity_limits_scoop_spinner[stage_idx] * (scoop_reverse ? -1.0 : 1.0);
 
   // Scoop Servo
-  bool servo_scoop_button = (msg->buttons.size() > 1 && msg->buttons[3]);
-  if (servo_scoop_button && !prev_servo_scoop_button_) {
-      servo_scoop_toggle = !servo_scoop_toggle;
+  // Servo A is square
+  bool servo_scoop_a_button = (msg->buttons.size() > 1 && msg->buttons[3]);
+  if (servo_scoop_a_button && !prev_servo_scoop_a_button_) {
+    servo_scoop_a_toggle = !servo_scoop_a_toggle;
   }
-  prev_servo_scoop_button_ = servo_scoop_button;
-  scoop_servo_position = servo_scoop_toggle * params_.position_range_scoop_servo[1];
+  prev_servo_scoop_a_button_ = servo_scoop_a_button;
+  scoop_servo_a_position = servo_scoop_a_toggle * params_.position_range_scoop_servo[1];
 
+  // Servo B is X
+  bool servo_scoop_b_button = (msg->buttons.size() > 0 && msg->buttons[0]);
+  if (servo_scoop_b_button && !prev_servo_scoop_b_button_) {
+    servo_scoop_b_toggle = !servo_scoop_b_toggle;
+  }
+  prev_servo_scoop_b_button_ = servo_scoop_b_button;
+  scoop_servo_b_position = servo_scoop_b_toggle * params_.position_range_scoop_servo[1];
 
   // -- Sampler --
   // Sampler Lift
@@ -314,9 +338,12 @@ controller_interface::return_type ScienceManual::update(
     params_.velocity_limits_sampler_lift[stage_idx] : 0.0;
 
   // Clamp Positions
-  rack_left_position   = std::clamp(rack_left_position,  params_.position_range_lift[0], params_.position_range_lift[1]);
-  rack_right_position  = std::clamp(rack_right_position, params_.position_range_lift[0], params_.position_range_lift[1]);
-  scoop_servo_position = std::clamp(scoop_servo_position,      params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
+  // rack_left_position   = std::clamp(rack_left_position,  params_.position_range_lift_left[0], params_.position_range_lift_left[1]);
+  // rack_right_position  = std::clamp(rack_right_position, params_.position_range_lift_right[0], params_.position_range_lift_right[1]);
+  // rack_left_position   = std::clamp(rack_left_position,  0.0, 255.0);
+  // rack_right_position  = std::clamp(rack_right_position, 0.0, 255.0);
+  scoop_servo_a_position = std::clamp(scoop_servo_a_position,      params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
+  scoop_servo_b_position = std::clamp(scoop_servo_b_position,      params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
   auger_position       = std::clamp(auger_position,      0.0, 255.0);
   cap_position         = std::clamp(cap_position,        0.0, 255.0);
 
@@ -330,10 +357,10 @@ controller_interface::return_type ScienceManual::update(
   command_interfaces_[IDX_SAMPLER_LIFT_VELOCITY].set_value(sampler_lift_cmd * (M_PI / 180.0));
   command_interfaces_[IDX_SCOOP_SPINNER_VELOCITY].set_value(scoop_spinner_cmd * (M_PI / 180.0));
   // Scoop servos
-  command_interfaces_[IDX_SCOOP_A_POSITION].set_value(scoop_servo_position * (M_PI / 180.0));
+  command_interfaces_[IDX_SCOOP_A_POSITION].set_value(scoop_servo_a_position * (M_PI / 180.0));
   servo_scoop_b_counter++; // TESTING
   // if (servo_scoop_b_counter % 100 == 0) { // TESTING
-    command_interfaces_[IDX_SCOOP_B_POSITION].set_value(scoop_servo_position * (M_PI / 180.0));
+    command_interfaces_[IDX_SCOOP_B_POSITION].set_value(scoop_servo_b_position * (M_PI / 180.0));
   // }
   // Auger & cap
   command_interfaces_[IDX_AUGER_SPINNER_VELOCITY].set_value(auger_spinner_cmd * (M_PI / 180.0));
@@ -354,14 +381,15 @@ controller_interface::return_type ScienceManual::update(
       << "\n"
       << "  [SCOOPS]\n"
       << "  scoop_spinner_cmd  : " << scoop_spinner_cmd << "\n"
-      << "  servo_scoop_toggle : " << servo_scoop_toggle << "\n"
-      << "  scoop_servo_pos    : " << scoop_servo_position << "\n"
+      << "  servo_scoop_a_toggle : " << servo_scoop_a_toggle << "\n"
+      << "  scoop_servo_a_pos    : " << scoop_servo_a_position << "\n"
+      << "  scoop_servo_b_pos    : " << scoop_servo_b_position << "\n"
       << "\n"
       << "  [SAMPLER]\n"
       << "  sampler_lift_cmd   : " << sampler_lift_cmd << "\n"
       << "  auger_spinner_cmd  : " << auger_spinner_cmd << "\n"
       << "  cap_cmd            : " << cap_cmd << "\n";
-  // RCLCPP_INFO(get_node()->get_logger(), "%s", oss.str().c_str());
+  RCLCPP_INFO(get_node()->get_logger(), "%s", oss.str().c_str());
 
   // Basic state publish (still reusing existing signals)
   for (const auto & joint_name : joints_) {

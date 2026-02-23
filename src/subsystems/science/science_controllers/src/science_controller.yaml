@@ -114,9 +114,15 @@ science_manual:
     validation:
       fixed_size<>: 4
 
-  position_range_lift:
+  position_range_lift_left:
     type: double_array
     default_value: [75.0, 235.0]
+    validation:
+      fixed_size<>: 2
+
+  position_range_lift_right:
+    type: double_array
+    default_value: [30.0, 235.0]
     validation:
       fixed_size<>: 2
 

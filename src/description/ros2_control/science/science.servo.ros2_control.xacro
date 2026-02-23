@@ -60,7 +60,7 @@
             </joint>
 
             <joint name="servo_sampler_lift">
-                <param name="node_id">0x4</param>
+                <param name="node_id">0x6</param>
                 <param name="gear_ratio">1</param>
                 <param name="max_pos">90</param> <!-- degrees -->
                 <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
@@ -73,7 +73,7 @@
             </joint>
 
             <joint name="servo_cap">
-                <param name="node_id">0x6</param>
+                <param name="node_id">0x4</param>
                 <param name="gear_ratio">1</param>
                 <param name="max_pos">270</param> <!-- degrees -->
                 <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->

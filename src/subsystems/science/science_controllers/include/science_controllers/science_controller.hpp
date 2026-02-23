@@ -43,7 +43,7 @@ static constexpr size_t CMD_MY_ITFS = 0;
 static constexpr int joystick_axes = 6;
 
 // amount of joystick buttons
-static constexpr int joystick_buttons = 13;
+static constexpr int joystick_buttons = 16;
 
 // CONTROL MODE FOR DIFFERENT STAGES IN SCIENCE
 enum class control_mode_type : std::uint8_t
@@ -107,8 +107,15 @@ protected:
   bool pump_toggle = false;
   bool prev_pump_button_ = false;
 
-  bool servo_scoop_toggle = false;
-  bool prev_servo_scoop_button_ = false;
+  bool servo_scoop_a_toggle = false;
+  bool prev_servo_scoop_a_button_ = false;
+  bool servo_scoop_b_toggle = false;
+  bool prev_servo_scoop_b_button_ = false;
+
+  // Temporary for SAR
+  bool lift_toggle = false;
+  bool prev_lift_button = false;
+
   int servo_scoop_b_counter; // TESTING
 
   std::string pump_a;
@@ -168,7 +175,8 @@ private:
   static constexpr double auger_velocity = 1.0;
   
   double stepper_cmd = 0.0;
-  double scoop_servo_position = 0.0;
+  double scoop_servo_a_position = 0.0;
+  double scoop_servo_b_position = 0.0;
   double auger_position = 0.0;
   double cap_position = 0.0;
   double rack_left_position = 0.0;

@@ -539,7 +539,7 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
         device_id_nibble = joint_node_ids[i] & 0x0F;
         can_tx_frame_.data = { static_cast<uint8_t>((command_nibble << 4) | device_id_nibble) };
         
-        if (logger_state == 1) {
+        if (logger_state == 0) {
           if (control_level_[i] == integration_level_t::POSITION && servo_type_[i] == servo_type_t::CONTINUOUS) {
             RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is continuous type and cannot be position controlled.", info_.joints[i].name.c_str());
           }
@@ -547,10 +547,9 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
             RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is standard type and cannot be velocity controlled.", info_.joints[i].name.c_str());
           }
           else{
-            RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint command value not found or undefined command state");
+            RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint command value not found or undefined command state for joint %s", info_.joints[i].name.c_str());          }
           }
         }
-      }
       
       canBus.send(can_tx_frame_);
     // }
