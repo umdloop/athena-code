@@ -100,6 +100,12 @@ struct Axis {
         frame.can_dlc = msg.msg_length;
         msg.encode_buf(frame.data);
 
+        // RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), 
+        //     "CAN TX | Node: %d | CMD: 0x%02X | CAN_ID: 0x%03X | DLC: %d | Data: %02X %02X %02X %02X %02X %02X %02X %02X",
+        //     node_id_, msg.cmd_id, frame.can_id, frame.can_dlc,
+        //     frame.data[0], frame.data[1], frame.data[2], frame.data[3],
+        //     frame.data[4], frame.data[5], frame.data[6], frame.data[7]);
+
         can_intf_->send_can_frame(frame);
     }
 };
@@ -262,10 +268,9 @@ return_type ODriveHardwareInterface::read(const rclcpp::Time& timestamp, const r
     }
 
     // for (size_t i = 0; i < info_.joints.size(); i++) {
-    //     if(DEBUG_MODE == 1) {
-    //         RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), "Position Estimate: %f", &axes_[i].pos_estimate_);
-    //     }
-    // }
+    //          RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), "Position Estimate: %f", &axes_[i].pos_estimate_);
+    //      }
+    
 
     return return_type::OK;
 }
@@ -282,7 +287,7 @@ return_type ODriveHardwareInterface::write(const rclcpp::Time&, const rclcpp::Du
             msg.Input_Pos = (axis.pos_setpoint_ * axis.gear_ratio_) / (2 * M_PI);
             msg.Vel_FF = axis.vel_input_enabled_ ? ((axis.vel_setpoint_ * axis.gear_ratio_) / (2 * M_PI)) : 0.0f;
             msg.Torque_FF = axis.torque_input_enabled_ ? (axis.torque_setpoint_ / axis.gear_ratio_) : 0.0f;
-            RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), "Writing positions for ODrive %d Setpoint: %f, Joint angle of motor (rev): %f", axis.node_id_, axis.pos_setpoint_, (axis.pos_setpoint_ * axis.gear_ratio_) / (2 * M_PI));
+            // RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), "Writing positions for ODrive %d Setpoint: %f, Joint angle of motor (rev): %f", axis.node_id_, axis.pos_setpoint_, (axis.pos_setpoint_ * axis.gear_ratio_) / (2 * M_PI));
 
             axis.send(msg);
         } else if (axis.vel_input_enabled_) {
@@ -354,6 +359,12 @@ void ODriveHardwareInterface::set_axis_command_mode(const Axis& axis) {
 void Axis::on_can_msg(const rclcpp::Time&, const can_frame& frame) {
     uint8_t cmd = frame.can_id & 0x1f;
 
+    // RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), 
+    //     "CAN RX | Node: %d | CMD: 0x%02X | CAN_ID: 0x%03X | DLC: %d | Data: %02X %02X %02X %02X %02X %02X %02X %02X",
+    //     node_id_, cmd, frame.can_id, frame.can_dlc,
+    //     frame.data[0], frame.data[1], frame.data[2], frame.data[3],
+    //     frame.data[4], frame.data[5], frame.data[6], frame.data[7]);
+
     auto try_decode = [&]<typename TMsg>(TMsg& msg) {
         if (frame.can_dlc < Get_Encoder_Estimates_msg_t::msg_length) {
             RCLCPP_WARN(rclcpp::get_logger("ODriveHardwareInterface"), "message %d too short", cmd);
@@ -368,6 +379,9 @@ void Axis::on_can_msg(const rclcpp::Time&, const can_frame& frame) {
             if (Get_Encoder_Estimates_msg_t msg; try_decode(msg)) {
                 pos_estimate_ = msg.Pos_Estimate * (2 * M_PI);
                 vel_estimate_ = msg.Vel_Estimate * (2 * M_PI);
+                // RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), 
+                //     "CAN   -> Pos: %.3f rev (%.3f rad) | Vel: %.3f rev/s (%.3f rad/s)",
+                //     msg.Pos_Estimate, pos_estimate_, msg.Vel_Estimate, vel_estimate_);
             }
         } break;
         case Get_Torques_msg_t::cmd_id: {

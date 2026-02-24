@@ -21,7 +21,7 @@
 
 controller_manager:
   ros__parameters:
-    update_rate: 100  # Hz
+    update_rate: 30  # Hz
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -76,7 +76,7 @@ single_ackermann_controller:
       - "steer_fr_joint"
     wheelbase: 0.8382
     track_width: 0.6604
-    wheel_radius: 0.254
+    wheel_radius: 0.125
 
 drive_velocity_controller:
   ros__parameters:

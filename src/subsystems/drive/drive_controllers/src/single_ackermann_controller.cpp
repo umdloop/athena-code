@@ -204,15 +204,15 @@ controller_interface::return_type SingleAckermannController::update(
   double rl_wheel_ang_vel = rear_left_vel / wheel_radius;
   double rr_wheel_ang_vel = rear_right_vel / wheel_radius;
 
-  // Set steering positions
-  command_interfaces_[0].set_value(front_left_steer_angle);
-  command_interfaces_[1].set_value(front_right_steer_angle);
+  // Set steering positions (negated for reversed orientation)
+  command_interfaces_[0].set_value(-front_left_steer_angle);
+  command_interfaces_[1].set_value(-front_right_steer_angle);
 
-  // Set drive velocities
-  command_interfaces_[2].set_value(fl_wheel_ang_vel);
-  command_interfaces_[3].set_value(fr_wheel_ang_vel);
-  command_interfaces_[4].set_value(rl_wheel_ang_vel);
-  command_interfaces_[5].set_value(rr_wheel_ang_vel);
+  // Set drive velocities (left/right swapped)
+  command_interfaces_[2].set_value(fr_wheel_ang_vel);
+  command_interfaces_[3].set_value(fl_wheel_ang_vel);
+  command_interfaces_[4].set_value(rr_wheel_ang_vel);
+  command_interfaces_[5].set_value(rl_wheel_ang_vel);
 
   return controller_interface::return_type::OK;
 }

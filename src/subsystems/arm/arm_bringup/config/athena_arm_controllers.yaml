@@ -26,7 +26,7 @@ joint_trajectory_controller:
       - elbow_pitch
       - wrist_pitch
       - wrist_roll
-      - gripper_claw
+#      - gripper_claw
       - actuator
 
     command_interfaces:
@@ -78,7 +78,7 @@ arm_velocity_controller:
       - elbow_pitch
       - wrist_pitch
       - wrist_roll
-      - gripper_claw
+ #     - gripper_claw
       - actuator
     interface_name: velocity
 
@@ -90,7 +90,7 @@ manual_arm_cylindrical_controller:
       - elbow_pitch
       - wrist_pitch
       - wrist_roll
-      - gripper_claw
+  #    - gripper_claw
       - actuator
     interface_name: velocity
     joint_lengths:
@@ -106,7 +106,7 @@ manual_arm_joint_by_joint_controller:
       - elbow_pitch
       - wrist_pitch
       - wrist_roll
-      - gripper_claw
+   #   - gripper_claw
     position_joints:
       - actuator
     # interface_name: velocity
@@ -116,5 +116,5 @@ manual_arm_joint_by_joint_controller:
       - 0.05148721
       - 0.785398    # 45 dps
       - 0.785398
-      - 0.005       # TODO: Find this
+    #  - 0.005       # TODO: Find this
       - 0.03        # Actuator max displacement

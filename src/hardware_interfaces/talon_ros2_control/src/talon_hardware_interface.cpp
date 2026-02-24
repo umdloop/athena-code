@@ -273,6 +273,10 @@ hardware_interface::return_type talon_ros2_control::TALONHardwareInterface::writ
         joint_command_position_[i] = std::clamp(joint_command_position_[i], 0.0, max_disp[i]);
         // COMMAND PRISMATIC POSITION
         setPositionFromDisplacement(talon_motors[i], joint_command_position_[i], 50);
+	
+	ctre::phoenix::motorcontrol::Faults faults;
+	talon_motors[i]->GetFaults(faults);
+	RCLCPP_INFO(rclcpp::get_logger("TALONHardwareInterface"), faults.ToString().data());
 
       } else if(control_level_[i] == integration_level_t::VELOCITY && joint_type_[i] == joint_type_t::PRISMATIC && std::isfinite(joint_command_velocity_[i])) {
 

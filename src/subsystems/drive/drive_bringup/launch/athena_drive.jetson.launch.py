@@ -80,6 +80,13 @@ def generate_launch_description():
             description="Robot controller to start.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "log_level",
+            default_value="info",
+            description="Log level (debug, info, warn, error, fatal).",
+        )
+    )
 
     # -- Initialize Arguments --
     runtime_config_package = LaunchConfiguration("runtime_config_package")
@@ -90,6 +97,7 @@ def generate_launch_description():
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
+    log_level = LaunchConfiguration("log_level")
 
     # -- Building Path Files --
     robot_description_path = PathJoinSubstitution(
@@ -126,6 +134,7 @@ def generate_launch_description():
         executable="ros2_control_node",
         output="both",
         parameters=[robot_controllers],
+        arguments=["--ros-args", "--log-level", log_level],
         remappings=[
             ("~/robot_description", "/robot_description"),
             ("/single_ackermann_controller/reference", "/joy"),
