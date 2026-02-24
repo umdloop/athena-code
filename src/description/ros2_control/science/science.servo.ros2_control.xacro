@@ -59,7 +59,7 @@
                 <state_interface name="position"/>
             </joint>
 
-            <joint name="servo_sampler_lift">
+            <joint name="servo_sampler_lift_l">
                 <param name="node_id">0x6</param>
                 <param name="gear_ratio">1</param>
                 <param name="max_pos">90</param> <!-- degrees -->
@@ -72,7 +72,20 @@
                 <state_interface name="velocity"/>
             </joint>
 
-            <joint name="servo_cap">
+            <joint name="servo_sampler_lift_r">
+                <param name="node_id">0x0</param>
+                <param name="gear_ratio">1</param>
+                <param name="max_pos">90</param> <!-- degrees -->
+                <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
+                <param name="servo_type">standard</param> <!-- standard / continuous -->
+                <param name="joint_type">prismatic</param> <!-- revolute / prismatic -->
+                <command_interface name="position"/>
+                <command_interface name="velocity"/>
+                <state_interface name="position"/>
+                <state_interface name="velocity"/>
+            </joint>
+
+            <joint name="servo_auger_lift">
                 <param name="node_id">0x4</param>
                 <param name="gear_ratio">1</param>
                 <param name="max_pos">270</param> <!-- degrees -->

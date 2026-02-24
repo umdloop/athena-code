@@ -32,9 +32,10 @@ joint_group_position_controller:
       - servo_scoop_a
       - servo_scoop_b
       - talon_scoop
-      - servo_sampler_lift
+      - servo_sampler_lift_l
+      - servo_sampler_lift_l
       - talon_auger
-      - servo_cap
+      - servo_auger_lift
     interface_name: position
 
 joint_group_velocity_controller:                 
@@ -47,9 +48,10 @@ joint_group_velocity_controller:
       - servo_scoop_a
       - servo_scoop_b
       - talon_scoop
-      - servo_sampler_lift
+      - servo_sampler_lift_l
+      - servo_sampler_lift_r
       - talon_auger
-      - servo_cap
+      - servo_auger_lift
     interface_name: velocity
 
 science_controller:
@@ -67,9 +69,10 @@ science_controller:
     scoop_spinner: "talon_scoop"
 
     # Sampler
-    sampler_lift: "servo_sampler_lift"
+    sampler_lift_l: "servo_sampler_lift_l"
+    sampler_lift_r: "servo_sampler_lift_r"
     auger_spinner: "talon_auger"
-    cap: "servo_cap"
+    cap: "servo_auger_lift"
     interface_name: position 
     command_interfaces: [position, velocity]
     state_interfaces: [position, velocity]

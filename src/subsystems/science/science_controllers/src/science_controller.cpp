@@ -71,9 +71,10 @@ controller_interface::CallbackReturn ScienceManual::on_configure(
   lift_rack_and_pinion_r = params_.lift_rack_and_pinion_r;
   scoop_servos = params_.scoop_servos;
   scoop_spinner = params_.scoop_spinner;
-  sampler_lift = params_.sampler_lift;
+  sampler_lift_l = params_.sampler_lift_l;
+  sampler_lift_r = params_.sampler_lift_r;
   auger_spinner = params_.auger_spinner;
-  cap = params_.cap;
+  auger_lift = params_.auger_lift;
 
   // Fill composite joint groups
   stepper_pump_joints_.clear();
@@ -89,8 +90,9 @@ controller_interface::CallbackReturn ScienceManual::on_configure(
   }; 
 
   servo_joints_ = params_.scoop_servos;
-  servo_joints_.push_back(params_.sampler_lift);
-  servo_joints_.push_back(params_.cap);
+  servo_joints_.push_back(params_.sampler_lift_l);
+  servo_joints_.push_back(params_.sampler_lift_r);
+  servo_joints_.push_back(params_.auger_lift);
 
   rack_pinion_joints_.clear();
   rack_pinion_joints_.push_back(params_.lift_rack_and_pinion_l);
@@ -107,9 +109,10 @@ controller_interface::CallbackReturn ScienceManual::on_configure(
   joints_.insert(joints_.end(), scoop_servos.begin(), scoop_servos.end());
 
   joints_.push_back(scoop_spinner);
-  joints_.push_back(sampler_lift);
+  joints_.push_back(sampler_lift_l);
+  joints_.push_back(sampler_lift_r);
   joints_.push_back(auger_spinner);
-  joints_.push_back(cap);
+  joints_.push_back(auger_lift);
 
   if (!params_.state_joints.empty()) {
     state_joints_ = params_.state_joints;
@@ -198,9 +201,10 @@ controller_interface::InterfaceConfiguration ScienceManual::command_interface_co
   }
 
   // Sampler
-  cfg.names.push_back(sampler_lift + "/position");
+  cfg.names.push_back(sampler_lift_l + "/position");
+  cfg.names.push_back(sampler_lift_r + "/position");
   cfg.names.push_back(auger_spinner + "/velocity");
-  cfg.names.push_back(cap + "/position");
+  cfg.names.push_back(auger_lift + "/position");
 
   return cfg; 
 }
@@ -284,19 +288,20 @@ controller_interface::return_type ScienceManual::update(
 
   double left_gain = 1.0;
   double right_gain = 1.0;
-  // TEMPORARY FOR SAR
   // rack_left_position  += axis_left  * rack_speed * left_gain * dt;
   // rack_right_position -= axis_right * rack_speed * right_gain * dt;
 
+  // ** TEMPORARY FOR SAR
   bool lift_button = (msg->buttons.size() > 11 && msg->buttons[12]);
   if (lift_button && !prev_lift_button) {
     lift_toggle = !lift_toggle;
   }
   prev_lift_button = lift_button;
 
+  // Hardcoded values for top and bottom lift position
   rack_left_position  = lift_toggle ? 203.0 : 156.0;
   rack_right_position = lift_toggle ? 137.0 : 225.0;
-
+  // **
 
   // -- Scoops --
   // Scoop Spinner (Right Trigger for Vel, Right Bumper for direction)
@@ -325,17 +330,18 @@ controller_interface::return_type ScienceManual::update(
   // Sampler Lift
   double sampler_lift_speed = params_.velocity_limits_sampler_lift[stage_idx];
   double axis_sampler_lift = (msg->axes.size() > 3) ? msg->axes[3] : 0.0;
-  double sampler_lift_cmd = sampler_lift_speed * axis_sampler_lift * dt;
+  sampler_lift_pos_l += sampler_lift_speed * axis_sampler_lift * dt;
+  sampler_lift_pos_r -= sampler_lift_speed * axis_sampler_lift * dt;
 
   // Auger (Left Trigger for Vel, Left Bumper for direction)
   double auger_axis = (msg->axes.size() > 4) ? msg->axes[4] : 0.0;
   bool auger_reverse = (msg->buttons.size() > 4 && msg->buttons[4]);
   double auger_spinner_cmd = auger_axis * params_.velocity_limits_auger[stage_idx] * (auger_reverse ? -1.0 : 1.0);
 
-  // Cap
-  double cap_cmd = 
+  // Auger_lift
+  double auger_lift_cmd = 
     (msg->buttons.size() > 0 && msg->buttons[1]) ?
-    params_.velocity_limits_sampler_lift[stage_idx] : 0.0;
+    params_.velocity_limits_auger_lift[stage_idx] : 0.0;
 
   // Clamp Positions
   // rack_left_position   = std::clamp(rack_left_position,  params_.position_range_lift_left[0], params_.position_range_lift_left[1]);
@@ -345,7 +351,7 @@ controller_interface::return_type ScienceManual::update(
   scoop_servo_a_position = std::clamp(scoop_servo_a_position,      params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
   scoop_servo_b_position = std::clamp(scoop_servo_b_position,      params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
   auger_position       = std::clamp(auger_position,      0.0, 255.0);
-  cap_position         = std::clamp(cap_position,        0.0, 255.0);
+  auger_lift_position         = std::clamp(auger_lift_position,        0.0, 255.0);
 
   
 
@@ -354,17 +360,18 @@ controller_interface::return_type ScienceManual::update(
   command_interfaces_[IDX_PUMP_A_VELOCITY].set_value(stepper_cmd * (M_PI / 180.0));
   command_interfaces_[IDX_PUMP_B_VELOCITY].set_value(stepper_cmd * (M_PI / 180.0));
   // Talons (velocity)
-  command_interfaces_[IDX_SAMPLER_LIFT_VELOCITY].set_value(sampler_lift_cmd * (M_PI / 180.0));
-  command_interfaces_[IDX_SCOOP_SPINNER_VELOCITY].set_value(scoop_spinner_cmd * (M_PI / 180.0));
+  command_interfaces_[IDX_SAMPLER_LIFT_LEFT_VELOCITY].set_value(sampler_lift_pos_l * (M_PI / 180.0));
+  command_interfaces_[IDX_SAMPLER_LIFT_RIGHT_VELOCITY].set_value(sampler_lift_pos_r * (M_PI / 180.0));
+  command_interfaces_[IDX_SCOOP_SPINNER_VELOCITY].set_value(scoop_spinner_cmd);
   // Scoop servos
   command_interfaces_[IDX_SCOOP_A_POSITION].set_value(scoop_servo_a_position * (M_PI / 180.0));
   servo_scoop_b_counter++; // TESTING
   // if (servo_scoop_b_counter % 100 == 0) { // TESTING
-    command_interfaces_[IDX_SCOOP_B_POSITION].set_value(scoop_servo_b_position * (M_PI / 180.0));
+  command_interfaces_[IDX_SCOOP_B_POSITION].set_value(scoop_servo_b_position * (M_PI / 180.0));
   // }
-  // Auger & cap
-  command_interfaces_[IDX_AUGER_SPINNER_VELOCITY].set_value(auger_spinner_cmd * (M_PI / 180.0));
-  command_interfaces_[IDX_CAP_POSITION].set_value(cap_position * (M_PI / 180.0));
+  // Auger & auger_lift
+  command_interfaces_[IDX_AUGER_SPINNER_VELOCITY].set_value(auger_spinner_cmd);
+  command_interfaces_[IDX_AUGER_LIFT_POSITION].set_value(auger_lift_position * (M_PI / 180.0));
   // Rack & pinion servos
   command_interfaces_[IDX_LEFT_LIFT_POSITION].set_value(rack_left_position * (M_PI / 180.0));
   command_interfaces_[IDX_RIGHT_LIFT_POSITION].set_value(rack_right_position * (M_PI / 180.0));
@@ -386,9 +393,10 @@ controller_interface::return_type ScienceManual::update(
       << "  scoop_servo_b_pos    : " << scoop_servo_b_position << "\n"
       << "\n"
       << "  [SAMPLER]\n"
-      << "  sampler_lift_cmd   : " << sampler_lift_cmd << "\n"
+      << "  sampler_lift_pos_l   : " << sampler_lift_pos_l << "\n"
+      << "  sampler_lift_pos_r   : " << sampler_lift_pos_r << "\n"
       << "  auger_spinner_cmd  : " << auger_spinner_cmd << "\n"
-      << "  cap_cmd            : " << cap_cmd << "\n";
+      << "  auger_lift_cmd            : " << auger_lift_cmd << "\n";
   RCLCPP_INFO(get_node()->get_logger(), "%s", oss.str().c_str());
 
   // Basic state publish (still reusing existing signals)
@@ -398,15 +406,13 @@ controller_interface::return_type ScienceManual::update(
       state_publisher_->msg_.header.frame_id = joint_name;
       state_publisher_->msg_.set_point = stepper_cmd;
       state_publisher_->msg_.process_value = auger_spinner_cmd;
-      state_publisher_->msg_.command = sampler_lift_cmd;
+      state_publisher_->msg_.command = sampler_lift_pos_l;
       state_publisher_->unlockAndPublish();
     }
   }
 
   return controller_interface::return_type::OK;
 }
-
-
 
 }  // namespace science_controllers
 

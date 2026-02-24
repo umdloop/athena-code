@@ -11,7 +11,7 @@
       </hardware>
 
       <joint name="talon_auger">
-        <param name="node_id">1</param>
+        <param name="node_id">2</param>
         <param name="joint_type">revolute</param>
         <!-- Motor config (goBilda Saturn 5303 Series 360 RPM) -->
         <param name="encoder_resolution">1425.1</param>

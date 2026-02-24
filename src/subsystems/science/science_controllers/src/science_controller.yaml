@@ -80,9 +80,15 @@ science_manual:
     validation:
       not_empty<>: null
 
-  sampler_lift:
+  sampler_lift_l:
     type: string
-    default_value: "servo_sampler_lift"
+    default_value: "servo_sampler_lift_l"
+    description: "(Optional)"
+    read_only: false
+
+  sampler_lift_r:
+    type: string
+    default_value: "servo_sampler_lift_r"
     description: "(Optional)"
     read_only: false
 
@@ -92,10 +98,10 @@ science_manual:
     description: "(Optional)"
     read_only: false
 
-  cap:
+  auger_lift:
     type: string
-    default_value: "servo_cap"
-    description: "The Servo motor controller for the cap"
+    default_value: "servo_auger_lift"
+    description: "The Servo motor controller for the auger lift"
     read_only: true
     validation:
       not_empty<>: null
@@ -154,12 +160,12 @@ science_manual:
 
   velocity_limits_auger:
     type: double_array
-    default_value: [10.0, 0.0, 0.0, 0.6]
+    default_value: [5.0, 0.0, 0.0, 0.6]
     validation:
       fixed_size<>: 4
 
-  velocity_limits_talon_auger:
+  velocity_limits_auger_lift:
     type: double_array
-    default_value: [0.0, 0.0, 0.0, 0.6]
+    default_value: [10.0, 0.0, 0.0, 0.6]
     validation:
       fixed_size<>: 4

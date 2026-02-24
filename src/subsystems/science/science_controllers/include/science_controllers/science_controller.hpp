@@ -124,9 +124,10 @@ protected:
   std::string lift_rack_and_pinion_r;
   std::vector<std::string> scoop_servos;
   std::string scoop_spinner;
-  std::string sampler_lift;
+  std::string sampler_lift_l;
+  std::string sampler_lift_r;
   std::string auger_spinner;
-  std::string cap;
+  std::string auger_lift;
 
   std::vector<std::string> state_joints_;
   std::vector<std::string> stepper_pump_joints_;
@@ -178,9 +179,11 @@ private:
   double scoop_servo_a_position = 0.0;
   double scoop_servo_b_position = 0.0;
   double auger_position = 0.0;
-  double cap_position = 0.0;
+  double auger_lift_position = 0.0;
   double rack_left_position = 0.0;
   double rack_right_position = 0.0;
+  double sampler_lift_pos_l = 0.0;
+  double sampler_lift_pos_r = 0.0;
 
   enum CommandInterfaces
   {
@@ -207,13 +210,14 @@ private:
 
     // ----- SAMPLER -----
     // --- Lift (velocity) ----
-    IDX_SAMPLER_LIFT_VELOCITY = 7,
+    IDX_SAMPLER_LIFT_LEFT_VELOCITY = 7,
+    IDX_SAMPLER_LIFT_RIGHT_VELOCITY = 8,
     
     // ----- Auger (velocity) -----
-    IDX_AUGER_SPINNER_VELOCITY = 8,
+    IDX_AUGER_SPINNER_VELOCITY = 9,
 
-    // ----- Cap (position) -----
-    IDX_CAP_POSITION = 9,
+    // ----- Auger_lift (position) -----
+    IDX_AUGER_LIFT_POSITION = 10,
     
     // Total number of interfaces
     CMD_ITFS_COUNT
