@@ -137,7 +137,7 @@ def generate_launch_description():
         arguments=["--ros-args", "--log-level", log_level],
         remappings=[
             ("~/robot_description", "/robot_description"),
-            ("/single_ackermann_controller/reference", "/joy"),
+            ("/single_ackermann_controller/reference", "/cmd_vel"),
             ("/ackermann_steering_controller/reference", "/cmd_vel"),
         ],
     )

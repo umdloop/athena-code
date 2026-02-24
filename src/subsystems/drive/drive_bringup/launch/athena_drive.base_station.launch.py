@@ -76,6 +76,9 @@ def generate_launch_description():
         name='teleop_twist_joy',
         output='screen',
         parameters=[teleop_twist_config],
+        remappings=[
+            ('cmd_vel', '/cmd_vel'),
+        ],
     )
 
     return LaunchDescription(

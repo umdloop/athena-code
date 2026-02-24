@@ -128,9 +128,8 @@ controller_interface::return_type SingleAckermannController::update(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   auto current_ref = input_ref_.readFromRT();
-  if (!current_ref || !(*current_ref) || (*current_ref)->axes.empty())
+  if (!current_ref || !(*current_ref))
   {
-    // Set all command interfaces to zero when no input is available
     for (size_t i = 0; i < command_interfaces_.size(); ++i)
     {
       command_interfaces_[i].set_value(0.0);
@@ -138,11 +137,13 @@ controller_interface::return_type SingleAckermannController::update(
     return controller_interface::return_type::OK;
   }
 
-  // Get joystick values and apply scaling and inversion from parameters
-  double linear_vel_cmd = 0.75*(*current_ref)->axes[params_.forward_axis] * params_.max_speed;
-  double steer_cmd = (*current_ref)->axes[params_.steer_axis] * params_.max_steer_angle;
-  if (params_.steer_inversion) {
-    steer_cmd *= -1.0;
+  double linear_vel_cmd = (*current_ref)->twist.linear.x;
+  double angular_vel_cmd = (*current_ref)->twist.angular.z;
+  
+  double steer_cmd = 0.0;
+  if (std::abs(linear_vel_cmd) > 1e-4)
+  {
+    steer_cmd = atan(angular_vel_cmd * params_.wheelbase / linear_vel_cmd);
   }
 
   double wheelbase = params_.wheelbase;
@@ -151,46 +152,37 @@ controller_interface::return_type SingleAckermannController::update(
 
   double front_left_steer_angle = 0.0;
   double front_right_steer_angle = 0.0;
-  
   double front_left_vel = linear_vel_cmd;
   double front_right_vel = linear_vel_cmd;
   double rear_left_vel = linear_vel_cmd;
   double rear_right_vel = linear_vel_cmd;
 
-  // If we are turning...
-  if (std::abs(steer_cmd) > 1e-4) {
+  if (std::abs(steer_cmd) > 1e-4)
+  {
     double turn_radius = wheelbase / tan(steer_cmd);
-    double angular_vel = std::abs(linear_vel_cmd) / std::abs(turn_radius);
-    
-    // Preserve the sign of linear velocity for forward/backward motion
-    if (linear_vel_cmd < 0) {
-      angular_vel = -angular_vel;
-    }
+    double angular_vel = linear_vel_cmd / turn_radius;
 
-    // Calculate magnitudes of inner and outer wheel angles
     double inner_angle = atan(wheelbase / (std::abs(turn_radius) - track_width / 2.0));
     double outer_angle = atan(wheelbase / (std::abs(turn_radius) + track_width / 2.0));
     
-    // Calculate magnitudes of wheel speeds
     double inner_rear_vel = angular_vel * (std::abs(turn_radius) - track_width / 2.0);
     double outer_rear_vel = angular_vel * (std::abs(turn_radius) + track_width / 2.0);
     double inner_front_vel = angular_vel * sqrt(pow(wheelbase, 2) + pow(std::abs(turn_radius) - track_width / 2.0, 2));
     double outer_front_vel = angular_vel * sqrt(pow(wheelbase, 2) + pow(std::abs(turn_radius) + track_width / 2.0, 2));
 
-    // Assign angles and velocities based on the hardware's actual behavior
-    if (steer_cmd < 0.0) { // LEFT TURN: left wheel is INNER
+    if (steer_cmd < 0.0)
+    {
       front_left_steer_angle = inner_angle;
       front_right_steer_angle = outer_angle;
-      
       front_left_vel = inner_front_vel;
       front_right_vel = outer_front_vel;
       rear_left_vel = inner_rear_vel;
       rear_right_vel = outer_rear_vel;
-
-    } else { // RIGHT TURN: right wheel is INNER
+    }
+    else
+    {
       front_left_steer_angle = -outer_angle;
       front_right_steer_angle = -inner_angle;
-      
       front_left_vel = outer_front_vel;
       front_right_vel = inner_front_vel;
       rear_left_vel = outer_rear_vel;
