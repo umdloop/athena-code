@@ -208,7 +208,7 @@ controller_interface::return_type ManualArmJointByJoint3DOFController::update(
     joint_velocities_[4] = -(*current_ref)->axes[0] * static_cast<float>((*current_ref)->buttons[1]) * max_velocities_[4];
 
     // Motor C: U/D on Right Joystick AND O button
-    joint_velocities_[5] = -(*current_ref)->axes[0] * static_cast<float>((*current_ref)->buttons[1]) * max_velocities_[4];
+    joint_velocities_[5] = -(*current_ref)->axes[3] * static_cast<float>((*current_ref)->buttons[1]) * max_velocities_[4];
 
     // Gripper Claw: Bumpers and Triggers
     if ((*current_ref)->buttons[4] && (*current_ref)->buttons[5]) {
