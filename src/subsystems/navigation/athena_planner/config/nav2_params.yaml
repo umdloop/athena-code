@@ -96,33 +96,8 @@ controller_server:
       yaw_goal_tolerance: 0.3
 
     FollowPath:
-      plugin: "nav2_mppi_controller::MPPIController"
-
-      # Rollout / sampling
-      time_steps: 56               # Number of steps per trajectory (56 * 0.05s = 2.8s horizon)
-      model_dt: 0.05               # Time delta between steps — matches controller_frequency (20 Hz)
-      batch_size: 2000             # Number of sampled trajectories per iteration
-      iteration_count: 1           # MPPI optimization iterations per control cycle
-      temperature: 0.3             # Lower = more exploitation of best trajectory
-
-      # Velocity limits — match your robot
-      vx_max: 0.5               # Same as old desired_linear_vel
-      vx_min: -0.5              # Allow reversing
-      vy_max: 0.0                  # Non-holonomic: no lateral velocity
-      wz_max: 0.2                  # Match behavior_server max_rotational_vel
-
-      # Acceleration limits
-      ax_max: 1.0
-      ax_min: -1.5                 # Match old max_linear_decel
-      ay_max: 0.0
-      az_max: 1.2                  # Match old max_angular_accel
-
-      # Noise standard deviations for trajectory sampling
-      vx_std: 0.2
-      vy_std: 0.0
-      wz_std: 0.4
-
-      # Lookahead for path tracking
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      desired_linear_vel: .1524
       lookahead_dist: 2.5
 
       # Path following
@@ -258,6 +233,7 @@ global_costmap:
           obstacle_max_range: 10.0
           raytrace_max_range: 12.0
           obstacle_min_range: 0.0
+          observation_persistence: 3.0
 
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -273,8 +249,8 @@ local_costmap:
       update_frequency: 10.0
       publish_frequency: 5.0
       rolling_window: true
-      width: 8
-      height: 8
+      width: 12
+      height: 12
       resolution: 0.05
       transform_tolerance: 1.0
       footprint: "[[0.45, 0.33], [0.45, -0.33], [-0.35, -0.33], [-0.35, 0.33]]"
@@ -285,10 +261,10 @@ local_costmap:
         enabled: true
         footprint_clearing_enabled: true
         min_obstacle_height: 0.0
-        max_obstacle_height: 10.0
-        z_voxels: 10
-        origin_z: -0.1
-        z_resolution: 0.2
+        max_obstacle_height: 2.0
+        z_voxels: 16
+        origin_z: 0.0
+        z_resolution: 0.125
         unknown_threshold: 15
         mark_threshold: 1         # Fixed: was 0, require 2 filled voxels to mark occupied (reduces noise)
         combination_method: 1
