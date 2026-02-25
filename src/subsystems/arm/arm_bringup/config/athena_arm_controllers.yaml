@@ -14,8 +14,11 @@ controller_manager:
     manual_arm_cylindrical_controller:
       type: arm_controllers/ManualArmCylindricalController
 
-    manual_arm_joint_by_joint_controller:
-      type: arm_controllers/ManualArmJointByJointController
+    manual_arm_joint_by_joint_2dof_controller:
+      type: arm_controllers/ManualArmJointByJoint2DOFController
+
+    manual_arm_joint_by_joint_3dof_controller:
+      type: arm_controllers/ManualArmJointByJoint3DOFController
 
     motor_status_broadcaster:
       type: general_controllers/MotorStatusBroadcaster
@@ -101,7 +104,7 @@ manual_arm_cylindrical_controller:
       - 0.53
       - 0.22
 
-manual_arm_joint_by_joint_controller:
+manual_arm_joint_by_joint_2dof_controller:
   ros__parameters:
     velocity_joints:
       - base_yaw
@@ -123,14 +126,35 @@ manual_arm_joint_by_joint_controller:
       - 0.03        # Actuator max displacement
     virtual_four_bar_coupling_ratio: -1.0
 
+manual_arm_joint_by_joint_3dof_controller:
+  ros__parameters:
+    velocity_joints:
+      - base_yaw
+      - shoulder_pitch
+      - elbow_pitch
+      - wrist_motor_a
+      - wrist_motor_b
+      - wrist_motor_c
+      - gripper_claw
+    position_joints:
+      - actuator
+    # interface_name: velocity
+    joint_max_velocities:
+      - 62.83185307 # 10 rot/s, please change dawg
+      - 0.05148721  # 2.95 dps
+      - 0.05148721
+      - 0.785398    # TODO
+      - 0.785398    # TODO
+      - 0.785398    # TODO
+      - 0.005       # TODO: Find this
+      - 0.03        # Actuator max displacement
+
 motor_status_broadcaster:
   ros__parameters:
     joints:
       - base_yaw
       - shoulder_pitch
       - elbow_pitch
-      - wrist_pitch
-      - wrist_roll
     interfaces:
       - motor_temperature
       - torque_current
