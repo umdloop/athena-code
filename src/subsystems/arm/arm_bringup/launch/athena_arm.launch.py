@@ -14,9 +14,9 @@
 
 from launch import LaunchDescription, LaunchContext
 from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -104,9 +104,19 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "use_3dof",
+            default_value="false",
+            description="Enable the joints required for the 3 Degree of Freedom Wrist",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "robot_controller",
-            default_value="manual_arm_joint_by_joint_controller",
-            choices=["manual_arm_joint_by_joint_controller"],
+            default_value="manual_arm_joint_by_joint_2dof_controller",
+            choices=[
+                "manual_arm_joint_by_joint_2dof_controller",
+                "manual_arm_joint_by_joint_3dof_controller",
+            ],
             description="Robot controller to start.",
         )
     )
@@ -125,6 +135,7 @@ def generate_launch_description():
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
+    use_3dof = LaunchConfiguration("use_3dof")
     
     # -- Building Path Files --
     # Get URDF via xacro.
@@ -175,6 +186,8 @@ def generate_launch_description():
             "mock_sensor_commands:=",
             mock_sensor_commands,
             " ",
+            "use_3dof:=",
+            use_3dof,
         ]
     )
     robot_description = {"robot_description": robot_description_content}
@@ -265,6 +278,14 @@ def generate_launch_description():
         arguments=["motor_status_broadcaster", "-c", "/controller_manager"],
     )
 
+    
+    robot_controller = PythonExpression([
+        '"manual_arm_joint_by_joint_3dof_controller" if "',
+        use_3dof,
+        '" == "true" else "',
+        robot_controller,
+        '"'
+    ])
     robot_controller_names = [robot_controller]
     robot_controller_spawners = []
     for controller in robot_controller_names:
@@ -276,7 +297,30 @@ def generate_launch_description():
             )
         ]
 
-    inactive_robot_controller_names = ["manual_arm_cylindrical_controller", "joint_trajectory_controller", "arm_velocity_controller"]
+    robot_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            PythonExpression([
+                '"manual_arm_joint_by_joint_3dof_controller" if "',
+                use_3dof,
+                '" == "true" else "manual_arm_joint_by_joint_2dof_controller"'
+            ]),
+            "-c",
+            "/controller_manager"
+        ]
+    )
+
+    inactive_controller = PythonExpression([
+        '"manual_arm_joint_by_joint_2dof_controller" if "',
+        use_3dof,
+        '" == "true" else "manual_arm_joint_by_joint_3dof_controller"',
+    ])
+    inactive_robot_controller_names = [
+        inactive_controller,
+        "manual_arm_cylindrical_controller", 
+        "joint_trajectory_controller", 
+        "arm_velocity_controller"]
     inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [

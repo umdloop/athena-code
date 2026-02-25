@@ -17,7 +17,7 @@
 # [RosTeamWorkspace](https://github.com/StoglRobotics/ros_team_workspace) repository.
 #
 
-manual_arm_joint_by_joint_controller:
+manual_arm_joint_by_joint_2dof_controller:
   position_joints: {
     type: string_array,
     default_value: [],
