@@ -31,7 +31,7 @@
       </joint>
 
       <joint name="wrist_motor_a">
-        <param name="node_id">2</param>
+        <param name="node_id">3</param>
         <param name="max_disp">0.06</param> <!-- meters -->
         <param name="joint_type">prismatic</param>
         <!-- Motor config (Pololu 37D defaults) -->
@@ -51,7 +51,7 @@
       </joint>
 
       <joint name="wrist_motor_b">
-        <param name="node_id">2</param>
+        <param name="node_id">4</param>
         <param name="max_disp">0.06</param> <!-- meters -->
         <param name="joint_type">prismatic</param>
         <!-- Motor config (Pololu 37D defaults) -->
@@ -71,7 +71,7 @@
       </joint>
 
       <joint name="wrist_motor_c">
-        <param name="node_id">2</param>
+        <param name="node_id">5</param>
         <param name="max_disp">0.06</param> <!-- meters -->
         <param name="joint_type">prismatic</param>
         <!-- Motor config (Pololu 37D defaults) -->
