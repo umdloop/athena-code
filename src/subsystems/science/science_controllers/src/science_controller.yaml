@@ -141,7 +141,7 @@ science_manual:
 
   velocity_limits_scoop_spinner:
     type: double_array
-    default_value: [30.0, 0.0, 0.6, 0.0]
+    default_value: [15.0, 0.0, 0.6, 0.0]
     validation:
       fixed_size<>: 4
 
@@ -154,7 +154,7 @@ science_manual:
 
   velocity_limits_sampler_lift:
     type: double_array
-    default_value: [10.0, 0.0, 0.0, 0.6]
+    default_value: [50.0, 0.0, 0.0, 0.6]
     validation:
       fixed_size<>: 4
 
@@ -169,3 +169,9 @@ science_manual:
     default_value: [10.0, 0.0, 0.0, 0.6]
     validation:
       fixed_size<>: 4
+
+  position_range_auger_lift:
+    type: double_array
+    default_value: [5.0, 360.0]
+    validation:
+      fixed_size<>: 2

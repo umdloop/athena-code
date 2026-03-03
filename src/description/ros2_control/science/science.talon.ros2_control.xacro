@@ -6,7 +6,7 @@
         <plugin>talon_ros2_control/TALONHardwareInterface</plugin>
         <param name="update_rate">10</param> <!-- Hz -->
         <param name="logger_rate">5</param> <!-- Hz -->
-        <param name="logger_state">1</param> <!-- 0 for off, 1 for on -->
+        <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
         <param name="can_interface">can0</param>
       </hardware>
 
@@ -31,7 +31,7 @@
       </joint>
 
       <joint name="talon_scoop">
-        <param name="node_id">2</param>
+        <param name="node_id">0</param>
         <param name="joint_type">revolute</param>
         <!-- Motor config (Pololu 37D defaults) -->
         <param name="encoder_resolution">64.0</param>

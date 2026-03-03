@@ -104,13 +104,19 @@ protected:
   std::shared_ptr<science_manual::ParamListener> param_listener_;
   science_manual::Params params_;
 
+  // Pumps
   bool pump_toggle = false;
   bool prev_pump_button_ = false;
 
+  // Servos
   bool servo_scoop_a_toggle = false;
   bool prev_servo_scoop_a_button_ = false;
   bool servo_scoop_b_toggle = false;
   bool prev_servo_scoop_b_button_ = false;
+
+  // Sampler
+  bool auger_lift_toggle = true; // Current orientation starts at angle: 360 deg
+  bool prev_auger_lift_button_ = false;
 
   // Temporary for SAR
   bool lift_toggle = false;
@@ -178,12 +184,11 @@ private:
   double stepper_cmd = 0.0;
   double scoop_servo_a_position = 0.0;
   double scoop_servo_b_position = 0.0;
-  double auger_position = 0.0;
   double auger_lift_position = 0.0;
   double rack_left_position = 0.0;
   double rack_right_position = 0.0;
   double sampler_lift_pos_l = 0.0;
-  double sampler_lift_pos_r = 0.0;
+  double sampler_lift_pos_r = 360.0;
 
   enum CommandInterfaces
   {

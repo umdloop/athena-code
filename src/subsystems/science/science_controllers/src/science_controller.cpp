@@ -19,6 +19,8 @@
 
 #include "controller_interface/helpers.hpp"
 
+#define DEBUG_MODE 0
+
 namespace
 {
 
@@ -339,22 +341,36 @@ controller_interface::return_type ScienceManual::update(
   double auger_spinner_cmd = auger_axis * params_.velocity_limits_auger[stage_idx] * (auger_reverse ? -1.0 : 1.0);
 
   // Auger_lift
-  double auger_lift_cmd = 
-    (msg->buttons.size() > 0 && msg->buttons[1]) ?
-    params_.velocity_limits_auger_lift[stage_idx] : 0.0;
+  // bool auger_lift_button = (msg->buttons.size() > 0 && msg->buttons[1]);
+  // if (auger_lift_button && !prev_auger_lift_button_) {
+  //   auger_lift_toggle = !auger_lift_toggle;
+  // }
+  // prev_auger_lift_button_ = auger_lift_button;
+  // auger_lift_position = auger_lift_toggle ? params_.position_range_auger_lift[1] : params_.position_range_auger_lift[0];
+  double auger_lift_axis = (msg->axes.size() > 0) ? msg->axes[0] : 0.0;
+
+  // Use absolute value so direction doesn't matter
+  double axis_mag = std::abs(auger_lift_axis);
+
+  // Clamp just in case
+  axis_mag = std::clamp(axis_mag, 0.0, 1.0);
+
+  double min_pos = params_.position_range_auger_lift[0];
+  double max_pos = params_.position_range_auger_lift[1];
+
+  // Default = max_pos
+  // More joystick deflection → move toward min_pos
+  auger_lift_position = max_pos - axis_mag * (max_pos - min_pos);
 
   // Clamp Positions
-  // rack_left_position   = std::clamp(rack_left_position,  params_.position_range_lift_left[0], params_.position_range_lift_left[1]);
-  // rack_right_position  = std::clamp(rack_right_position, params_.position_range_lift_right[0], params_.position_range_lift_right[1]);
-  // rack_left_position   = std::clamp(rack_left_position,  0.0, 255.0);
-  // rack_right_position  = std::clamp(rack_right_position, 0.0, 255.0);
-  scoop_servo_a_position = std::clamp(scoop_servo_a_position,      params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
-  scoop_servo_b_position = std::clamp(scoop_servo_b_position,      params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
-  auger_position       = std::clamp(auger_position,      0.0, 255.0);
-  auger_lift_position         = std::clamp(auger_lift_position,        0.0, 255.0);
-
+  rack_left_position = std::clamp(rack_left_position,  0.0, 360.0);
+  rack_right_position = std::clamp(rack_right_position, 0.0, 360.0);
+  scoop_servo_a_position = std::clamp(scoop_servo_a_position, params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
+  scoop_servo_b_position = std::clamp(scoop_servo_b_position, params_.position_range_scoop_servo[0], params_.position_range_scoop_servo[1]);
+  sampler_lift_pos_l = std::clamp(sampler_lift_pos_l, params_.position_range_sampler_lift[0], params_.position_range_sampler_lift[1]);
+  sampler_lift_pos_r = std::clamp(sampler_lift_pos_r, params_.position_range_sampler_lift[0], params_.position_range_sampler_lift[1]);
+  auger_lift_position = std::clamp(auger_lift_position, params_.position_range_auger_lift[0], params_.position_range_auger_lift[1]);
   
-
   // SET VALUES
   // Stepper motors (position)
   command_interfaces_[IDX_PUMP_A_VELOCITY].set_value(stepper_cmd * (M_PI / 180.0));
@@ -378,26 +394,44 @@ controller_interface::return_type ScienceManual::update(
 
   std::ostringstream oss;
   oss << "\033[2J\033[H\n"
-      << "  [PUMPS]\n"
-      << "  pump_toggle        : " << pump_toggle << "\n"
-      << "  stepper_cmd        : " << std::fixed << std::setprecision(3) << stepper_cmd << "\n"
-      << "\n"
-      << "  [LIFT]\n"
-      << "  rack_left          : " << rack_left_position << "\n"
-      << "  rack_right         : " << rack_right_position << "\n"
-      << "\n"
-      << "  [SCOOPS]\n"
-      << "  scoop_spinner_cmd  : " << scoop_spinner_cmd << "\n"
-      << "  servo_scoop_a_toggle : " << servo_scoop_a_toggle << "\n"
-      << "  scoop_servo_a_pos    : " << scoop_servo_a_position << "\n"
-      << "  scoop_servo_b_pos    : " << scoop_servo_b_position << "\n"
-      << "\n"
-      << "  [SAMPLER]\n"
-      << "  sampler_lift_pos_l   : " << sampler_lift_pos_l << "\n"
-      << "  sampler_lift_pos_r   : " << sampler_lift_pos_r << "\n"
-      << "  auger_spinner_cmd  : " << auger_spinner_cmd << "\n"
-      << "  auger_lift_cmd            : " << auger_lift_cmd << "\n";
-  RCLCPP_INFO(get_node()->get_logger(), "%s", oss.str().c_str());
+    << "========= Science Controller =========\n\n"
+
+    << "  [PUMPS]\n"
+    << "  triangle            : " << pump_button
+    << " | pump_toggle        : " << pump_toggle
+    << " | stepper_cmd        : " << std::fixed << std::setprecision(3) << stepper_cmd << "\n\n"
+
+    << "  [LIFT]\n"
+    << "  right_joystick_btn  : " << lift_button
+    << " | lift_toggle        : " << lift_toggle << "\n"
+    << "  rack_left_position  : " << rack_left_position << "\n"
+    << "  rack_right_position : " << rack_right_position << "\n\n"
+
+    << "  [SCOOPS]\n"
+    << "  right_trigger_axis  : " << scoop_axis
+    << " | right_bumper       : " << scoop_reverse
+    << " | scoop_spinner_cmd  : " << scoop_spinner_cmd << "\n"
+    << "  square              : " << servo_scoop_a_button
+    << " | toggle             : " << servo_scoop_a_toggle
+    << " | scoop_servo_a_pos  : " << scoop_servo_a_position << "\n"
+    << "  x                   : " << servo_scoop_b_button
+    << " | toggle             : " << servo_scoop_b_toggle
+    << " | scoop_servo_b_pos  : " << scoop_servo_b_position << "\n\n"
+
+    << "  [SAMPLER]\n"
+    << "  right_joystick_ud   : " << axis_sampler_lift
+    << " | sampler_lift_pos_l : " << sampler_lift_pos_l
+    << " | sampler_lift_pos_r : " << sampler_lift_pos_r << "\n"
+    << "  left_trigger_axis   : " << auger_axis
+    << " | left_bumper        : " << auger_reverse
+    << " | auger_spinner_cmd  : " << auger_spinner_cmd << "\n"
+    << "  circle              : "
+    << ((msg->buttons.size() > 1) ? msg->buttons[1] : 0)
+    << " | auger_lift_cmd     : " << auger_lift_position << "\n";
+
+  if(DEBUG_MODE == 1){
+    RCLCPP_INFO(get_node()->get_logger(), "%s", oss.str().c_str());
+  }
 
   // Basic state publish (still reusing existing signals)
   for (const auto & joint_name : joints_) {
