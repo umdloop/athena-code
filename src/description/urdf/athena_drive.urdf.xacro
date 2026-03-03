@@ -6,8 +6,12 @@
 
   <xacro:arg name="use_mock_hardware" default="false"/>
   <xacro:arg name="mock_sensor_commands" default="false"/>
-  <xacro:arg name="sim_gazebo" default="true"/>
+  <xacro:arg name="sim_gazebo" default="false"/>
   <xacro:arg name="simulation_controllers" default=""/>
+  <xacro:arg name="use_sim" default="false"/>
+
+  <!-- Derive CAN interface name from use_sim -->
+  <xacro:property name="can_interface" value="${'vcan0' if '$(arg use_sim)' == 'true' else 'can0'}"/>
 
 
   <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.xacro"/>
@@ -70,14 +74,14 @@
     simulation_controllers="$(arg simulation_controllers)"/>
   </xacro:if>
   <xacro:unless value="$(arg use_mock_hardware)">
-    <xacro:odrive_ros2_control name="odrive"/>
-    <xacro:rmd_ros2_control name="rmd"/>
+    <xacro:odrive_ros2_control name="odrive" can_interface="${can_interface}"/>
+    <xacro:rmd_ros2_control name="rmd" can_interface="${can_interface}"/>
 
     <!-- LED status indicator (GPIO-based) -->
     <xacro:led_ros2_control name="status_led" gpio_pin="25"/>
 
     <!-- Killswitch (CAN-based) -->
-    <xacro:killswitch_ros2_control name="drive_killswitch"/>
+    <xacro:killswitch_ros2_control name="drive_killswitch" can_interface="${can_interface}"/>
   </xacro:unless>
 
   

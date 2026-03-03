@@ -20,17 +20,24 @@
 #
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, RegisterEventHandler, TimerAction
-from launch.event_handlers import OnProcessExit, OnProcessStart
-from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument, RegisterEventHandler, TimerAction, ExecuteProcess
+from launch.conditions import IfCondition, UnlessCondition
+from launch.event_handlers import OnProcessExit, OnProcessStart, OnShutdown
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import TimerAction
 
 
 def generate_launch_description():
     # Declare arguments
     declared_arguments = []
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_sim",
+            default_value="false",
+            description="Simulation mode: enables mock hardware and virtual CAN (vcan0).",
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "runtime_config_package",
@@ -74,15 +81,16 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "use_mock_hardware",
             default_value="false",
-            description="Start robot with mock hardware mirroring command to its states.",
+            description="Start robot with mock hardware mirroring command to its states. "
+                        "Automatically true when use_sim is true.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "mock_sensor_commands",
             default_value="false",
-            description="Enable mock command interfaces for sensors used for simple simulations. \
-            Used only if 'use_mock_hardware' parameter is true.",
+            description="Enable mock command interfaces for sensors used for simple simulations. "
+                        "Automatically true when use_sim is true.",
         )
     )
 
@@ -96,6 +104,7 @@ def generate_launch_description():
     )
 
     # Initialize Arguments
+    use_sim = LaunchConfiguration("use_sim")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     controllers_file = LaunchConfiguration("controllers_file")
     description_package = LaunchConfiguration("description_package")
@@ -104,6 +113,14 @@ def generate_launch_description():
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
+
+    # When use_sim is true, force mock hardware and mock sensor commands on
+    use_mock_hardware_effective = PythonExpression([
+        "'true' if '", use_sim, "' == 'true' else '", use_mock_hardware, "'"
+    ])
+    mock_sensor_commands_effective = PythonExpression([
+        "'true' if '", use_sim, "' == 'true' else '", mock_sensor_commands, "'"
+    ])
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -118,10 +135,13 @@ def generate_launch_description():
             prefix,
             " ",
             "use_mock_hardware:=",
-            use_mock_hardware,
+            use_mock_hardware_effective,
             " ",
             "mock_sensor_commands:=",
-            mock_sensor_commands,
+            mock_sensor_commands_effective,
+            " ",
+            "use_sim:=",
+            use_sim,
             " ",
         ]
     )
@@ -183,22 +203,9 @@ def generate_launch_description():
         arguments=["motor_status_broadcaster", "-c", "/controller_manager"],
     )
 
-    # CONTROLLER MANAGERS
-
-    '''robot_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["joint_trajectory_controller", "--param-file", robot_controllers]
-    )'''
-
-    '''velocity_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["velocity_controller", "--param-file", robot_controllers, "--inactive"]
-    )'''
 
     # Active Spawners
-    robot_controller_names = ["science_controller"] # robot_controller
+    robot_controller_names = ["science_controller"]
     robot_controller_spawners = [] 
     for controller in robot_controller_names:
         robot_controller_spawners += [
@@ -222,7 +229,7 @@ def generate_launch_description():
         ]
 
     inactive_robot_controller_names = ["joint_group_velocity_controller", "joint_group_position_controller"]
-    inactive_robot_controller_spawners = [] # Set the ones you want inactive in the beginning (e.g., velocity controller, etc.)
+    inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [
             Node(
@@ -290,7 +297,42 @@ def generate_launch_description():
             executable='can_node',
             name='can_node',
             output='log',
-            arguments=['--ros-args', '--log-level', 'fatal'] # prevents can node from outputting to terminal
+            arguments=['--ros-args', '--log-level', 'fatal']
+    )
+
+    # -- CAN Setup (driven by use_sim) --
+    can_setup_sim = ExecuteProcess(
+        cmd=['bash', '-c',
+             'sudo modprobe vcan && '
+             'sudo ip link add dev vcan0 type vcan && '
+             'sudo ip link set up vcan0'],
+        condition=IfCondition(use_sim),
+        output='screen',
+    )
+    can_setup_real = ExecuteProcess(
+        cmd=['bash', '-c',
+             'sudo killall slcand 2>/dev/null; sleep 1; '
+             'if [ -e /dev/ttyACM0 ]; then sudo slcand -o -c -s8 /dev/ttyACM0 can0; '
+             'elif [ -e /dev/ttyACM1 ]; then sudo slcand -o -c -s8 /dev/ttyACM1 can0; '
+             'else echo "No CANable device found"; exit 1; fi && '
+             'sudo ip link set can0 up && '
+             'sudo ip link set can0 txqueuelen 1000'],
+        condition=UnlessCondition(use_sim),
+        output='screen',
+    )
+
+    # -- CAN Teardown on Shutdown --
+    can_teardown = RegisterEventHandler(
+        event_handler=OnShutdown(
+            on_shutdown=[ExecuteProcess(
+                cmd=['bash', '-c', PythonExpression([
+                    "'sudo ip link set down vcan0 2>/dev/null || true' if '",
+                    use_sim,
+                    "' == 'true' else 'sudo ip link set down can0 2>/dev/null || true'"
+                ])],
+                output='screen',
+            )],
+        ),
     )
 
     # Delay loading and activation of robot_controller_names after `joint_state_broadcaster`
@@ -328,6 +370,9 @@ def generate_launch_description():
     return LaunchDescription(
         declared_arguments
         + [
+            can_setup_sim,
+            can_setup_real,
+            can_teardown,
             control_node,
             robot_state_pub_node,
             rviz_node,

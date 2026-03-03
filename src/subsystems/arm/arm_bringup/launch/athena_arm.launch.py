@@ -1,8 +1,8 @@
 from launch import LaunchDescription, LaunchContext
-from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction, OpaqueFunction
-from launch.conditions import IfCondition
-from launch.event_handlers import OnProcessExit, OnProcessStart
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction, OpaqueFunction, ExecuteProcess
+from launch.conditions import IfCondition, UnlessCondition
+from launch.event_handlers import OnProcessExit, OnProcessStart, OnShutdown
+from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -28,6 +28,14 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_sim",
+            default_value="false",
+            description="Simulation mode: enables mock hardware, virtual CAN (vcan0), "
+                        "MoveIt, and joint trajectory controller on startup.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_rviz",
             default_value="true",
             description="Start RViz2 automatically with this launch file.",
         )
@@ -90,15 +98,16 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "use_mock_hardware",
             default_value="false",
-            description="Start robot with mock hardware mirroring command to its states.",
+            description="Start robot with mock hardware mirroring command to its states. "
+                        "Automatically true when use_sim is true.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "mock_sensor_commands",
             default_value="false",
-            description="Enable mock command interfaces for sensors used for simple simulations. \
-            Used only if 'use_mock_hardware' parameter is true.",
+            description="Enable mock command interfaces for sensors used for simple simulations. "
+                        "Automatically true when use_sim is true.",
         )
     )
     declared_arguments.append(
@@ -116,6 +125,7 @@ def generate_launch_description():
 def launch_setup(context, *args, **kwargs):
     mode = LaunchConfiguration("mode").perform(context)
     use_sim = LaunchConfiguration("use_sim")
+    use_rviz = LaunchConfiguration("use_rviz")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     controllers_file = LaunchConfiguration("controllers_file")
     description_package = LaunchConfiguration("description_package")
@@ -127,6 +137,13 @@ def launch_setup(context, *args, **kwargs):
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
 
+    # When use_sim is true, force mock hardware and mock sensor commands on
+    use_mock_hardware_effective = PythonExpression([
+        "'true' if '", use_sim, "' == 'true' else '", use_mock_hardware, "'"
+    ])
+    mock_sensor_commands_effective = PythonExpression([
+        "'true' if '", use_sim, "' == 'true' else '", mock_sensor_commands, "'"
+    ])
     robot_description_path = PathJoinSubstitution(
         [FindPackageShare("description"), "urdf", "athena_arm.urdf.xacro"]
     )
@@ -163,10 +180,13 @@ def launch_setup(context, *args, **kwargs):
             prefix,
             " ",
             "use_mock_hardware:=",
-            use_mock_hardware,
+            use_mock_hardware_effective,
             " ",
             "mock_sensor_commands:=",
-            mock_sensor_commands,
+            mock_sensor_commands_effective,
+            " ",
+            "use_sim:=",
+            use_sim,
             " ",
         ]
     )
@@ -179,7 +199,7 @@ def launch_setup(context, *args, **kwargs):
         .robot_description_kinematics(file_path=robot_kinematics_path.perform(LaunchContext()))
         .trajectory_execution(file_path=moveit_controllers_config_path.perform(LaunchContext()))
         .planning_scene_monitor(
-            publish_robot_description=True, publish_robot_description_semantic=True
+            publish_robot_description=False, publish_robot_description_semantic=True
         )
         .planning_pipelines(
             pipelines=["ompl", "pilz_industrial_motion_planner"],
@@ -219,7 +239,7 @@ def launch_setup(context, *args, **kwargs):
         name="rviz2",
         output="log",
         arguments=["-d", rviz_config_file],
-        condition=IfCondition(use_sim),
+        condition=IfCondition(use_rviz),
         parameters=[
             moveit_config.robot_description,
             moveit_config.robot_description_semantic,
@@ -252,7 +272,21 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
 
-    inactive_robot_controller_names = ["manual_arm_cylindrical_controller", "joint_trajectory_controller", "arm_velocity_controller"]
+    # JTC: active when use_sim=true, inactive otherwise
+    jtc_spawner_active = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_trajectory_controller", "-c", "/controller_manager"],
+        condition=IfCondition(use_sim),
+    )
+    jtc_spawner_inactive = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_trajectory_controller", "-c", "/controller_manager", "--inactive"],
+        condition=UnlessCondition(use_sim),
+    )
+
+    inactive_robot_controller_names = ["manual_arm_cylindrical_controller", "arm_velocity_controller"]
     inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [
@@ -262,6 +296,8 @@ def launch_setup(context, *args, **kwargs):
                 arguments=[controller, "-c", "/controller_manager", "--inactive"],
             )
         ]
+    # Append JTC spawners (only one will run based on use_sim condition)
+    inactive_robot_controller_spawners += [jtc_spawner_active, jtc_spawner_inactive]
 
     controller_switcher_node = RegisterEventHandler(
         event_handler=OnProcessExit(
@@ -334,9 +370,56 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
 
+    # -- CAN Setup (driven by use_sim) --
+    can_setup_sim = ExecuteProcess(
+        cmd=['bash', '-c',
+             'sudo modprobe vcan && '
+             'sudo ip link add dev vcan0 type vcan && '
+             'sudo ip link set up vcan0'],
+        condition=IfCondition(use_sim),
+        output='screen',
+    )
+    can_setup_real = ExecuteProcess(
+        cmd=['bash', '-c',
+             'sudo killall slcand 2>/dev/null; sleep 1; '
+             'if [ -e /dev/ttyACM0 ]; then sudo slcand -o -c -s8 /dev/ttyACM0 can0; '
+             'elif [ -e /dev/ttyACM1 ]; then sudo slcand -o -c -s8 /dev/ttyACM1 can0; '
+             'else echo "No CANable device found"; exit 1; fi && '
+             'sudo ip link set can0 up && '
+             'sudo ip link set can0 txqueuelen 1000'],
+        condition=UnlessCondition(use_sim),
+        output='screen',
+    )
+
+    # -- CAN Teardown on Shutdown --
+    can_teardown = RegisterEventHandler(
+        event_handler=OnShutdown(
+            on_shutdown=[ExecuteProcess(
+                cmd=['bash', '-c', PythonExpression([
+                    "'sudo ip link set down vcan0 2>/dev/null || true' if '",
+                    use_sim,
+                    "' == 'true' else 'sudo ip link set down can0 2>/dev/null || true'"
+                ])],
+                output='screen',
+            )],
+        ),
+    )
+
+    move_group_node = Node(
+        package="moveit_ros_move_group",
+        executable="move_group",
+        output="screen",
+        parameters=[moveit_config.to_dict()],
+        condition=IfCondition(use_sim),
+    )
+
     jetson_actions = [
+        can_setup_sim,
+        can_setup_real,
+        can_teardown,
         control_node,
         robot_state_pub_node,
+        move_group_node,
         delay_joint_state_broadcaster_spawner_after_ros2_control_node,
         delay_motor_status_broadcaster_after_joint_state_broadcaster,
         delay_rviz_after_joint_state_broadcaster_spawner,

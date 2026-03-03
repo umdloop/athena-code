@@ -3,6 +3,10 @@
 
   <xacro:arg name="use_mock_hardware" default="false"/>
   <xacro:arg name="mock_sensor_commands" default="false"/>
+  <xacro:arg name="use_sim" default="false"/>
+
+  <!-- Derive CAN interface name from use_sim -->
+  <xacro:property name="can_interface" value="${'vcan0' if '$(arg use_sim)' == 'true' else 'can0'}"/>
 
   <xacro:include filename="$(find description)/ros2_control/science/science.mock.ros2_control.xacro"/>
 
@@ -28,13 +32,13 @@
     <xacro:stepper_ros2_control name="stepper"/>
 
     <!-- Import servo ros2_control description -->
-    <xacro:servo_ros2_control name="servo"/>
+    <xacro:servo_ros2_control name="servo" can_interface="${can_interface}"/>
 
     <!-- Import talon ros2_control description -->
-    <xacro:talon_ros2_control name="talon"/>
+    <xacro:talon_ros2_control name="talon" can_interface="${can_interface}"/>
 
     <!-- Import laser ros2_control description (CAN-based) -->
-    <xacro:laser_ros2_control name="spectrometry_laser"/>
+    <xacro:laser_ros2_control name="spectrometry_laser" can_interface="${can_interface}"/>
   </xacro:unless>
 
 </robot>

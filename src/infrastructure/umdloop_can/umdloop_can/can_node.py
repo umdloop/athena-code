@@ -7,10 +7,11 @@ class CANNode(Node):
     def __init__(self):
         super().__init__('can_node')
 
-        # Publisher for incoming CAN data
+        self.declare_parameter('can_interface', 'can0')
+        can_channel = self.get_parameter('can_interface').get_parameter_value().string_value
+
         self.publisher_ = self.create_publisher(CANA, 'can_rx', 10)
 
-        # Subscriber for outgoing CAN data
         self.subscription = self.create_subscription(
             CANA,
             'can_tx',
@@ -18,9 +19,9 @@ class CANNode(Node):
             10
         )
 
-        self.can_interface = CANInterface(callback=self.can_rx_callback)
+        self.can_interface = CANInterface(callback=self.can_rx_callback, channel=can_channel)
         
-        self.get_logger().info('CAN Node Initialized')
+        self.get_logger().info(f'CAN Node Initialized on {can_channel}')
 
         # # Check for new CAN messages at 100Hz
         # self.timer = self.create_timer(0.01, self.check_can_messages)
