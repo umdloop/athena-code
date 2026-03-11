@@ -1,7 +1,7 @@
 from launch import LaunchDescription, LaunchContext
 from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction
 from launch.event_handlers import OnProcessExit, OnProcessStart
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -59,9 +59,26 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "use_3dof",
+            default_value="false",
+            description="Enable the joints required for the 3 Degree of Freedom Wrist",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "deactivate_talon",
+            default_value="false",
+            description="Deactivate the talon joints in the URDF when using mock hardware to prevent excessive CAN flow.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "robot_controller",
-            default_value="manual_arm_joint_by_joint_controller",
-            choices=["manual_arm_joint_by_joint_controller"],
+            default_value="manual_arm_joint_by_joint_2dof_controller",
+            choices=[
+                "manual_arm_joint_by_joint_2dof_controller",
+                "manual_arm_joint_by_joint_3dof_controller",
+            ],
             description="Robot controller to start.",
         )
     )
@@ -74,6 +91,8 @@ def generate_launch_description():
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
+    use_3dof = LaunchConfiguration("use_3dof")
+    deactivate_talon = LaunchConfiguration("deactivate_talon")
     
     # -- Building Path Files --
     robot_description_path = PathJoinSubstitution(
@@ -98,6 +117,12 @@ def generate_launch_description():
             " ",
             "mock_sensor_commands:=",
             mock_sensor_commands,
+            " ",
+            "use_3dof:=",
+            use_3dof,
+            " ",
+            "deactivate_talon:=",
+            deactivate_talon,
             " ",
         ]
     )
@@ -127,6 +152,12 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster"],
     )
 
+    robot_controller = PythonExpression([
+        '"manual_arm_joint_by_joint_3dof_controller" if "',
+        use_3dof,
+        '" == "true" else "manual_arm_joint_by_joint_2dof_controller"'
+    ])
+
     robot_controller_names = [robot_controller]
     robot_controller_spawners = []
     for controller in robot_controller_names:
@@ -138,7 +169,17 @@ def generate_launch_description():
             )
         ]
 
-    inactive_robot_controller_names = ["manual_arm_cylindrical_controller", "joint_trajectory_controller", "arm_velocity_controller"]
+    inactive_controller = PythonExpression([
+        '"manual_arm_joint_by_joint_2dof_controller" if "',
+        use_3dof,
+        '" == "true" else "manual_arm_joint_by_joint_3dof_controller"',
+    ])
+    inactive_robot_controller_names = [
+        inactive_controller,
+        "manual_arm_cylindrical_controller",
+        "joint_trajectory_controller",
+        "arm_velocity_controller",
+    ]
     inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [

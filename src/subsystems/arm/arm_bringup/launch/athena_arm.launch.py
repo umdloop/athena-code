@@ -110,6 +110,13 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "deactivate_talon",
+            default_value="false",
+            description="Deactivate the talon joints in the URDF when using mock hardware to prevent excessive CAN flow.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "robot_controller",
             default_value="manual_arm_joint_by_joint_2dof_controller",
             choices=[
@@ -137,6 +144,7 @@ def launch_setup(context, *args, **kwargs):
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
     use_3dof = LaunchConfiguration("use_3dof")
+    deactivate_talon = LaunchConfiguration("deactivate_talon")
     
     # -- Building Path Files --
     # Get URDF via xacro.
@@ -185,6 +193,9 @@ def launch_setup(context, *args, **kwargs):
             " ",
             "use_3dof:=",
             use_3dof,
+            " ",
+            "deactivate_talon:=",
+            deactivate_talon,
         ]
     )
     robot_description = {"robot_description": robot_description_content}
@@ -262,10 +273,9 @@ def launch_setup(context, *args, **kwargs):
     robot_controller = PythonExpression([
         '"manual_arm_joint_by_joint_3dof_controller" if "',
         use_3dof,
-        '" == "true" else "',
-        robot_controller,
-        '"'
+        '" == "true" else "manual_arm_joint_by_joint_2dof_controller"'
     ])
+    
     robot_controller_names = [robot_controller]
     robot_controller_spawners = []
     for controller in robot_controller_names:
