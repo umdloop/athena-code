@@ -9,6 +9,7 @@
   <xacro:arg name="sim_gazebo" default="true"/>
   <xacro:arg name="simulation_controllers" default=""/>
   <xacro:arg name="use_3dof" default="false"/>
+  <xacro:arg name="deactivate_talon" default="false"/>
 
   <!-- Macro Imports -->
   <!-- Import athena_arm macro -->
@@ -48,11 +49,11 @@
   </xacro:if>
   <xacro:unless value="$(arg use_mock_hardware)"> <!-- HARDWARE -->
     <xacro:if value="$(arg use_3dof)">
-      <xacro:talon_3dof_ros2_control name="talon"/>
+      <xacro:talon_3dof_ros2_control name="talon" deactivate_talon="$(arg deactivate_talon)"/>
       <xacro:smc_3dof_ros2_control name="smc"/> 
     </xacro:if>
     <xacro:unless value="$(arg use_3dof)">
-      <xacro:talon_2dof_ros2_control name="talon"/> 
+      <xacro:talon_2dof_ros2_control name="talon" deactivate_talon="$(arg deactivate_talon)"/>
       <xacro:smc_2dof_ros2_control name="smc"/> 
     </xacro:unless>
 
