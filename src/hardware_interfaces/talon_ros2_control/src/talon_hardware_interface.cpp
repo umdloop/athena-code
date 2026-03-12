@@ -32,6 +32,7 @@ void TALONHardwareInterface::logger_function(){
   // Building Message
   std::string log_msg = "\033[2J\033[H \nTALON Logger";
   std::string control_mode = "";
+  std::string joint_type = "";
   std::ostringstream oss;
   std::string status;
   
@@ -54,14 +55,22 @@ void TALONHardwareInterface::logger_function(){
       control_mode = "UNDEFINED";
     }
 
+    if(static_cast<int>(joint_type_[i]) == 0) {
+      joint_type = "REVOLUTE";
+    }
+    else if(static_cast<int>(joint_type_[i]) == 1) {
+      joint_type = "PRISMATIC";
+    }
+
     oss << "\nJOINT: " << info_.joints[i].name << "\n"
         << "Parameters: Node ID: 0x" << std::hex << std::uppercase << joint_node_ids[i] << "\n"
         << "-- Commands --\n"
         << "Control Mode: " << control_mode << "\n"
+        << "Joint Type: " << joint_type << "\n"
         << "Joint Command Position: " << joint_command_position_[i] << "\n"
         << "Joint Command Velocity: " << joint_command_velocity_[i] << "\n"
         << "-- State --\n"
-        << "Joint Position: " << joint_state_position_[i] << "\n"
+        << "Joint Position: " << joint_state_position_[i] << " | Position in TU: " << getPositionTalonUnits(talon_motors[i]) << " \n"
         << "Joint Velocity: " << joint_state_velocity_[i] << "\n";
   }
 
@@ -144,6 +153,9 @@ hardware_interface::CallbackReturn TALONHardwareInterface::on_init(
   joint_command_position_.assign(num_joints, 0);
   joint_command_velocity_.assign(num_joints, 0);
 
+  motor_temperature_.assign(num_joints, 0.0);
+  motor_torque_current_.assign(num_joints, 0.0);
+
   control_level_.resize(num_joints, integration_level_t::POSITION);
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -166,6 +178,12 @@ std::vector<hardware_interface::StateInterface> TALONHardwareInterface::export_s
       info_.joints[i].name, hardware_interface::HW_IF_POSITION, &joint_state_position_[i]));
     state_interfaces.emplace_back(hardware_interface::StateInterface(
       info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &joint_state_velocity_[i]));
+
+    // Telemetry interfaces
+    state_interfaces.emplace_back(hardware_interface::StateInterface(
+      info_.joints[i].name, "motor_temperature", &motor_temperature_[i]));
+    state_interfaces.emplace_back(hardware_interface::StateInterface(
+      info_.joints[i].name, "torque_current", &motor_torque_current_[i]));
   }
 
   return state_interfaces;
@@ -276,6 +294,10 @@ hardware_interface::return_type TALONHardwareInterface::read(
       joint_state_position_[i] = getPositionRadians(talon_motors[i], motor_configs_[i]);    // radians
       joint_state_velocity_[i] = getAngularVelocity(talon_motors[i], motor_configs_[i]);    // rad/s
     }
+
+    // Telemetry
+    motor_temperature_[i] = talon_motors[i]->GetTemperature();
+    motor_torque_current_[i] = talon_motors[i]->GetOutputCurrent();
   }
   return hardware_interface::return_type::OK;
 }
