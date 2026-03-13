@@ -14,11 +14,17 @@ controller_manager:
     manual_arm_cylindrical_controller:
       type: arm_controllers/ManualArmCylindricalController
 
-    manual_arm_joint_by_joint_2dof_controller:
-      type: arm_controllers/ManualArmJointByJoint2DOFController
+    manual_arm_joint_by_joint_controller:
+      type: arm_controllers/ManualArmJointByJointController
 
-    manual_arm_joint_by_joint_3dof_controller:
-      type: arm_controllers/ManualArmJointByJoint3DOFController
+    manual_2dof_wrist_joint_by_joint_controller:
+      type: arm_controllers/Manual2DOFWristJointByJointController
+
+    manual_3dof_wrist_joint_by_joint_controller:
+      type: arm_controllers/Manual3DOFWristJointByJointController
+
+    manual_end_effector_gripper_claw_controller:
+      type: arm_controllers/ManualEndEffectorGripperClawController
 
     motor_status_broadcaster:
       type: general_controllers/MotorStatusBroadcaster
@@ -104,48 +110,51 @@ manual_arm_cylindrical_controller:
       - 0.53
       - 0.22
 
-manual_arm_joint_by_joint_2dof_controller:
+manual_arm_joint_by_joint_controller:
   ros__parameters:
-    velocity_joints:
+    joints:
       - base_yaw
       - shoulder_pitch
       - elbow_pitch
-      - wrist_pitch
-      - wrist_roll
-      - gripper_claw
-    position_joints:
-      - actuator
     # interface_name: velocity
     joint_max_velocities:
       - 0.08       # base_yaw
       - 0.05148721  # 2.95 dps
       - 0.05148721
+
+manual_2dof_wrist_joint_by_joint_controller:
+  ros__parameters:
+    joints:
+      - wrist_pitch
+      - wrist_roll
+    # interface_name: velocity
+    joint_max_velocities:
       - 0.785398    # 45 dps
       - 0.785398
-      - 0.005       # TODO: Find this
-      - 0.03        # Actuator max displacement
 
-manual_arm_joint_by_joint_3dof_controller:
+manual_3dof_wrist_joint_by_joint_controller:
   ros__parameters:
-    velocity_joints:
-      - base_yaw
-      - shoulder_pitch
-      - elbow_pitch
+    joints:
       - wrist_motor_a
       - wrist_motor_b
       - wrist_motor_c
+    # interface_name: velocity
+    joint_max_velocities:
+      - 0.785398    # TODO
+      - 0.785398    # TODO
+      - 0.785398    # TODO
+
+manual_end_effector_gripper_claw_controller:
+  ros__parameters:
+    velocity_joints:
       - gripper_claw
     position_joints:
       - actuator
     # interface_name: velocity
     joint_max_velocities:
-      - 62.83185307 # 10 rot/s, please change dawg
-      - 0.05148721  # 2.95 dps
-      - 0.05148721
-      - 0.785398    # TODO
-      - 0.785398    # TODO
-      - 0.785398    # TODO
       - 0.005       # TODO: Find this
+      - 0.03        # Actuator max displacement
+    joint_max_positions:
       - 0.03        # Actuator max displacement
 
 motor_status_broadcaster:

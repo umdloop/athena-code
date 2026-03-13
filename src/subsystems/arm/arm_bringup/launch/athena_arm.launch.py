@@ -116,18 +116,6 @@ def generate_launch_description():
             description="Deactivate the talon joints in the URDF when using mock hardware to prevent excessive CAN flow.",
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "robot_controller",
-            default_value="manual_arm_joint_by_joint_2dof_controller",
-            choices=[
-                "manual_arm_joint_by_joint_2dof_controller",
-                "manual_arm_joint_by_joint_3dof_controller",
-            ],
-            description="Robot controller to start.",
-        )
-    )
-
     # -- Initialize Arguments --
     use_sim = LaunchConfiguration("use_sim")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
@@ -141,7 +129,6 @@ def generate_launch_description():
     prefix = LaunchConfiguration("prefix")
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
-    robot_controller = LaunchConfiguration("robot_controller")
     use_3dof = LaunchConfiguration("use_3dof")
     deactivate_talon = LaunchConfiguration("deactivate_talon")
     
@@ -290,13 +277,17 @@ def generate_launch_description():
     )
 
     
-    robot_controller = PythonExpression([
-        '"manual_arm_joint_by_joint_3dof_controller" if "',
+    wrist_controller = PythonExpression([
+        '"manual_3dof_wrist_joint_by_joint_controller" if "',
         use_3dof,
-        '" == "true" else "manual_arm_joint_by_joint_2dof_controller"'
+        '" == "true" else "manual_2dof_wrist_joint_by_joint_controller"'
     ])
     
-    robot_controller_names = [robot_controller]
+    robot_controller_names = [
+        "manual_arm_joint_by_joint_controller",
+        wrist_controller,
+        "manual_end_effector_gripper_claw_controller",
+    ]
     robot_controller_spawners = []
     for controller in robot_controller_names:
         robot_controller_spawners += [
@@ -307,24 +298,10 @@ def generate_launch_description():
             )
         ]
 
-    robot_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            PythonExpression([
-                '"manual_arm_joint_by_joint_3dof_controller" if "',
-                use_3dof,
-                '" == "true" else "manual_arm_joint_by_joint_2dof_controller"'
-            ]),
-            "-c",
-            "/controller_manager"
-        ]
-    )
-
     inactive_controller = PythonExpression([
-        '"manual_arm_joint_by_joint_2dof_controller" if "',
+        '"manual_2dof_wrist_joint_by_joint_controller" if "',
         use_3dof,
-        '" == "true" else "manual_arm_joint_by_joint_3dof_controller"',
+        '" == "true" else "manual_3dof_wrist_joint_by_joint_controller"',
     ])
     inactive_robot_controller_names = [
         inactive_controller,
@@ -418,15 +395,6 @@ def generate_launch_description():
             )
         ]
 
-    umdloop_can_node = Node(
-            package='umdloop_can',
-            executable='can_node',
-            name='can_node',
-            output='log',
-            arguments=['--ros-args', '--log-level', 'fatal'] # prevents can node from outputting to terminal
-
-    )
-
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
@@ -444,7 +412,6 @@ def generate_launch_description():
     return LaunchDescription(
         declared_arguments +
         [
-            # umdloop_can_node,
             control_node,
             joystick_publisher,
             # joint_state_publisher, # sends 0s to /joint_states

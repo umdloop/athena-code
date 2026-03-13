@@ -17,7 +17,7 @@
 # [RosTeamWorkspace](https://github.com/StoglRobotics/ros_team_workspace) repository.
 #
 
-manual_arm_joint_by_joint_2dof_controller:
+manual_end_effector_gripper_claw_controller:
   position_joints: {
     type: string_array,
     default_value: [],
@@ -62,6 +62,16 @@ manual_arm_joint_by_joint_2dof_controller:
     type: double_array,
     default_value: [],
     description: "Specifies maximum joint velocities in rad/s or m/s. These should be obtained via experimentation since it depends on how much weight each motor is moving.",
+    read_only: true,
+    validation: {
+      not_empty<>: null,
+    }
+  }
+
+  joint_max_positions: {
+    type: double_array,
+    default_value: [],
+    description: "Specifies maximum joint positions in rad or m. These should be obtained via experimentation.",
     read_only: true,
     validation: {
       not_empty<>: null,
