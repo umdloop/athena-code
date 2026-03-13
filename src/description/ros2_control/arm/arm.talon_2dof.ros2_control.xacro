@@ -17,7 +17,7 @@
       </hardware>
 
       <joint name="gripper_claw">
-        <param name="node_id">2</param>
+        <param name="node_id">4</param>
         <param name="max_disp">0.06</param> <!-- meters -->
         <param name="joint_type">prismatic</param>
         <!-- Motor config (Pololu 37D defaults) -->
