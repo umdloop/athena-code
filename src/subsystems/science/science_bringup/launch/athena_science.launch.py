@@ -144,6 +144,10 @@ def generate_launch_description():
         [FindPackageShare(description_package), "rviz", "athena_science.rviz"]
     )
 
+    controller_switcher_config = PathJoinSubstitution(
+        [FindPackageShare("bringup"), "config", "controller_switcher.yaml"]
+    )
+
     joystick_config_file = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), 'config', 'joystick.yaml']
     )
@@ -267,7 +271,8 @@ def generate_launch_description():
                     package="bringup",
                     executable="controller_switcher.py",
                     name="controller_switcher",
-                    output="screen"
+                    output="screen",
+                    parameters=[controller_switcher_config, {"subsystem": "science"}]
                 )]
             )],
         )
