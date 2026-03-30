@@ -153,6 +153,10 @@ def generate_launch_description():
         [FindPackageShare(description_package), "rviz", rviz_file]
     )
 
+    controller_switcher_config = PathJoinSubstitution(
+        [FindPackageShare("bringup"), "config", "controller_switcher.yaml"]
+    )
+
     # -- Additional Configuration Setup --
     robot_description_content = Command(
         [
@@ -284,10 +288,11 @@ def generate_launch_description():
             on_exit=[TimerAction(
                 period=3.0,
                 actions=[Node(
-                    package="drive_bringup",
+                    package="bringup",
                     executable="controller_switcher.py",
                     name="controller_switcher",
-                    output="screen"
+                    output="screen",
+                    parameters=[controller_switcher_config]
                 )]
             )],
         )

@@ -5,7 +5,10 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
     
-    joint_trajectory_controller:
+    twodof_joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    threedof_joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
     arm_velocity_controller:
@@ -30,7 +33,7 @@ controller_manager:
       type: general_controllers/MotorStatusBroadcaster
     
 
-joint_trajectory_controller:
+twodof_joint_trajectory_controller:
   ros__parameters:
     joints:
       - base_yaw
@@ -81,6 +84,41 @@ joint_trajectory_controller:
       # gripper_claw:
       #   trajectory: 0.05
       #   goal: 0.03
+
+threedof_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - base_yaw
+      - shoulder_pitch
+      - elbow_pitch
+      - wrist_motor_a
+      - wrist_motor_b
+      - wrist_motor_c
+      - gripper_claw
+      - actuator
+
+    command_interfaces:
+      - position
+
+    state_interfaces:
+      - position
+      - velocity
+
+    action_monitor_rate: 20.0         # Rate to monitor status changes when the controller is executing action
+
+    allow_partial_joints_goal: true
+
+    # Open loop:The controller ignores the states provided by hardware interface but using 
+    # last commands as states for starting the trajectory interpolation
+    # deactivates the feedback control
+    open_loop_control: true 
+    constraints:
+      # Velocity tolerance for at the end of the trajectory that indicates that controlled system is stopped.
+      stopped_velocity_tolerance: 0.01 
+
+      # Time tolerance for achieving trajectory goal before or after commanded time. 
+      # If set to zero, the controller will wait a potentially infinite amount of time.
+      goal_time: 10.0
 
 arm_velocity_controller:
   ros__parameters:

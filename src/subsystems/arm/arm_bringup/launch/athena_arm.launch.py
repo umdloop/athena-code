@@ -152,6 +152,10 @@ def generate_launch_description():
         [FindPackageShare(runtime_config_package), 'config', 'joystick.yaml']
     )
 
+    controller_switcher_config = PathJoinSubstitution(
+        [FindPackageShare(runtime_config_package), "config", "controller_switcher.yaml"]
+    )
+
     # MoveIt Config Setup (TODO: Currently not using Launch Configuration for description and these configs because moveit
     # config builder happens at launch time. Is there a way to keep these Launch configs when building file path?)
     robot_semantic_path = PathJoinSubstitution(
@@ -160,8 +164,9 @@ def generate_launch_description():
     robot_kinematics_path = PathJoinSubstitution(
         [FindPackageShare("arm_moveit"), "config", "kinematics.yaml"]
     )
+
     moveit_controllers_config_path = PathJoinSubstitution(
-        [FindPackageShare("arm_moveit"), "config", "moveit_controllers.yaml"]
+        [FindPackageShare("arm_moveit"), "config", "moveit_controllers_2dof.yaml"]
     )
 
     # -- Additional Configuration Setup --
@@ -298,6 +303,13 @@ def generate_launch_description():
             )
         ]
 
+    joint_trajectory_controller = PythonExpression([
+        '"threedof_joint_trajectory_controller" if "',
+        use_3dof,
+        '" == "true" else "twodof_joint_trajectory_controller"'
+    ])
+
+
     inactive_controller = PythonExpression([
         '"manual_2dof_wrist_joint_by_joint_controller" if "',
         use_3dof,
@@ -306,7 +318,7 @@ def generate_launch_description():
     inactive_robot_controller_names = [
         inactive_controller,
         "manual_arm_cylindrical_controller", 
-        "joint_trajectory_controller", 
+        joint_trajectory_controller,
         "arm_velocity_controller"]
     inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
@@ -325,9 +337,10 @@ def generate_launch_description():
             on_exit=[TimerAction(
                 period=3.0,
                 actions=[Node(
-                    package="arm_bringup",
+                    package="bringup",
                     executable="controller_switcher.py",
                     name="controller_switcher",
+                    parameters=[controller_switcher_config, {"subsystem": "arm"}],
                     output="screen"
                 )]
             )],
@@ -395,19 +408,7 @@ def generate_launch_description():
             )
         ]
 
-    move_group_node = Node(
-        package="moveit_ros_move_group",
-        executable="move_group",
-        output="screen",
-        parameters=[moveit_config.to_dict()]
-    )
 
-    hello_moveit_node = Node(
-        package="arm_moveit",
-        executable="hello_moveit",
-        output="screen",
-        parameters=[moveit_config.to_dict()],
-    )
 
     return LaunchDescription(
         declared_arguments +

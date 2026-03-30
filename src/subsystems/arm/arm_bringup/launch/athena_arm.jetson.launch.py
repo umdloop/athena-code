@@ -89,6 +89,10 @@ def generate_launch_description():
         [FindPackageShare(runtime_config_package), "config", controllers_file]
     )
 
+    controller_switcher_config = PathJoinSubstitution(
+        [FindPackageShare("bringup"), "config", "controller_switcher.yaml"]
+    )
+
     # -- Additional Configuration Setup --
     robot_description_content = Command(
         [
@@ -160,6 +164,12 @@ def generate_launch_description():
             )
         ]
 
+    joint_trajectory_controller = PythonExpression([
+        '"threedof_joint_trajectory_controller" if "',
+        use_3dof,
+        '" == "true" else "twodof_joint_trajectory_controller"'
+    ])
+
     inactive_controller = PythonExpression([
         '"manual_2dof_wrist_joint_by_joint_controller" if "',
         use_3dof,
@@ -168,7 +178,7 @@ def generate_launch_description():
     inactive_robot_controller_names = [
         inactive_controller,
         "manual_arm_cylindrical_controller",
-        "joint_trajectory_controller",
+        joint_trajectory_controller,
         "arm_velocity_controller",
     ]
     inactive_robot_controller_spawners = []
@@ -188,10 +198,11 @@ def generate_launch_description():
             on_exit=[TimerAction(
                 period=3.0,
                 actions=[Node(
-                    package="arm_bringup",
+                    package="bringup",
                     executable="controller_switcher.py",
                     name="controller_switcher",
-                    output="screen"
+                    output="screen",
+                    parameters=[controller_switcher_config, {"subsystem": "arm"}]
                 )]
             )],
         )
