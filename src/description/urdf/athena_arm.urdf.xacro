@@ -15,7 +15,7 @@
   <xacro:include filename="$(find description)/urdf/athena_arm_description.urdf.xacro"/>
 
   <!-- Import mock ros2_control description -->
-  <xacro:include filename="$(find description)/config/mock.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/arm/arm.mock.ros2_control.xacro" />
 
   <!-- Import smc ros2_control description -->
   <xacro:include filename="$(find description)/ros2_control/arm/arm.smc.ros2_control.xacro" />

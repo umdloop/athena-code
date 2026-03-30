@@ -303,20 +303,23 @@ def generate_launch_description():
     # -- CAN Setup (driven by use_sim) --
     can_setup_sim = ExecuteProcess(
         cmd=['bash', '-c',
-             'sudo modprobe vcan && '
-             'sudo ip link add dev vcan0 type vcan && '
-             'sudo ip link set up vcan0'],
+             'sudo modprobe vcan || true; '
+             'sudo ip link add dev vcan0 type vcan 2>/dev/null || true; '
+             'sudo ip link set up vcan0 || true'],
         condition=IfCondition(use_sim),
         output='screen',
     )
     can_setup_real = ExecuteProcess(
         cmd=['bash', '-c',
              'sudo killall slcand 2>/dev/null; sleep 1; '
-             'if [ -e /dev/ttyACM0 ]; then sudo slcand -o -c -s8 /dev/ttyACM0 can0; '
-             'elif [ -e /dev/ttyACM1 ]; then sudo slcand -o -c -s8 /dev/ttyACM1 can0; '
-             'else echo "No CANable device found"; exit 1; fi && '
-             'sudo ip link set can0 up && '
-             'sudo ip link set can0 txqueuelen 1000'],
+             'if ip link show can0 >/dev/null 2>&1; then '
+             '  sudo ip link set can0 up && sudo ip link set can0 txqueuelen 1000; '
+             'else '
+             '  if [ -e /dev/ttyACM0 ]; then sudo slcand -o -c -s8 /dev/ttyACM0 can0; '
+             '  elif [ -e /dev/ttyACM1 ]; then sudo slcand -o -c -s8 /dev/ttyACM1 can0; '
+             '  else echo "No CANable device found and can0 does not exist"; exit 1; fi && '
+             '  sudo ip link set can0 up && sudo ip link set can0 txqueuelen 1000; '
+             'fi'],
         condition=UnlessCondition(use_sim),
         output='screen',
     )
@@ -325,11 +328,10 @@ def generate_launch_description():
     can_teardown = RegisterEventHandler(
         event_handler=OnShutdown(
             on_shutdown=[ExecuteProcess(
-                cmd=['bash', '-c', PythonExpression([
-                    "'sudo ip link set down vcan0 2>/dev/null || true' if '",
-                    use_sim,
-                    "' == 'true' else 'sudo ip link set down can0 2>/dev/null || true'"
-                ])],
+                cmd=['bash', '-c',
+                     'sudo -n ip link set down vcan0 2>/dev/null || true; '
+                     'sudo -n ip link set down can0 2>/dev/null || true; '
+                     'sudo -n killall slcand 2>/dev/null || true'],
                 output='screen',
             )],
         ),

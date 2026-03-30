@@ -14,6 +14,7 @@
 
 #include "general_controllers/motor_status_broadcaster.hpp"
 
+#include <algorithm>
 #include <sstream>
 #include <string>
 
@@ -50,10 +51,19 @@ controller_interface::InterfaceConfiguration
 MotorStatusBroadcaster::state_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration config;
-  config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+  std::vector<std::string> interfaces = params_.interfaces;
+  if (interfaces.empty()) {
+    interfaces = {"motor_temperature", "torque_current"};
+  }
 
+  if (params_.joints.empty()) {
+    config.type = controller_interface::interface_configuration_type::ALL;
+    return config;
+  }
+
+  config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
   for (const auto & joint : params_.joints) {
-    for (const auto & iface : params_.interfaces) {
+    for (const auto & iface : interfaces) {
       config.names.push_back(joint + "/" + iface);
     }
   }
@@ -67,13 +77,15 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_configure(
   params_ = param_listener_->get_params();
 
   if (params_.joints.empty()) {
-    RCLCPP_ERROR(get_node()->get_logger(), "No joints specified for motor_status_broadcaster.");
-    return controller_interface::CallbackReturn::ERROR;
+    RCLCPP_WARN(
+      get_node()->get_logger(),
+      "No joints specified for motor_status_broadcaster. Will publish any matching interfaces.");
   }
 
   if (params_.interfaces.empty()) {
-    RCLCPP_ERROR(get_node()->get_logger(), "No interfaces specified for motor_status_broadcaster.");
-    return controller_interface::CallbackReturn::ERROR;
+    RCLCPP_WARN(
+      get_node()->get_logger(),
+      "No interfaces specified for motor_status_broadcaster. Using defaults: motor_temperature, torque_current.");
   }
 
   // Set up publish rate
@@ -104,12 +116,41 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_activate(
                          state_interfaces_[i].get_interface_name()] = i;
   }
 
+  interfaces_to_publish_ = params_.interfaces;
+  if (interfaces_to_publish_.empty()) {
+    interfaces_to_publish_ = {"motor_temperature", "torque_current"};
+  }
+
+  joints_to_publish_.clear();
+  if (params_.joints.empty()) {
+    std::unordered_set<std::string> joints_set;
+    for (const auto & iface : state_interfaces_) {
+      const auto & iface_name = iface.get_interface_name();
+      if (std::find(interfaces_to_publish_.begin(), interfaces_to_publish_.end(), iface_name) !=
+          interfaces_to_publish_.end()) {
+        joints_set.insert(iface.get_prefix_name());
+      }
+    }
+    joints_to_publish_.assign(joints_set.begin(), joints_set.end());
+    std::sort(joints_to_publish_.begin(), joints_to_publish_.end());
+  } else {
+    joints_to_publish_ = params_.joints;
+  }
+
+  warned_no_interfaces_ = false;
+  if (joints_to_publish_.empty()) {
+    RCLCPP_WARN(
+      get_node()->get_logger(),
+      "No motor telemetry interfaces found (motor_temperature/torque_current). Nothing to publish.");
+    warned_no_interfaces_ = true;
+  }
+
   last_publish_time_ = get_node()->now();
 
   RCLCPP_INFO(
     get_node()->get_logger(),
-    "MotorStatusBroadcaster activated with %zu state interfaces",
-    state_interfaces_.size());
+    "MotorStatusBroadcaster activated with %zu joints, %zu interfaces",
+    joints_to_publish_.size(), interfaces_to_publish_.size());
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -124,6 +165,16 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_deactivate(
 controller_interface::return_type MotorStatusBroadcaster::update(
   const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
 {
+  if (joints_to_publish_.empty()) {
+    if (!warned_no_interfaces_) {
+      RCLCPP_WARN(
+        get_node()->get_logger(),
+        "No motor telemetry interfaces found (motor_temperature/torque_current). Nothing to publish.");
+      warned_no_interfaces_ = true;
+    }
+    return controller_interface::return_type::OK;
+  }
+
   // Rate limit publishing
   if (publish_period_.seconds() > 0.0 && (time - last_publish_time_) < publish_period_) {
     return controller_interface::return_type::OK;
@@ -133,14 +184,14 @@ controller_interface::return_type MotorStatusBroadcaster::update(
   diagnostic_msgs::msg::DiagnosticArray diag_msg;
   diag_msg.header.stamp = time;
 
-  for (const auto & joint : params_.joints) {
+  for (const auto & joint : joints_to_publish_) {
     diagnostic_msgs::msg::DiagnosticStatus status;
     status.name = "Motor: " + joint;
     status.hardware_id = joint;
     status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
     status.message = "OK";
 
-    for (const auto & iface : params_.interfaces) {
+    for (const auto & iface : interfaces_to_publish_) {
       std::string key = joint + "/" + iface;
       auto it = state_interface_map_.find(key);
 

@@ -17,64 +17,64 @@
             <joint name="base_yaw">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
-                <state_interface name="position">
-                    <param name="initial_value">0.0</param>
-                </state_interface>
+                <state_interface name="position"/>
                 <state_interface name="velocity"/>
+                <state_interface name="motor_temperature"/>
+                <state_interface name="torque_current"/>
             </joint>
 
             <joint name="shoulder_pitch">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
-                <state_interface name="position">
-                    <param name="initial_value">0.0</param>
-                </state_interface>
+                <state_interface name="position"/>
                 <state_interface name="velocity"/>
+                <state_interface name="motor_temperature"/>
+                <state_interface name="torque_current"/>
             </joint>
 
             <joint name="elbow_pitch">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
-                <state_interface name="position">
-                    <param name="initial_value">0.0</param>
-                </state_interface>
+                <state_interface name="position"/>
                 <state_interface name="velocity"/>
+                <state_interface name="motor_temperature"/>
+                <state_interface name="torque_current"/>
             </joint>
 
             <joint name="wrist_pitch">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
-                <state_interface name="position">
-                    <param name="initial_value">0.0</param>
-                </state_interface>
+                <state_interface name="position"/>
                 <state_interface name="velocity"/>
+                <state_interface name="motor_temperature"/>
+                <state_interface name="torque_current"/>
             </joint>
 
             <joint name="wrist_roll">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
-                <state_interface name="position">
-                    <param name="initial_value">0.0</param>
-                </state_interface>
+                <state_interface name="position"/>
                 <state_interface name="velocity"/>
+                <state_interface name="motor_temperature"/>
+                <state_interface name="torque_current"/>
             </joint>
 
             <joint name="gripper_claw">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
-                <state_interface name="position">
-                    <param name="initial_value">-0.0</param>
-                </state_interface>
+                <state_interface name="position"/>
                 <state_interface name="velocity"/>
+                <state_interface name="motor_temperature"/>
+                <state_interface name="torque_current"/>
             </joint>
 
             <joint name="actuator">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
-                <state_interface name="position">
-                    <param name="initial_value">0.0</param>
-                </state_interface>
+                <state_interface name="position"/>
                 <state_interface name="velocity"/>
+                <state_interface name="motor_temperature"/>
+                <state_interface name="torque_current"/>
             </joint>
 
             </ros2_control>

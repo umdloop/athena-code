@@ -31,10 +31,10 @@
       <param name="min">-1.0471975512</param>
       <param name="max">1.0471975512</param>
     </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
   
   <joint name="${prefix}suspension_front_right_joint">
@@ -42,10 +42,10 @@
       <param name="min">-1.0471975512</param>
       <param name="max">1.0471975512</param>
     </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
   
   <joint name="${prefix}steer_fl_joint">
@@ -53,10 +53,10 @@
       <param name="min">-0.78539816339</param>
       <param name="max">0.78539816339</param>
     </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
   
   <joint name="${prefix}steer_fr_joint">
@@ -64,10 +64,10 @@
       <param name="min">-0.78539816339</param>
       <param name="max">0.78539816339</param>
     </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
   
   <joint name="${prefix}steer_br_joint">
@@ -75,10 +75,10 @@
       <param name="min">0.78539816339</param>
       <param name="max">-0.78539816339</param>
     </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
   
   <joint name="${prefix}steer_bl_joint">
@@ -86,45 +86,45 @@
       <param name="min">-0.78539816339</param>
       <param name="max">0.78539816339</param>
     </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
   
 
   <joint name="${prefix}propulsion_fl_joint">
     <command_interface name="velocity"/>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
 
   <joint name="${prefix}propulsion_fr_joint">
     <command_interface name="velocity"/>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
   
 
   <joint name="${prefix}propulsion_br_joint">
     <command_interface name="velocity"/>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
 
 
   <joint name="${prefix}propulsion_bl_joint">
     <command_interface name="velocity"/>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
+    <state_interface name="position"/>
     <state_interface name="velocity"/>
+    <state_interface name="motor_temperature"/>
+    <state_interface name="torque_current"/>
   </joint>
 </ros2_control>
 

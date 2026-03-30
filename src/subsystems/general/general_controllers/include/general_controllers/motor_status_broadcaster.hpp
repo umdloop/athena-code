@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "controller_interface/controller_interface.hpp"
@@ -69,6 +70,9 @@ protected:
 
   // Map from "joint/interface" to index in state_interfaces_
   std::unordered_map<std::string, size_t> state_interface_map_;
+  std::vector<std::string> joints_to_publish_;
+  std::vector<std::string> interfaces_to_publish_;
+  bool warned_no_interfaces_{false};
 
   // Publish rate limiting
   rclcpp::Duration publish_period_{0, 0};

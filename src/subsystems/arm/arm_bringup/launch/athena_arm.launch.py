@@ -261,16 +261,20 @@ def launch_setup(context, *args, **kwargs):
         arguments=["motor_status_broadcaster", "-c", "/controller_manager"],
     )
 
-    robot_controller_names = [robot_controller]
-    robot_controller_spawners = []
-    for controller in robot_controller_names:
-        robot_controller_spawners += [
-            Node(
-                package="controller_manager",
-                executable="spawner",
-                arguments=[controller, "-c", "/controller_manager"],
-            )
-        ]
+    # Manual joint-by-joint controller: active only when use_sim is false
+    robot_controller_spawner_active = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[robot_controller, "-c", "/controller_manager"],
+        condition=UnlessCondition(use_sim),
+    )
+    robot_controller_spawner_inactive = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[robot_controller, "-c", "/controller_manager", "--inactive"],
+        condition=IfCondition(use_sim),
+    )
+    robot_controller_spawners = [robot_controller_spawner_active]
 
     # JTC: active when use_sim=true, inactive otherwise
     jtc_spawner_active = Node(
@@ -288,6 +292,7 @@ def launch_setup(context, *args, **kwargs):
 
     inactive_robot_controller_names = ["manual_arm_cylindrical_controller", "arm_velocity_controller"]
     inactive_robot_controller_spawners = []
+    inactive_robot_controller_spawners += [robot_controller_spawner_inactive]
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [
             Node(
@@ -299,9 +304,23 @@ def launch_setup(context, *args, **kwargs):
     # Append JTC spawners (only one will run based on use_sim condition)
     inactive_robot_controller_spawners += [jtc_spawner_active, jtc_spawner_inactive]
 
-    controller_switcher_node = RegisterEventHandler(
+    controller_switcher_node_active = RegisterEventHandler(
         event_handler=OnProcessExit(
-            target_action=inactive_robot_controller_spawners[-1],
+            target_action=jtc_spawner_active,
+            on_exit=[TimerAction(
+                period=3.0,
+                actions=[Node(
+                    package="arm_bringup",
+                    executable="controller_switcher.py",
+                    name="controller_switcher",
+                    output="screen"
+                )]
+            )],
+        )
+    )
+    controller_switcher_node_inactive = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=jtc_spawner_inactive,
             on_exit=[TimerAction(
                 period=3.0,
                 actions=[Node(
@@ -373,20 +392,23 @@ def launch_setup(context, *args, **kwargs):
     # -- CAN Setup (driven by use_sim) --
     can_setup_sim = ExecuteProcess(
         cmd=['bash', '-c',
-             'sudo modprobe vcan && '
-             'sudo ip link add dev vcan0 type vcan && '
-             'sudo ip link set up vcan0'],
+             'sudo modprobe vcan || true; '
+             'sudo ip link add dev vcan0 type vcan 2>/dev/null || true; '
+             'sudo ip link set up vcan0 || true'],
         condition=IfCondition(use_sim),
         output='screen',
     )
     can_setup_real = ExecuteProcess(
         cmd=['bash', '-c',
              'sudo killall slcand 2>/dev/null; sleep 1; '
-             'if [ -e /dev/ttyACM0 ]; then sudo slcand -o -c -s8 /dev/ttyACM0 can0; '
-             'elif [ -e /dev/ttyACM1 ]; then sudo slcand -o -c -s8 /dev/ttyACM1 can0; '
-             'else echo "No CANable device found"; exit 1; fi && '
-             'sudo ip link set can0 up && '
-             'sudo ip link set can0 txqueuelen 1000'],
+             'if ip link show can0 >/dev/null 2>&1; then '
+             '  sudo ip link set can0 up && sudo ip link set can0 txqueuelen 1000; '
+             'else '
+             '  if [ -e /dev/ttyACM0 ]; then sudo slcand -o -c -s8 /dev/ttyACM0 can0; '
+             '  elif [ -e /dev/ttyACM1 ]; then sudo slcand -o -c -s8 /dev/ttyACM1 can0; '
+             '  else echo "No CANable device found and can0 does not exist"; exit 1; fi && '
+             '  sudo ip link set can0 up && sudo ip link set can0 txqueuelen 1000; '
+             'fi'],
         condition=UnlessCondition(use_sim),
         output='screen',
     )
@@ -395,11 +417,10 @@ def launch_setup(context, *args, **kwargs):
     can_teardown = RegisterEventHandler(
         event_handler=OnShutdown(
             on_shutdown=[ExecuteProcess(
-                cmd=['bash', '-c', PythonExpression([
-                    "'sudo ip link set down vcan0 2>/dev/null || true' if '",
-                    use_sim,
-                    "' == 'true' else 'sudo ip link set down can0 2>/dev/null || true'"
-                ])],
+                cmd=['bash', '-c',
+                     'sudo -n ip link set down vcan0 2>/dev/null || true; '
+                     'sudo -n ip link set down can0 2>/dev/null || true; '
+                     'sudo -n killall slcand 2>/dev/null || true'],
                 output='screen',
             )],
         ),
@@ -423,7 +444,8 @@ def launch_setup(context, *args, **kwargs):
         delay_joint_state_broadcaster_spawner_after_ros2_control_node,
         delay_motor_status_broadcaster_after_joint_state_broadcaster,
         delay_rviz_after_joint_state_broadcaster_spawner,
-        controller_switcher_node,
+        controller_switcher_node_active,
+        controller_switcher_node_inactive,
     ] + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner \
       + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner
 
