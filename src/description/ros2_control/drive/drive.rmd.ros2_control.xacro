@@ -14,6 +14,7 @@
         <param name="node_id">0x142</param>
         <param name="gear_ratio">1</param>
         <param name="joint_orientation">-1.0</param>
+        <param name="can_send_delay_us">1000</param>
         <param name="operating_velocity">150</param> <!-- motor dps -->
         <command_interface name="position"/>
         <command_interface name="velocity"/>
@@ -24,9 +25,10 @@
       </joint>
       
       <joint name="propulsion_fr_joint">
-        <param name="node_id">0x150</param>
+        <param name="node_id">0x145</param>
         <param name="gear_ratio">1</param>
         <param name="joint_orientation">1.0</param>
+        <param name="can_send_delay_us">1000</param>
         <param name="operating_velocity">150</param> <!-- motor dps -->
         <command_interface name="position"/>
         <command_interface name="velocity"/>
@@ -37,9 +39,10 @@
       </joint>
 
       <joint name="propulsion_bl_joint">
-        <param name="node_id">0x141</param>
+        <param name="node_id">0x144</param>
         <param name="gear_ratio">1</param>
         <param name="joint_orientation">-1.0</param>
+        <param name="can_send_delay_us">1000</param>
         <param name="operating_velocity">150</param> <!-- motor dps -->
         <command_interface name="position"/>
         <command_interface name="velocity"/>
@@ -50,7 +53,7 @@
       </joint>
       
       <joint name="propulsion_br_joint">
-        <param name="node_id">0x143</param>
+        <param name="node_id">0x141</param>
         <param name="gear_ratio">1</param>
         <param name="joint_orientation">1.0</param>
         <param name="operating_velocity">150</param> <!-- motor dps -->
