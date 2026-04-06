@@ -11,7 +11,7 @@ CAN_SIZE = struct.calcsize(CAN_FMT)
 
 
 CAN_IDS       = [0x145, 0x141, 0x142, 0x144]
-CAN_INTERFACE = "can0"
+CAN_INTERFACE = "can1"
 MAX_SPEED_DPS = 500.0
 SCALE         = 100.0
 TOPIC         = "/rear_ackermann_controller/reference"

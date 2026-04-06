@@ -13,7 +13,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
-
+#include <thread>
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/lexical_casts.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
@@ -404,6 +404,7 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
         can_tx_frame_.data[j] = data[j];
       }
       canBus.send(can_tx_frame_);
+      std::this_thread::sleep_for(std::chrono::microseconds(1000));
     }
   }
 

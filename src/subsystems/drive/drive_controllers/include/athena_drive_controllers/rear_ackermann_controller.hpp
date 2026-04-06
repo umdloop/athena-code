@@ -46,7 +46,7 @@ class RearAckermannController : public controller_interface::ControllerInterface
 public:
   ATHENA_DRIVE_CONTROLLERS__VISIBILITY_PUBLIC
   RearAckermannController();
-
+  
   ATHENA_DRIVE_CONTROLLERS__VISIBILITY_PUBLIC
   controller_interface::CallbackReturn on_init() override;
 
