@@ -112,6 +112,13 @@ def generate_launch_description():
             description="Robot controller to start.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "deactivate_odrive",
+            default_value="false",
+            description="Deactivate the ODrive joints in the URDF when using mock hardware to prevent excessive CAN flow.",
+        )
+    )
 
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
 
@@ -130,6 +137,7 @@ def launch_setup(context, *args, **kwargs):
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
+    deactivate_odrive = LaunchConfiguration("deactivate_odrive")
 
     robot_description_path = PathJoinSubstitution(
         [FindPackageShare(description_package), "urdf", description_file]
@@ -167,6 +175,8 @@ def launch_setup(context, *args, **kwargs):
             "mock_sensor_commands:=",
             mock_sensor_commands,
             " ",
+            "deactivate_odrive:=",
+            deactivate_odrive,
         ]
     )
 
