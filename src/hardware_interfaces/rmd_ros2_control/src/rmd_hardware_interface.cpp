@@ -404,7 +404,6 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
         can_tx_frame_.data[j] = data[j];
       }
       canBus.send(can_tx_frame_);
-      std::this_thread::sleep_for(std::chrono::microseconds(1000));
     }
   }
 
