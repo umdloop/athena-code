@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
+    <Domain Id="5">
+        <!-- <Compatibility> -->
+            <!-- <ExplicitlyPublishQosSetToDefault>true</ExplicitlyPublishQosSetToDefault> -->
+            <!-- <ManySocketsMode>true</ManySocketsMode> -->
+        <!-- </Compatibility> -->
+        <Discovery>
+            <!-- <SPDPMulticastAddress>192.168.1.3</SPDPMulticastAddress> -->
+            <EnableTopicDiscoveryEndpoints>true</EnableTopicDiscoveryEndpoints>
+            <Peers>
+                <!-- <Peer Address="192.168.1.3" /> -->
+                <Peer Address="192.168.1.20" />
+                <Peer Address="127.0.0.1" />
+            </Peers>
+            <!-- <Tag>theseus</Tag> -->
+        </Discovery>
+        <General>
+            <EnableMulticastLoopback>true</EnableMulticastLoopback>
+            <ExternalNetworkAddress>192.168.1.40</ExternalNetworkAddress>
+            <ExternalNetworkMask>192.168.1.0</ExternalNetworkMask>
+            <Interfaces>
+                <!-- <NetworkInterface address="192.168.1.2" name="enx9cbf0d007947" autodetermine="false" presence_required="false" priority="default" multicast="default" /> -->
+                <NetworkInterface address="192.168.1.40" name="eth0" autodetermine="false" presence_required="true" priority="default" multicast="default" />
+		<!-- <NetworkInterface address="192.168.1.40" name="enP8p1s0" autodetermine="false" presence_required="true" priority="default" multicast="default" /> -->
+                <!-- <NetworkInterface address="127.0.0.1" name="lo" allow_multicast="false" priority="default" presence_required="true" multicast="default" /> -->
+            </Interfaces>
+            <AllowMulticast>default</AllowMulticast>
+            <MaxMessageSize>65500B</MaxMessageSize>
+            <MulticastRecvNetworkInterfaceAddresses>preferred</MulticastRecvNetworkInterfaceAddresses>
+        </General>
+        <Internal>
+            <SocketReceiveBufferSize min="10MB"/>
+            <Watermarks>
+                <WhcHigh>500kB</WhcHigh>
+            </Watermarks>
+        </Internal>
+        <Tracing>
+            <OutputFile>/home/umdloop/ROS/ros_dev_ws/umdloop_setup_tools/cyclonedds_r.log</OutputFile>
+            <Verbosity>fine</Verbosity>
+        </Tracing>
+    </Domain>
+</CycloneDDS>

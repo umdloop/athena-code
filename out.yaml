@@ -1,0 +1,3 @@
+output_bags:
+- uri: ~/merged_bag
+  storage_options: ""
