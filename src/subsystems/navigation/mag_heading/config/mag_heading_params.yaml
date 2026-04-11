@@ -5,6 +5,7 @@
 mag_heading_node:
   ros__parameters:
     mag_topic: /zed/zed_node/imu/mag
+    gps_topic: /gps/fix
     frame_id: base_link
 
     # hard_iron: [x, y, z] bias in Tesla subtracted from raw reading

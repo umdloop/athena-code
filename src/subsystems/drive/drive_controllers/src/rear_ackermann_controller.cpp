@@ -154,12 +154,13 @@ controller_interface::return_type RearAckermannController::update(
 
   if (std::abs(steer_cmd) > 1e-4 && std::abs(linear_vel_cmd) > .05) {
     turn_radius = wheelbase / std::tan(steer_cmd);
-    double angular_vel = std::abs(linear_vel_cmd) / std::abs(turn_radius);
+    double safe_turn_radius = std::max(std::abs(turn_radius), track_width / 2.0 + 1e-4);
+
+    double angular_vel = std::abs(linear_vel_cmd) / std::abs(safe_turn_radius);
 
     if (linear_vel_cmd < 0) {
       angular_vel = -angular_vel;
     }
-    double safe_turn_radius = std::max(std::abs(turn_radius), track_width / 2.0 + 1e-4);
 
     double inner_angle = std::atan(wheelbase / (std::abs(safe_turn_radius) - track_width / 2.0));
     double outer_angle = std::atan(wheelbase / (std::abs(safe_turn_radius) + track_width / 2.0));
@@ -167,12 +168,12 @@ controller_interface::return_type RearAckermannController::update(
     // Rear axle is the steered axle: it traces the longer (front) arc
     // Front axle is the fixed axle: it traces the shorter (rear) arc
     // Steer angles are negated vs front steering: rear wheels point right to turn left
-    double inner_rear_vel = angular_vel * (std::abs(turn_radius) - track_width / 2.0);
-    double outer_rear_vel = angular_vel * (std::abs(turn_radius) + track_width / 2.0);
+    double inner_rear_vel = angular_vel * (std::abs(safe_turn_radius) - track_width / 2.0);
+    double outer_rear_vel = angular_vel * (std::abs(safe_turn_radius) + track_width / 2.0);
     double inner_front_vel = angular_vel * std::sqrt(
-      std::pow(wheelbase, 2) + std::pow(std::abs(turn_radius) - track_width / 2.0, 2));
+      std::pow(wheelbase, 2) + std::pow(std::abs(safe_turn_radius) - track_width / 2.0, 2));
     double outer_front_vel = angular_vel * std::sqrt(
-      std::pow(wheelbase, 2) + std::pow(std::abs(turn_radius) + track_width / 2.0, 2));
+      std::pow(wheelbase, 2) + std::pow(std::abs(safe_turn_radius) + track_width / 2.0, 2));
 
     if (steer_cmd > 0.0) {  // LEFT TURN: left wheel is INNER
       // if (inner_front_vel < 0) {
@@ -183,8 +184,8 @@ controller_interface::return_type RearAckermannController::update(
       rear_left_steer_angle = inner_angle;
       rear_right_steer_angle = outer_angle;
 
-      rear_left_vel = inner_rear_vel;
-      rear_right_vel = outer_rear_vel;
+      rear_left_vel = inner_front_vel;
+      rear_right_vel = outer_front_vel;
       front_left_vel = inner_front_vel;
       front_right_vel = outer_front_vel;
 
@@ -197,8 +198,8 @@ controller_interface::return_type RearAckermannController::update(
       // }
       rear_left_steer_angle = -outer_angle;
       rear_right_steer_angle = -inner_angle;
-      rear_left_vel = outer_rear_vel;
-      rear_right_vel = inner_rear_vel;
+      rear_left_vel = outer_front_vel;
+      rear_right_vel = inner_front_vel;
       front_left_vel = outer_front_vel;
       front_right_vel = inner_front_vel;
     }
