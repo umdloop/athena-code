@@ -29,7 +29,7 @@ controller_manager:
     manual_end_effector_gripper_claw_controller:
       type: arm_controllers/ManualEndEffectorGripperClawController
 
-    motor_status_broadcaster:
+    motor_status_controller:
       type: general_controllers/MotorStatusBroadcaster
     
 
@@ -196,7 +196,7 @@ manual_end_effector_gripper_claw_controller:
     joint_max_positions:
       - 0.03        # Actuator max displacement
 
-motor_status_broadcaster:
+motor_status_controller:
   ros__parameters:
     joints:
       - base_yaw

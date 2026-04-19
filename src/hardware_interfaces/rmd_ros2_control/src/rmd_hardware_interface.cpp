@@ -333,15 +333,14 @@ hardware_interface::return_type RMDHardwareInterface::read(
 hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
-  elapsed_update_time+=period.seconds();
-  double update_period = 1.0/update_rate;
   int data[8] = {0x00};
   int32_t joint_angle = 0;
   int32_t joint_velocity = 0;
 
-  elapsed_time+=period.seconds();
-  
   // Logger update
+  elapsed_update_time+=period.seconds();
+  double update_period = 1.0/update_rate;
+  elapsed_time+=period.seconds();
   elapsed_logger_time+=period.seconds();
   double logging_period = 1.0/logger_rate;
   if(elapsed_logger_time > logging_period){

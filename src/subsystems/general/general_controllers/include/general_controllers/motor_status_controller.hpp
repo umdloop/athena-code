@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef GENERAL_CONTROLLERS__MOTOR_STATUS_BROADCASTER_HPP_
-#define GENERAL_CONTROLLERS__MOTOR_STATUS_BROADCASTER_HPP_
+#ifndef GENERAL_CONTROLLERS__motor_status_controller_HPP_
+#define GENERAL_CONTROLLERS__motor_status_controller_HPP_
 
 #include <memory>
 #include <string>
@@ -23,7 +23,7 @@
 #include "controller_interface/controller_interface.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "general_controllers/visibility_control.h"
-#include <general_controllers/motor_status_broadcaster_parameters.hpp>
+#include <general_controllers/motor_status_controller_parameters.hpp>
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
@@ -62,8 +62,8 @@ public:
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
 protected:
-  std::shared_ptr<motor_status_broadcaster::ParamListener> param_listener_;
-  motor_status_broadcaster::Params params_;
+  std::shared_ptr<motor_status_controller::ParamListener> param_listener_;
+  motor_status_controller::Params params_;
 
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_publisher_;
 
@@ -77,4 +77,4 @@ protected:
 
 }  // namespace general_controllers
 
-#endif  // GENERAL_CONTROLLERS__MOTOR_STATUS_BROADCASTER_HPP_
+#endif  // GENERAL_CONTROLLERS__motor_status_controller_HPP_

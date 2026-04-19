@@ -1,1 +1,1 @@
-JointReceiver[] joints
+JointStatus[] joints

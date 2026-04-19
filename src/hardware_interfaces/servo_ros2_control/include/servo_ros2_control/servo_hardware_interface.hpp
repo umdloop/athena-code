@@ -162,15 +162,21 @@ private:
   // Type of joint for each actuator
   std::vector<joint_type_t> joint_type_;
 
-  // CAN Commands
+  // Multiplexor values
   static constexpr uint8_t PCB_HEARTBEAT_CMD = 0X10;
   static constexpr uint8_t LED_STATUS_CMD = 0x11;
   static constexpr uint8_t ABSOLUTE_POS_CONTROL_CMD = 0x20;
   static constexpr uint8_t VELOCITY_CONTROL_CMD = 0x30;
-  static constexpr uint8_t MOTOR_STATE_CMD = 0x4;
-  static constexpr uint8_t MOTOR_STATUS_CMD = 0x5;
-  static constexpr uint8_t MAINTENANCE_CMD = 0x6;
-  static constexpr uint8_t SERVO_SPECS_CMD = 0x7;
+  static constexpr uint8_t MOTOR_STATE_CMD = 0x40;
+  static constexpr uint8_t MOTOR_STATUS_CMD = 0x50;
+  static constexpr uint8_t MAINTENANCE_CMD = 0x60;
+  static constexpr uint8_t SERVO_SPECS_CMD = 0x70;
+
+  // Multiplexor Nibbles
+  int8_t motor_state_nibble;
+  int8_t motor_status_nibble;
+  int8_t maintenance_nibble;
+  int8_t servo_specs_nibble;
 };
 
 }  // namespace servo_hardware_interface

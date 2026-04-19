@@ -1,4 +1,4 @@
-motor_status_broadcaster:
+motor_status_controller:
   joints: {
     type: string_array,
     default_value: [],
@@ -6,7 +6,7 @@ motor_status_broadcaster:
   }
   interfaces: {
     type: string_array,
-    default_value: ["motor_temperature", "torque_current"],
+    default_value: ["motor_temperature", "torque_current", "status", "brake_status"],
     description: "State interface names to read from each joint."
   }
   publish_rate: {

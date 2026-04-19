@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "general_controllers/motor_status_broadcaster.hpp"
+#include "general_controllers/motor_status_controller.hpp"
 
 #include <sstream>
 #include <string>
@@ -27,7 +27,7 @@ MotorStatusBroadcaster::MotorStatusBroadcaster() {}
 controller_interface::CallbackReturn MotorStatusBroadcaster::on_init()
 {
   try {
-    param_listener_ = std::make_shared<motor_status_broadcaster::ParamListener>(get_node());
+    param_listener_ = std::make_shared<motor_status_controller::ParamListener>(get_node());
     params_ = param_listener_->get_params();
   } catch (const std::exception & e) {
     RCLCPP_ERROR(
@@ -67,12 +67,12 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_configure(
   params_ = param_listener_->get_params();
 
   if (params_.joints.empty()) {
-    RCLCPP_ERROR(get_node()->get_logger(), "No joints specified for motor_status_broadcaster.");
+    RCLCPP_ERROR(get_node()->get_logger(), "No joints specified for motor_status_controller.");
     return controller_interface::CallbackReturn::ERROR;
   }
 
   if (params_.interfaces.empty()) {
-    RCLCPP_ERROR(get_node()->get_logger(), "No interfaces specified for motor_status_broadcaster.");
+    RCLCPP_ERROR(get_node()->get_logger(), "No interfaces specified for motor_status_controller.");
     return controller_interface::CallbackReturn::ERROR;
   }
 
@@ -88,7 +88,7 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_configure(
 
   RCLCPP_INFO(
     get_node()->get_logger(),
-    "Configured motor_status_broadcaster for %zu joints, %zu interfaces, publish rate: %.1f Hz",
+    "Configured motor_status_controller for %zu joints, %zu interfaces, publish rate: %.1f Hz",
     params_.joints.size(), params_.interfaces.size(), params_.publish_rate);
 
   return controller_interface::CallbackReturn::SUCCESS;

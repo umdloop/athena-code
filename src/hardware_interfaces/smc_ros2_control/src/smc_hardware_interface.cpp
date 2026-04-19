@@ -343,16 +343,14 @@ hardware_interface::return_type SMCHardwareInterface::read(
 hardware_interface::return_type smc_ros2_control::SMCHardwareInterface::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
-  elapsed_update_time+=period.seconds();
-  double update_period = 1.0/update_rate;
   int data[8] = {0x00};
   int32_t joint_angle = 0;
-  int16_t operating_velocity = 200;
   int32_t joint_velocity = 0;
 
-  elapsed_time+=period.seconds();
-
   // Logger update
+  elapsed_update_time+=period.seconds();
+  double update_period = 1.0/update_rate;
+  elapsed_time+=period.seconds();
   elapsed_logger_time+=period.seconds();
   double logging_period = 1.0/logger_rate;
   if(elapsed_logger_time > logging_period){

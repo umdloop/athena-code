@@ -229,10 +229,10 @@ def launch_setup(context, *args, **kwargs):
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
-    motor_status_broadcaster_spawner = Node(
+    motor_status_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["motor_status_broadcaster", "-c", "/controller_manager"],
+        arguments=["motor_status_controller", "-c", "/controller_manager"],
     )
 
     robot_controller_names = [robot_controller]
@@ -311,10 +311,10 @@ def launch_setup(context, *args, **kwargs):
         )
     )
 
-    delay_motor_status_broadcaster_after_joint_state_broadcaster = RegisterEventHandler(
+    delay_motor_status_controller_after_joint_state_broadcaster = RegisterEventHandler(
         event_handler=OnProcessExit(
             target_action=joint_state_broadcaster_spawner,
-            on_exit=[motor_status_broadcaster_spawner],
+            on_exit=[motor_status_controller_spawner],
         )
     )
 
@@ -359,7 +359,7 @@ def launch_setup(context, *args, **kwargs):
         control_node,
         robot_state_pub_node,
         delay_joint_state_broadcaster_spawner_after_ros2_control_node,
-        delay_motor_status_broadcaster_after_joint_state_broadcaster,
+        delay_motor_status_controller_after_joint_state_broadcaster,
         delay_rviz_after_joint_state_broadcaster_spawner,
         controller_switcher_node,
     ] + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner \

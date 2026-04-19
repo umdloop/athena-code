@@ -217,6 +217,11 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_init(
     }
   }
 
+  // Command Nibble of Multiplexor ID
+  motor_state_nibble = (MOTOR_STATE_CMD >> 4) & 0x0F;
+  motor_status_nibble = (MOTOR_STATUS_CMD >> 4) & 0x0F;
+  maintenance_nibble = (MAINTENANCE_CMD >> 4) & 0x0F;
+
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -286,7 +291,7 @@ void SERVOHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
   double raw_motor_velocity = 0.0;
 
   for(int i = 0; i < num_joints; i++){
-    if(can_rx_frame_.id == can_response_id && command_nibble == MOTOR_STATE_CMD && device_id_nibble == joint_node_ids[i]){
+    if(can_rx_frame_.id == can_response_id && command_nibble == motor_state_nibble && device_id_nibble == joint_node_ids[i]){
       
       // DECODING CAN MESSAGE FOR VELOCITY
       data[1] = can_rx_frame_.data[1]; // Position low byte
@@ -315,7 +320,7 @@ void SERVOHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
         RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "The joint type for joint %s is undefined.", info_.joints[i].name.c_str());
       }
     }
-    else if(can_rx_frame_.id == can_response_id && command_nibble == MOTOR_STATUS_CMD && device_id_nibble == joint_node_ids[i]){
+    else if(can_rx_frame_.id == can_response_id && command_nibble == motor_status_nibble && device_id_nibble == joint_node_ids[i]){
       
       // Populate device status
       device_status[i] = can_rx_frame_.data[1];
@@ -335,7 +340,7 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_cleanup(
   RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Cleaning up ...please wait...");
   
   // If cleanup occurs before shutdown, this is the last opportunity to shutdown motor since pointers must be deleted here
-  int8_t command_nibble = MAINTENANCE_CMD;
+  int8_t command_nibble = maintenance_nibble;
   int8_t maintenance_command = 2;  // Motor Shutdown Command
   int8_t device_id_nibble;
   for(int i = 0; i < num_joints; i++){
@@ -378,7 +383,7 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Deactivating ...please wait...");
-  int8_t command_nibble = MAINTENANCE_CMD;
+  int8_t command_nibble = maintenance_nibble;
   int8_t maintenance_command = 1;  // Motor Stop Command
   int8_t device_id_nibble;
 
@@ -429,13 +434,13 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
 {
   elapsed_update_time+=period.seconds();
   double update_period = 1.0/update_rate;
+  elapsed_time+=period.seconds();
+
   int data[3] = {0x00};
   int8_t command_nibble;
   int8_t device_id_nibble;
   int16_t joint_angle = 0;
   int16_t joint_velocity = 0;
-
-  elapsed_time+=period.seconds();
   
   // Logger update
   elapsed_logger_time+=period.seconds();
@@ -534,7 +539,7 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
       }
       else 
       {
-        command_nibble = MOTOR_STATE_CMD;       // Motor State Command for each joint at given frequency
+        command_nibble = motor_state_nibble;       // Motor State Command for each joint at given frequency
         can_tx_frame_.dlc = 1;
         device_id_nibble = joint_node_ids[i] & 0x0F;
         can_tx_frame_.data = { static_cast<uint8_t>((command_nibble << 4) | device_id_nibble) };

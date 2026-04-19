@@ -49,7 +49,7 @@ controller_manager:
     killswitch_gpio_controller:
       type: gpio_controllers/GpioCommandController
 
-    motor_status_broadcaster:
+    motor_status_controller:
       type: general_controllers/MotorStatusBroadcaster
     
     rear_ackermann_controller:
@@ -145,7 +145,7 @@ killswitch_gpio_controller:
           - kill_jetson_sent
           - is_connected
 
-motor_status_broadcaster:
+motor_status_controller:
   ros__parameters:
     joints:
       - propulsion_fl_joint
