@@ -41,9 +41,18 @@ controller_interface::CallbackReturn MotorStatusController::on_init()
 controller_interface::InterfaceConfiguration
 MotorStatusController::command_interface_configuration() const
 {
-  // Broadcaster only reads, no command interfaces
-  return controller_interface::InterfaceConfiguration{
-    controller_interface::interface_configuration_type::NONE};
+  controller_interface::InterfaceConfiguration command_interfaces_config;
+  command_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+
+  command_interfaces_config.names.reserve(params_.joints.size() * params_.command_interfaces.size());
+  for (const auto & joint : params_.joints)
+  {
+    for (const auto & iface : params_.command_interfaces) {
+      command_interfaces_config.names.push_back(joint + "/" + iface);
+    }
+  }
+
+  return command_interfaces_config;
 }
 
 controller_interface::InterfaceConfiguration
@@ -86,6 +95,55 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
   motor_status_publisher_ = get_node()->create_publisher<msgs::msg::SystemInfo>(
     "~/motor_status", rclcpp::SystemDefaultsQoS());
 
+  auto configure_request_rate =
+    [this](const int32_t request_rate, const std::string & service_name) -> std::string
+    {
+      if (request_rate < 0) {
+        publish_enabled_ = false;
+        publish_once_requested_ = true;
+        return service_name + " queued a one-shot publish";
+      }
+
+      publish_once_requested_ = false;
+      if (request_rate == 0) {
+        publish_enabled_ = false;
+        publish_period_ = rclcpp::Duration(0, 0);
+        return service_name + " stopped publishing";
+      }
+
+      publish_enabled_ = true;
+      publish_period_ = rclcpp::Duration::from_seconds(1.0 / static_cast<double>(request_rate));
+      return service_name + " set publish rate to " + std::to_string(request_rate) + " Hz";
+    };
+
+  status_request_service_ = get_node()->create_service<msgs::srv::StatusReq>(
+    "~/status_request",
+    [this, configure_request_rate](
+      const std::shared_ptr<msgs::srv::StatusReq::Request> request,
+      std::shared_ptr<msgs::srv::StatusReq::Response> response)
+    {
+      response->success = true;
+      response->message = configure_request_rate(request->request_rate, "status_request");
+      RCLCPP_INFO(
+        get_node()->get_logger(),
+        "Received status_request request_rate: %d",
+        request->request_rate);
+    });
+
+  maintenance_request_service_ = get_node()->create_service<msgs::srv::MaintenanceReq>(
+    "~/maintenance_request",
+    [this, configure_request_rate](
+      const std::shared_ptr<msgs::srv::MaintenanceReq::Request> request,
+      std::shared_ptr<msgs::srv::MaintenanceReq::Response> response)
+    {
+      response->success = true;
+      response->message = configure_request_rate(request->request_rate, "maintenance_request");
+      RCLCPP_INFO(
+        get_node()->get_logger(),
+        "Received maintenance_request request_rate: %d",
+        request->request_rate);
+    });
+
   RCLCPP_INFO(
     get_node()->get_logger(),
     "Configured motor_status_controller for %zu joints, %zu interfaces, publish rate: %.1f Hz",
@@ -104,6 +162,13 @@ controller_interface::CallbackReturn MotorStatusController::on_activate(
                          state_interfaces_[i].get_interface_name()] = i;
   }
 
+  // Build lookup map from "joint/interface" -> command_interfaces_ index
+  command_interface_map_.clear();
+  for (size_t i = 0; i < command_interfaces_.size(); ++i) {
+    command_interface_map_[command_interfaces_[i].get_prefix_name() + "/" +
+                          command_interfaces_[i].get_interface_name()] = i;
+  }
+
   last_publish_time_ = get_node()->now();
 
   RCLCPP_INFO(
@@ -118,22 +183,43 @@ controller_interface::CallbackReturn MotorStatusController::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   state_interface_map_.clear();
+  command_interface_map_.clear();
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::return_type MotorStatusController::update(
   const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
 {
-  // Rate limit publishing
-  if (publish_period_.seconds() > 0.0 && (time - last_publish_time_) < publish_period_) {
+  const bool periodic_publish_due =
+    publish_enabled_ &&
+    (publish_period_.seconds() <= 0.0 || (time - last_publish_time_) >= publish_period_);
+
+  if (!publish_once_requested_ && !periodic_publish_due) {
     return controller_interface::return_type::OK;
   }
+
+  publish_once_requested_ = false;
   last_publish_time_ = time;
 
   msgs::msg::SystemInfo system_info_msg;
   system_info_msg.header.stamp = time;
 
   for (const auto & joint : params_.joints) {
+
+    // Command Interfaces
+    for (const auto & iface : params_.command_interfaces) {
+      std::string key = joint + "/" + iface;
+      auto it = command_interface_map_.find(key);
+      if (it != command_interface_map_.end()) {
+        double value = command_interfaces_[it->second].get_value();
+        RCLCPP_INFO(get_node()->get_logger(), "Command Interface - Joint: %s, Interface: %s, Value: %f",
+                    joint.c_str(), iface.c_str(), value);
+      } else {
+        RCLCPP_WARN(get_node()->get_logger(), "Command interface %s not found for joint %s", iface.c_str(), joint.c_str());
+      }
+    }
+    
+    // State Interfaces
     msgs::msg::JointStatus status;
     status.joint_name = joint;
 

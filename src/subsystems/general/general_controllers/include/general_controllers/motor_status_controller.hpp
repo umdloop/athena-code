@@ -22,6 +22,8 @@
 
 #include "controller_interface/controller_interface.hpp"
 #include "msgs/msg/system_info.hpp"
+#include "msgs/srv/maintenance_req.hpp"
+#include "msgs/srv/status_req.hpp"
 #include "general_controllers/visibility_control.h"
 #include <general_controllers/motor_status_controller_parameters.hpp>
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
@@ -64,15 +66,25 @@ public:
 protected:
   std::shared_ptr<motor_status_controller::ParamListener> param_listener_;
   motor_status_controller::Params params_;
-
+  
+  // Publisher for motor status information
   rclcpp::Publisher<msgs::msg::SystemInfo>::SharedPtr motor_status_publisher_;
+
+  // Services for command interfaces
+  rclcpp::Service<msgs::srv::StatusReq>::SharedPtr status_request_service_;
+  rclcpp::Service<msgs::srv::MaintenanceReq>::SharedPtr maintenance_request_service_;
 
   // Map from "joint/interface" to index in state_interfaces_
   std::unordered_map<std::string, size_t> state_interface_map_;
 
+  // Map from "joint/interface" to index in command_interfaces_
+  std::unordered_map<std::string, size_t> command_interface_map_;
+
   // Publish rate limiting
   rclcpp::Duration publish_period_{0, 0};
   rclcpp::Time last_publish_time_{0, 0, RCL_CLOCK_UNINITIALIZED};
+  bool publish_enabled_{false};
+  bool publish_once_requested_{false};
 
   enum class MotorStatus : uint8_t {
     UNKNOWN = 0,
