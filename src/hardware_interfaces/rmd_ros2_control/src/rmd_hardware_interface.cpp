@@ -141,19 +141,24 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
   elapsed_update_time = 0.0;
   elapsed_time = 0.0;
   elapsed_logger_time = 0.0;
+  elapsed_status_request_time_.assign(num_joints, 0.0);
   
   // Initializes command and state interface values
   joint_state_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
   joint_state_velocity_.assign(num_joints, 0);
+  motor_temperature_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
+  motor_torque_current_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
+  motor_status_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
 
   joint_command_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
   joint_command_velocity_.assign(num_joints, 0);
+  motor_status_req_.assign(num_joints, 0);
+  motor_maintenance_req_.assign(num_joints, 0);
+
+  prev_status_req_.assign(num_joints, 0.0);
 
   motor_position.assign(num_joints, 0.0);
   motor_velocity.assign(num_joints, 0.0);
-
-  motor_temperature_.assign(num_joints, 0.0);
-  motor_torque_current_.assign(num_joints, 0.0);
 
   control_level_.resize(num_joints, integration_level_t::POSITION);
 
@@ -188,6 +193,9 @@ std::vector<hardware_interface::StateInterface> RMDHardwareInterface::export_sta
 
     state_interfaces.emplace_back(hardware_interface::StateInterface(
       info_.joints[i].name, "torque_current", &motor_torque_current_[i]));
+
+    state_interfaces.emplace_back(hardware_interface::StateInterface(
+      info_.joints[i].name, "status", &motor_status_[i]));
   }
   
   return state_interfaces;
@@ -197,6 +205,9 @@ std::vector<hardware_interface::StateInterface> RMDHardwareInterface::export_sta
 std::vector<hardware_interface::CommandInterface>
 RMDHardwareInterface::export_command_interfaces()
 {
+  // TODO: Make a struct that contains each value needed to fill out the third parameter in Command interface
+  // Then, you can loop through the joints and given command interfaces in the xacro file and populate command
+  // interfaces via changing this struct
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
   for(int i = 0; i < num_joints; i++){
@@ -205,6 +216,12 @@ RMDHardwareInterface::export_command_interfaces()
 
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
       info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &joint_command_velocity_[i]));
+
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      info_.joints[i].name, "status_request", &motor_status_req_[i]));
+
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      info_.joints[i].name, "maintenance_request", &motor_maintenance_req_[i]));
   }
 
   return command_interfaces;
@@ -228,14 +245,15 @@ void RMDHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
 
   std::vector<int> data(8, 0x00);
 
+  // Decode CAN Message
   for(int i = 0; i < num_joints; i++){
     if(can_rx_frame_.id == joint_node_read_ids[i] && 
       (can_rx_frame_.data[0] == SPEED_CONTROL_CMD  || 
        can_rx_frame_.data[0] == ABSOLUTE_POS_CONTROL_CMD  || 
        can_rx_frame_.data[0] == MOTOR_STATUS_2_CMD) &&
        can_rx_frame_.data[1] != 0x00) {
-      
-      // DECODING CAN MESSAGE (A2, A4, and 9C all share the same reply)
+    
+      // Speed Control, Absolute Position Control, and Motor Status 2 all share the same reply  
       data[1] = can_rx_frame_.data[1]; // Motor Temperature
       data[2] = can_rx_frame_.data[2]; // Torque low byte
       data[3] = can_rx_frame_.data[3]; // Torque high byte
@@ -244,6 +262,12 @@ void RMDHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
       data[6] = can_rx_frame_.data[6]; // encoder position low byte
       data[7] = can_rx_frame_.data[7]; // encoder position high byte
 
+      // TEMPERATURE (1 byte, degrees C)
+      motor_temperature_[i] = static_cast<double>(data[1]);
+
+      // TORQUE CURRENT (16-bit signed, 0.01A per LSB)
+      motor_torque_current_[i] = static_cast<double>(static_cast<int16_t>((data[3] << 8) | data[2])) * 0.01;
+
       // POSITION 
       // uint16 -> int16 -> double (for calcs)
       motor_position[i] = static_cast<double>(static_cast<int16_t>((data[7] << 8) | data[6]));
@@ -251,13 +275,32 @@ void RMDHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
       // VELOCITY
       // uint16 -> int16 -> double (for calcs)
       motor_velocity[i] = static_cast<double>(static_cast<int16_t>((data[5] << 8) | data[4]));
-
-      // TEMPERATURE (1 byte, degrees C)
-      motor_temperature_[i] = static_cast<double>(data[1]);
-
-      // TORQUE CURRENT (16-bit signed, 0.01A per LSB)
-      motor_torque_current_[i] = static_cast<double>(static_cast<int16_t>((data[3] << 8) | data[2])) * 0.01;
     }
+    else if(can_rx_frame_.id == joint_node_read_ids[i] && 
+            can_rx_frame_.data[0] == MOTOR_STATUS_1_CMD &&
+            can_rx_frame_.data[1] != 0x00) {
+
+      // DECODING Motor Status 1 Message
+      data[1] = can_rx_frame_.data[1]; // Motor Temperature
+      data[2] = 0x00;                  // Null
+      data[3] = can_rx_frame_.data[3]; // Brake State
+      data[4] = can_rx_frame_.data[4]; // Voltage low byte
+      data[5] = can_rx_frame_.data[5]; // Voltage high byte
+      data[6] = can_rx_frame_.data[6]; // Error state low byte
+      data[7] = can_rx_frame_.data[7]; // Error state high byted
+
+      // TEMPERATURE (degrees C)
+      motor_temperature_[i] = static_cast<double>(data[1]);
+      
+      // Initialize motor status command
+      motor_status_[i] = 0.0;
+
+      // BRAKE STATUS (0: Locked, 1: Released)
+      motor_status_[i] = motor_status_[i] + static_cast<double>(data[3]);
+      
+      // ERROR STATE
+      motor_status_[i] = motor_status_[i] + static_cast<double>(static_cast<int16_t>((data[7] << 8) | data[6]));
+    } 
     else {
       if(logger_state == 1) {
         // RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Reply not heard.");
@@ -338,8 +381,6 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
   int32_t joint_velocity = 0;
 
   // Logger update
-  elapsed_update_time+=period.seconds();
-  double update_period = 1.0/update_rate;
   elapsed_time+=period.seconds();
   elapsed_logger_time+=period.seconds();
   double logging_period = 1.0/logger_rate;
@@ -350,10 +391,42 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
     }
   }
 
+  // Status request handling
+
+  for (int i = 0; i < num_joints; i++) {
+    can_tx_frame_ = CANLib::CanFrame();
+    can_tx_frame_.id = joint_node_write_ids[i];
+    can_tx_frame_.dlc = 8;
+    can_tx_frame_.data[0] = MOTOR_STATUS_1_CMD;
+
+    double curr_status_req = motor_status_req_[i];
+    if (curr_status_req < 0 && prev_status_req_[i] >= 0) // Send one shot status request
+    {
+      canBus.send(can_tx_frame_); 
+    }
+    else if (motor_status_req_[i] > 0) // Send status request at specified frequency (Hz)
+    {
+    elapsed_status_request_time_[i] += period.seconds();
+      double status_request_period = 1.0/motor_status_req_[i];
+      if(elapsed_status_request_time_[i] > status_request_period){
+        elapsed_status_request_time_[i] = 0.0;
+        canBus.send(can_tx_frame_); 
+      }
+    }
+    else
+    {
+      continue;
+    }
+    prev_status_req_[i] = curr_status_req;
+  }
+
+  
 
   // HWI can only go as fast as the controller manager. To limit frequency of bus messages,
   // keep track of time passed over iterations of this function and if it exceeds the 
   // desired frequency of the HWI, skip message
+  elapsed_update_time+=period.seconds();
+  double update_period = 1.0/update_rate;
   if(elapsed_update_time > update_period){
     elapsed_update_time = 0.0;
     for(int i = 0; i < num_joints; i++) {

@@ -11,7 +11,7 @@ motor_status_controller:
   }
   state_interfaces: {
     type: string_array,
-    default_value: ["motor_temperature", "torque_current", "status", "brake_status"],
+    default_value: ["motor_temperature", "torque_current", "status"],
     description: "State interface names to read from each joint."
   }
   publish_rate: {

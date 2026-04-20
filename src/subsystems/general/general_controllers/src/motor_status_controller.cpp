@@ -227,7 +227,6 @@ controller_interface::return_type MotorStatusController::update(
     status.temperature   = std::numeric_limits<int8_t>::quiet_NaN();
     status.torque_current       = std::numeric_limits<double>::quiet_NaN();
     status.motor_status  = std::numeric_limits<int8_t>::quiet_NaN();
-    status.brake_status  = "No Brakes";
     
     for (const auto & iface : params_.state_interfaces) {
       std::string key = joint + "/" + iface;
@@ -244,18 +243,6 @@ controller_interface::return_type MotorStatusController::update(
           status.motor_status = static_cast<int8_t>(value);
           if (value > sizeof(MotorStatus)){
             RCLCPP_WARN(get_node()->get_logger(), "Invalid motor status value");
-          }
-        } else if (iface == "brake_status") {
-          switch (static_cast<BrakeStatus>(value)){
-            case BrakeStatus::LOCKED:
-              status.brake_status = "Brakes are Locked";
-              break;
-            case BrakeStatus::RELEASED:
-              status.brake_status = "Brakes are released";
-              break;
-            default:
-              RCLCPP_WARN(get_node()->get_logger(), "Invalid brake status value");
-              break;
           }
         }
       }

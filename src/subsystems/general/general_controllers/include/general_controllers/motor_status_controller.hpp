@@ -90,13 +90,9 @@ protected:
     UNKNOWN = 0,
     IDLE = 1,
     ACTIVE = 2,
-    STOPPED = 3,
-    DISABLED = 4,
-  };
-
-  enum class BrakeStatus : uint8_t {
-    LOCKED = 0,
-    RELEASED = 1
+    WARNING = 3,
+    ERROR = 4,
+    DISABLED = 5
   };
 };
 
