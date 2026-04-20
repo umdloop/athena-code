@@ -4,7 +4,12 @@ motor_status_controller:
     default_value: [],
     description: "Names of the joints to monitor for motor telemetry."
   }
-  interfaces: {
+  command_interfaces: {
+    type: string_array,
+    default_value: ["status_request", "maintenance_request"],
+    description: "Command interface names to read from each joint. Leave empty if no command interfaces are needed."
+  }
+  state_interfaces: {
     type: string_array,
     default_value: ["motor_temperature", "torque_current", "status", "brake_status"],
     description: "State interface names to read from each joint."

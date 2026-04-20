@@ -53,7 +53,7 @@ MotorStatusController::state_interface_configuration() const
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
   for (const auto & joint : params_.joints) {
-    for (const auto & iface : params_.interfaces) {
+    for (const auto & iface : params_.state_interfaces) {
       config.names.push_back(joint + "/" + iface);
     }
   }
@@ -71,7 +71,7 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
     return controller_interface::CallbackReturn::ERROR;
   }
 
-  if (params_.interfaces.empty()) {
+  if (params_.state_interfaces.empty()) {
     RCLCPP_ERROR(get_node()->get_logger(), "No interfaces specified for motor_status_controller.");
     return controller_interface::CallbackReturn::ERROR;
   }
@@ -89,7 +89,7 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
   RCLCPP_INFO(
     get_node()->get_logger(),
     "Configured motor_status_controller for %zu joints, %zu interfaces, publish rate: %.1f Hz",
-    params_.joints.size(), params_.interfaces.size(), params_.publish_rate);
+    params_.joints.size(), params_.state_interfaces.size(), params_.publish_rate);
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -143,7 +143,7 @@ controller_interface::return_type MotorStatusController::update(
     status.motor_status  = std::numeric_limits<int8_t>::quiet_NaN();
     status.brake_status  = "No Brakes";
     
-    for (const auto & iface : params_.interfaces) {
+    for (const auto & iface : params_.state_interfaces) {
       std::string key = joint + "/" + iface;
       auto it = state_interface_map_.find(key);
 
