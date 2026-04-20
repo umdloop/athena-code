@@ -76,6 +76,7 @@ public:
   double calculate_joint_velocity_from_motor_velocity(double motor_velocity, int gear_ratio);
   int32_t calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio);
   int32_t calculate_motor_velocity_from_desired_joint_velocity(double joint_velocity, int gear_ratio);
+  bool process_status(uint16_t status, const rclcpp::Logger& logger);
 
 private:
   // Hardware Interface Parameters
@@ -168,6 +169,25 @@ private:
     SPEEDING = 0x0100,
     OVER_TEMPERATURE = 0x1000,
     ENCODER_CALIBRATION_ERROR = 0x2000
+  };
+
+  struct StatusEntry {
+    RMDMotorStatus flag;
+    const char* name;
+  };
+
+  inline static const std::vector<StatusEntry> status_table = {
+    {RMDMotorStatus::BRAKE_RELEASED, "Brake Released"},
+    {RMDMotorStatus::BRAKE_LOCKED, "Brake Locked"},
+    {RMDMotorStatus::MOTOR_STALL, "Motor Stall"},
+    {RMDMotorStatus::LOW_PRESSURE, "Low Pressure"},
+    {RMDMotorStatus::OVERVOLTAGE, "Overvoltage"},
+    {RMDMotorStatus::OVERCURRENT, "Overcurrent"},
+    {RMDMotorStatus::POWER_OVERRUN, "Power Overrun"},
+    {RMDMotorStatus::CAL_PARAM_WRITE_ERROR, "Calibration Param Write Error"},
+    {RMDMotorStatus::SPEEDING, "Overspeed"},
+    {RMDMotorStatus::OVER_TEMPERATURE, "Over Temperature"},
+    {RMDMotorStatus::ENCODER_CALIBRATION_ERROR, "Encoder Calibration Error"}
   };
 };
 }  // namespace rmd_hardware_interface

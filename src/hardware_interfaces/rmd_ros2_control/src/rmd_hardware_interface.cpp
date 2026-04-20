@@ -106,6 +106,55 @@ void RMDHardwareInterface::logger_function(){
   RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), log_msg.c_str());
 }
 
+bool RMDHardwareInterface::process_status(uint16_t status, const rclcpp::Logger & logger)
+{
+  bool has_warning = false;
+  bool has_fatal_error = false;
+
+  std::ostringstream error_stream;
+
+  // Most safe state, no errors or warnings
+  if (status == 0) {
+    return true;
+  }
+
+  for (const auto& entry : status_table) {
+    uint16_t code = static_cast<uint16_t>(entry.flag);
+
+    if (code == 0) {
+      continue;
+    }
+
+    if (status & code) {
+
+      // warning case
+      if (code == 0x0001) {
+        has_warning = true;
+        continue;
+      }
+
+      // fatal error case
+      if (code > 1) {
+        has_fatal_error = true;
+        error_stream << entry.name << " (0x"
+                     << std::hex << code << std::dec << "), ";
+      }
+    }
+  }
+
+  // WARN
+  if (has_warning) {
+    RCLCPP_WARN(logger, "Brake Released (warning state)");
+  }
+
+  // ERROR
+  if (has_fatal_error) {
+    RCLCPP_ERROR(logger, "Motor Errors: %s", error_stream.str().c_str());
+  }
+
+  // return system safety state
+  return !has_fatal_error;
+}
 
 hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
   const hardware_interface::HardwareInfo & info) // Info stores all parameters in xacro file
@@ -367,7 +416,14 @@ hardware_interface::return_type RMDHardwareInterface::read(
   for(int i = 0; i < num_joints; i++) {
     joint_state_velocity_[i] = calculate_joint_velocity_from_motor_velocity(motor_velocity[i], joint_gear_ratios[i]);
     joint_state_position_[i] = calculate_joint_position_from_motor_position(motor_position[i], joint_gear_ratios[i]);
+
+    // Process status logs warning and errors and returns false if fatal error occurs
+    if (!process_status(motor_status_[i], rclcpp::get_logger("RMDHardwareInterface"))) {
+      return hardware_interface::return_type::ERROR;
+    }
   }
+
+  
 
   return hardware_interface::return_type::OK;
 }
