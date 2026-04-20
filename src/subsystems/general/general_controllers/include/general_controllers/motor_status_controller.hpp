@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "controller_interface/controller_interface.hpp"
-#include "diagnostic_msgs/msg/diagnostic_array.hpp"
+#include "msgs/msg/system_info.hpp"
 #include "general_controllers/visibility_control.h"
 #include <general_controllers/motor_status_controller_parameters.hpp>
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
@@ -30,11 +30,11 @@
 namespace general_controllers
 {
 
-class MotorStatusBroadcaster : public controller_interface::ControllerInterface
+class MotorStatusController : public controller_interface::ControllerInterface
 {
 public:
   GENERAL_CONTROLLERS__VISIBILITY_PUBLIC
-  MotorStatusBroadcaster();
+  MotorStatusController();
 
   GENERAL_CONTROLLERS__VISIBILITY_PUBLIC
   controller_interface::CallbackReturn on_init() override;
@@ -65,7 +65,7 @@ protected:
   std::shared_ptr<motor_status_controller::ParamListener> param_listener_;
   motor_status_controller::Params params_;
 
-  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_publisher_;
+  rclcpp::Publisher<msgs::msg::SystemInfo>::SharedPtr motor_status_publisher_;
 
   // Map from "joint/interface" to index in state_interfaces_
   std::unordered_map<std::string, size_t> state_interface_map_;
@@ -73,6 +73,19 @@ protected:
   // Publish rate limiting
   rclcpp::Duration publish_period_{0, 0};
   rclcpp::Time last_publish_time_{0, 0, RCL_CLOCK_UNINITIALIZED};
+
+  enum class MotorStatus : uint8_t {
+    UNKNOWN = 0,
+    IDLE = 1,
+    ACTIVE = 2,
+    STOPPED = 3,
+    DISABLED = 4,
+  };
+
+  enum class BrakeStatus : uint8_t {
+    LOCKED = 0,
+    RELEASED = 1
+  };
 };
 
 }  // namespace general_controllers

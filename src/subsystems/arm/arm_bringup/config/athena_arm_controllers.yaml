@@ -30,7 +30,7 @@ controller_manager:
       type: arm_controllers/ManualEndEffectorGripperClawController
 
     motor_status_controller:
-      type: general_controllers/MotorStatusBroadcaster
+      type: general_controllers/MotorStatusController
     
 
 twodof_joint_trajectory_controller:

@@ -22,9 +22,9 @@
 namespace general_controllers
 {
 
-MotorStatusBroadcaster::MotorStatusBroadcaster() {}
+MotorStatusController::MotorStatusController() {}
 
-controller_interface::CallbackReturn MotorStatusBroadcaster::on_init()
+controller_interface::CallbackReturn MotorStatusController::on_init()
 {
   try {
     param_listener_ = std::make_shared<motor_status_controller::ParamListener>(get_node());
@@ -39,7 +39,7 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_init()
 }
 
 controller_interface::InterfaceConfiguration
-MotorStatusBroadcaster::command_interface_configuration() const
+MotorStatusController::command_interface_configuration() const
 {
   // Broadcaster only reads, no command interfaces
   return controller_interface::InterfaceConfiguration{
@@ -47,7 +47,7 @@ MotorStatusBroadcaster::command_interface_configuration() const
 }
 
 controller_interface::InterfaceConfiguration
-MotorStatusBroadcaster::state_interface_configuration() const
+MotorStatusController::state_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
@@ -61,7 +61,7 @@ MotorStatusBroadcaster::state_interface_configuration() const
   return config;
 }
 
-controller_interface::CallbackReturn MotorStatusBroadcaster::on_configure(
+controller_interface::CallbackReturn MotorStatusController::on_configure(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   params_ = param_listener_->get_params();
@@ -83,8 +83,8 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_configure(
     publish_period_ = rclcpp::Duration(0, 0);
   }
 
-  diagnostics_publisher_ = get_node()->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-    "~/diagnostics", rclcpp::SystemDefaultsQoS());
+  motor_status_publisher_ = get_node()->create_publisher<msgs::msg::SystemInfo>(
+    "~/motor_status", rclcpp::SystemDefaultsQoS());
 
   RCLCPP_INFO(
     get_node()->get_logger(),
@@ -94,7 +94,7 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_configure(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn MotorStatusBroadcaster::on_activate(
+controller_interface::CallbackReturn MotorStatusController::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   // Build lookup map from "joint/interface" -> state_interfaces_ index
@@ -108,20 +108,20 @@ controller_interface::CallbackReturn MotorStatusBroadcaster::on_activate(
 
   RCLCPP_INFO(
     get_node()->get_logger(),
-    "MotorStatusBroadcaster activated with %zu state interfaces",
+    "MotorStatusController activated with %zu state interfaces",
     state_interfaces_.size());
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::CallbackReturn MotorStatusBroadcaster::on_deactivate(
+controller_interface::CallbackReturn MotorStatusController::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   state_interface_map_.clear();
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type MotorStatusBroadcaster::update(
+controller_interface::return_type MotorStatusController::update(
   const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
 {
   // Rate limit publishing
@@ -130,54 +130,55 @@ controller_interface::return_type MotorStatusBroadcaster::update(
   }
   last_publish_time_ = time;
 
-  diagnostic_msgs::msg::DiagnosticArray diag_msg;
-  diag_msg.header.stamp = time;
+  msgs::msg::SystemInfo system_info_msg;
+  system_info_msg.header.stamp = time;
 
   for (const auto & joint : params_.joints) {
-    diagnostic_msgs::msg::DiagnosticStatus status;
-    status.name = "Motor: " + joint;
-    status.hardware_id = joint;
-    status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-    status.message = "OK";
+    msgs::msg::JointStatus status;
+    status.joint_name = joint;
 
+    // Initializing values in case state interfaces don't exist for them
+    status.temperature   = std::numeric_limits<int8_t>::quiet_NaN();
+    status.torque_current       = std::numeric_limits<double>::quiet_NaN();
+    status.motor_status  = std::numeric_limits<int8_t>::quiet_NaN();
+    status.brake_status  = "No Brakes";
+    
     for (const auto & iface : params_.interfaces) {
       std::string key = joint + "/" + iface;
       auto it = state_interface_map_.find(key);
 
-      diagnostic_msgs::msg::KeyValue kv;
-      kv.key = iface;
-
       if (it != state_interface_map_.end()) {
         double value = state_interfaces_[it->second].get_value();
 
-        // Format value with 2 decimal places
-        std::ostringstream oss;
-        oss.precision(2);
-        oss << std::fixed << value;
-        kv.value = oss.str();
-
-        // Flag high temperature as warning (>70C) or error (>90C)
-        if (iface == "motor_temperature") {
-          if (value > 90.0) {
-            status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
-            status.message = "OVERHEATING";
-          } else if (value > 70.0 &&
-                     status.level < diagnostic_msgs::msg::DiagnosticStatus::WARN) {
-            status.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
-            status.message = "High temperature";
+        if (iface == "temperature") {
+          status.temperature = static_cast<int8_t>(value);
+        } else if (iface == "torque_current") {
+          status.torque_current = value;
+        } else if (iface == "status") {
+          status.motor_status = static_cast<int8_t>(value);
+          if (value > sizeof(MotorStatus)){
+            RCLCPP_WARN(get_node()->get_logger(), "Invalid motor status value");
+          }
+        } else if (iface == "brake_status") {
+          switch (static_cast<BrakeStatus>(value)){
+            case BrakeStatus::LOCKED:
+              status.brake_status = "Brakes are Locked";
+              break;
+            case BrakeStatus::RELEASED:
+              status.brake_status = "Brakes are released";
+              break;
+            default:
+              RCLCPP_WARN(get_node()->get_logger(), "Invalid brake status value");
+              break;
           }
         }
-      } else {
-        kv.value = "N/A";
       }
-
-      status.values.push_back(kv);
     }
 
-    diag_msg.status.push_back(status);
+    system_info_msg.joints.push_back(status);
   }
 
-  diagnostics_publisher_->publish(diag_msg);
+  motor_status_publisher_->publish(system_info_msg);
 
   return controller_interface::return_type::OK;
 }
@@ -185,5 +186,5 @@ controller_interface::return_type MotorStatusBroadcaster::update(
 }  // namespace general_controllers
 
 PLUGINLIB_EXPORT_CLASS(
-  general_controllers::MotorStatusBroadcaster,
+  general_controllers::MotorStatusController,
   controller_interface::ControllerInterface)

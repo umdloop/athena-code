@@ -1,7 +1,5 @@
-string joint
-int8 id
-string motor_type
+string joint_name
 int8 temperature
-float64 current
-float64 motor_speed
-float64 motor_angle
+float64 torque_current
+int8 motor_status
+string brake_status

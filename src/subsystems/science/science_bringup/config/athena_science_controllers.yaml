@@ -20,7 +20,7 @@ controller_manager:
       type: gpio_controllers/GpioCommandController
 
     motor_status_controller:
-      type: general_controllers/MotorStatusBroadcaster
+      type: general_controllers/MotorStatusController
 
 joint_group_position_controller:                
   ros__parameters:

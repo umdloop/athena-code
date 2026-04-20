@@ -7,11 +7,11 @@ endif()
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   controller_interface
-  diagnostic_msgs
   hardware_interface
   pluginlib
   rclcpp
   rclcpp_lifecycle
+  msgs
 )
 
 find_package(ament_cmake REQUIRED)
