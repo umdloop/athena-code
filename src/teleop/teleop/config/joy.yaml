@@ -1,0 +1,27 @@
+/**:
+  ros__parameters:
+    controllers:
+      xbox:
+        axes:
+        - { name: "left_stick_lr",  axis: 0, invert: false, trigger: false }
+        - { name: "left_stick_ud",  axis: 1, invert: false, trigger: false }
+        - { name: "left_trigger",   axis: 2, invert: false, trigger: true  }
+        - { name: "right_stick_lr", axis: 3, invert: false, trigger: false }
+        - { name: "right_stick_ud", axis: 4, invert: false, trigger: false }
+        - { name: "right_trigger",  axis: 5, invert: false, trigger: true  }
+      thrustmaster t.16000m:
+        axes:
+        - { name: "joystick_twist",   axis: 0, invert: false, trigger: false }
+        - { name: "joystick_x",       axis: 1, invert: true,  trigger: false }
+        - { name: "joystick_y",       axis: 2, invert: false, trigger: false }
+        - { name: "throttle_level",   axis: 3, invert: true,  trigger: false }
+        - { name: "hat_switch_y",     axis: 4, invert: true,  trigger: false }
+        - { name: "hat_switch_x",     axis: 5, invert: false, trigger: false }
+
+    subsystems:
+      arm:
+        output_slots: [left_stick_lr, left_stick_ud, right_stick_lr, right_stick_ud, left_trigger, right_trigger]
+      science:
+        output_slots: [left_stick_lr, left_stick_ud, right_stick_lr, right_stick_ud, left_trigger, right_trigger]
+      drive:
+        output_slots: [joystick_twist, joystick_x, joystick_y, throttle_level, hat_switch_y, hat_switch_x]

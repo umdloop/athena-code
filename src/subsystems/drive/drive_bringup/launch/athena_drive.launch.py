@@ -1,3 +1,5 @@
+import yaml
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler, TimerAction
 from launch.conditions import IfCondition
@@ -167,15 +169,18 @@ def launch_setup(context, *args, **kwargs):
 
     robot_description = {"robot_description": robot_description_content}
 
+    with open(joystick_config.perform(context), 'r') as f:
+        joy_cfg = yaml.safe_load(f)
+    joystick_type = joy_cfg['/**']['ros__parameters']['joystick_type']
+
     joystick_publisher = Node(
         package='teleop',
         executable='joystick',
         name='joystick',
         output='screen',
-        parameters=[joystick_config],
+        parameters=[joystick_config, {'subsystem': 'drive'}],
         remappings=[
-            ('controller_input', 'joy'),
-            ('/controller_input', '/joy'),
+            (f'controller_input/{joystick_type}', 'joy'),
         ],
     )
 

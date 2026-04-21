@@ -90,7 +90,7 @@ controller_interface::CallbackReturn ManualArmJointByJointController::on_configu
 
   // Reference Subscriber
   ref_subscriber_ = get_node()->create_subscription<ControllerReferenceMsg>(
-    "controller_input", subscribers_qos,
+    params_.joystick_topic, subscribers_qos,
     std::bind(&ManualArmJointByJointController::reference_callback, this, std::placeholders::_1));
   
   // Create, populate with NaN, and write message to input_ref_ to be used in reference callback

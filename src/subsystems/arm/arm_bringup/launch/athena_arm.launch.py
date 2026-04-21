@@ -193,7 +193,7 @@ def launch_setup(context, *args, **kwargs):
         executable='joystick',
         name='joystick',
         output='screen',
-        parameters=[joystick_config_file],
+        parameters=[joystick_config_file, {'subsystem': 'arm'}],
     )
 
     control_node = Node(

@@ -144,11 +144,7 @@ def generate_launch_description():
         executable='joystick',
         name='joystick',
         output='screen',
-        parameters = [joystick_config_file],
-        remappings=[
-        ('controller_input', 'science_manual'),
-        ('/controller_input', '/science_manual'),
-    ],
+        parameters=[joystick_config_file, {'subsystem': 'science'}],
     )
 
     control_node = Node(

@@ -178,6 +178,10 @@ cython_debug/
 # Prerequisites
 *.d
 
+
+.kiro
+
+
 # Compiled Object files
 *.slo
 *.lo
@@ -208,3 +212,4 @@ cython_debug/
 
 .DS_Store
 *.mcap
+
