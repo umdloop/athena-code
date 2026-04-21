@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <unordered_map>
 
 
 #include "hardware_interface/handle.hpp"
@@ -89,29 +90,6 @@ private:
   
   // Keeps track of amount of joints
   int num_joints;
-
-  // Store the state interfaces for the RMD
-  std::vector<double> joint_state_position_;
-  std::vector<double> joint_state_velocity_;
-  std::vector<double> motor_temperature_;    // Motor temperature in °C
-  std::vector<double> motor_torque_current_; // Motor torque current in A
-  std::vector<double> motor_status_;
-  
-  // Store the command interfaces for the RMD
-  std::vector<double> joint_command_position_;
-  std::vector<double> joint_command_velocity_;
-  std::vector<double> motor_status_req_;
-  std::vector<double> motor_maintenance_req_;
-
-  std::vector<double> prev_status_req_; // To track changes in status request for one-shot requests
-  std::vector<double> elapsed_status_request_time_; // To track time for periodic status requests
-
-  // Place holders for data from the CANBus, will be accessed in read()
-  std::vector<double> motor_velocity;
-  std::vector<double> motor_position;
-  
-  // Velocity at which **joint** rotates to reach position in 1 dps
-  uint16_t operating_velocity;
   
   // CAN Library Setup
   CANLib::SocketCanBus canBus;
@@ -133,20 +111,75 @@ private:
     VELOCITY = 2,
   };
 
-  // Active control mode for each actuator
-  std::vector<integration_level_t> control_level_;
+  struct RMDJoint
+  {
+    std::string name;
+    uint32_t node_write_id;
+    uint32_t node_read_id;
+    int gear_ratio;
+    int orientation;
+    uint16_t operating_velocity;
+    integration_level_t control_level;
+
+    double joint_state_position;
+    double joint_state_velocity;
+    double motor_temperature;
+    double motor_torque_current;
+    double motor_status;
+
+    double joint_command_position;
+    double joint_command_velocity;
+    double motor_status_req;
+    double motor_maintenance_req;
+    double maintenance_cmd_id;
+
+    double prev_status_req;
+    double prev_maintenance_req;
+    double prev_maintenance_cmd_id;
+    double elapsed_status_request_time;
+    double elapsed_maintenance_request_time;
+    double motor_velocity;
+    double motor_position;
+    double prev_joint_command_position;
+    double prev_joint_command_velocity;
+
+    std::vector<std::string> state_interface_names;
+    std::vector<std::string> command_interface_names;
+    std::unordered_map<std::string, std::string> parameters;
+  };
+
+  std::vector<RMDJoint> RMDJoints_;
 
   // CAN Commands
-  static constexpr uint8_t WRITE_ENCODER_MULTI_TURN_ZERO_CMD = 0x63;
-  static constexpr uint8_t BRAKE_RELEASE_CMD = 0X77;
-  static constexpr uint8_t BRAKE_LOCK_CMD = 0x78;
-  static constexpr uint8_t MOTOR_SHUTDOWN_CMD = 0X80;
-  static constexpr uint8_t MOTOR_STOP_CMD = 0x81;
-  static constexpr uint8_t MOTOR_STATUS_1_CMD = 0x9A;
-  static constexpr uint8_t MOTOR_STATUS_2_CMD = 0X9C;
-  static constexpr uint8_t SPEED_CONTROL_CMD = 0xA2;
-  static constexpr uint8_t ABSOLUTE_POS_CONTROL_CMD = 0xA4;
+  // Maintenance commands: Commands specifically sent via maintenance_request interface
+  enum class MaintenanceCommands : uint8_t {
+    WRITE_PID_TO_RAM_CMD = 0x31,
+    WRITE_PID_TO_ROM_CMD = 0x32,
+    WRITE_ACCELERATION_CMD = 0x43,
+    WRITE_ENCODER_MULTI_TURN_ZERO_CMD = 0x63,
+    WRITE_CURRENT_MULTI_TURN_POS_ZERO_CMD = 0x64,
+    SYSTEM_RESET_CMD = 0x76,
+    BRAKE_RELEASE_CMD = 0X77,
+    BRAKE_LOCK_CMD = 0x78,
+    MOTOR_SHUTDOWN_CMD = 0X80,
+    MOTOR_STOP_CMD = 0x81,
+  };
 
+  // Control commands: Commands that actuate the motor
+  enum class ControlCommands : uint8_t {
+    TORQUE_CONTROL_CMD = 0xA1,
+    SPEED_CONTROL_CMD = 0xA2,
+    ABSOLUTE_POS_CONTROL_CMD = 0xA4,
+  };
+
+  // Status commands: Commands sent to request specific status information from the motor
+  enum class StatusCommands : uint8_t {
+    READ_PID_CMD = 0x30,
+    MOTOR_STATUS_1_CMD = 0x9A,
+    MOTOR_STATUS_2_CMD = 0X9C,
+  };
+
+  // General motor status (can be interpreted by controller)
   enum class MotorStatus : uint8_t 
   {
     UNKNOWN = 0,
@@ -157,6 +190,7 @@ private:
     DISABLED = 5
   };
 
+  // Specific motor status flags
   enum class RMDMotorStatus : uint16_t {
     BRAKE_LOCKED = 0x0000,
     BRAKE_RELEASED = 0x0001,
@@ -171,6 +205,7 @@ private:
     ENCODER_CALIBRATION_ERROR = 0x2000
   };
 
+  // Corresponding descriptions for specific motor status flags
   struct StatusEntry {
     RMDMotorStatus flag;
     const char* name;

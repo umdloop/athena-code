@@ -6,7 +6,7 @@ motor_status_controller:
   }
   command_interfaces: {
     type: string_array,
-    default_value: ["status_request", "maintenance_request"],
+    default_value: ["status_request", "maintenance_request", "maintenance_cmd_id"],
     description: "Command interface names to read from each joint. Leave empty if no command interfaces are needed."
   }
   state_interfaces: {

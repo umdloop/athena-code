@@ -73,33 +73,67 @@ void RMDHardwareInterface::logger_function(){
       << "Elapsed Time since first update: " << elapsed_time << "\n"
       << "\n--- Joint Specific ---";
 
-  for (int i = 0; i < num_joints; i++) {
-    if(static_cast<int>(control_level_[i]) == 1) {
+  for (auto & joint : RMDJoints_) {
+    if(static_cast<int>(joint.control_level) == 1) {
       control_mode = "POSITION";
     }
-    else if(static_cast<int>(control_level_[i]) == 2) {
+    else if(static_cast<int>(joint.control_level) == 2) {
       control_mode = "VELOCITY";
     }
     else {
       control_mode = "UNDEFINED";
     }
-    oss << "\nJOINT: " << info_.joints[i].name << "\n"
-        << "Parameters: Write CAN ID: 0x" << std::hex << std::uppercase << joint_node_write_ids[i]
-        << " | Read CAN ID: 0x" << std::hex << std::uppercase << joint_node_read_ids[i]
-        << " | Gear Ratio: " << joint_gear_ratios[i]
-        << " | Orientation: " << joint_orientation[i] << "\n"
+    oss << "\nJOINT: " << joint.name << "\n"
+        << "Parameters: Write CAN ID: 0x" << std::hex << std::uppercase << joint.node_write_id
+        << " | Read CAN ID: 0x" << std::hex << std::uppercase << joint.node_read_id
+        << " | Gear Ratio: " << joint.gear_ratio
+        << " | Orientation: " << joint.orientation << "\n"
         << "-- Commands --\n"
         << "Control Mode: " << control_mode << "\n"
-        << "Motor Position: " << motor_position[i]
-        << " | Joint Command Position: " << joint_command_position_[i] << "\n"
-        << "Motor Velocity: " << motor_velocity[i]
-        << " | Joint Command Velocity: " << joint_command_velocity_[i] << "\n"
+        << "Motor Position: " << joint.motor_position
+        << " | Joint Command Position: " << joint.joint_command_position << "\n"
+        << "Motor Velocity: " << joint.motor_velocity
+        << " | Joint Command Velocity: " << joint.joint_command_velocity << "\n"
+        << "Motor Status Request: " << joint.motor_status_req
+        << " | Motor Maintenance Request Rate: " << joint.motor_maintenance_req
+        << " | Motor Maintenance Command ID: " << joint.maintenance_cmd_id << "\n"
+        << "Previous: Motor Status Request Rate: " << joint.prev_status_req
+        << " | Motor Maintenance Request Rate: " << joint.prev_maintenance_req
+        << " | Motor Maintenance Command ID: " << joint.prev_maintenance_cmd_id << "\n"
         << "-- State --\n"
-        << "Joint Position: " << joint_state_position_[i]
-        << " | Joint Velocity: " << joint_state_velocity_[i] << "\n"
+        << "Joint Position: " << joint.joint_state_position
+        << " | Joint Velocity: " << joint.joint_state_velocity << "\n"
         << "-- Telemetry --\n"
-        << "Motor Temperature: " << motor_temperature_[i] << " C"
-        << " | Torque Current: " << motor_torque_current_[i] << " A\n";
+        << "Motor Temperature: " << joint.motor_temperature << " C"
+        << " | Torque Current: " << joint.motor_torque_current << " A\n";
+
+    /*
+    // Interfaces
+    oss << "-- Interfaces --\n";
+    oss << "State Interfaces: ";
+    for (size_t si = 0; si < joint.state_interface_names.size(); ++si) {
+      if (si) oss << ", ";
+      oss << joint.state_interface_names[si];
+    }
+    oss << "\n";
+
+    oss << "Command Interfaces: ";
+    for (size_t ci = 0; ci < joint.command_interface_names.size(); ++ci) {
+      if (ci) oss << ", ";
+      oss << joint.command_interface_names[ci];
+    }
+    oss << "\n";
+
+    // Parameters map
+    oss << "-- Parameters --\n";
+    bool first_param = true;
+    for (const auto &p : joint.parameters) {
+      if (!first_param) oss << ", ";
+      oss << p.first << ": " << p.second;
+      first_param = false;
+    }
+    oss << "\n";
+    */
   }
 
   log_msg += oss.str();
@@ -165,23 +199,71 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
   }
   
   // Setting Parameters
+  RMDJoints_.clear();
   for (auto& joint : info_.joints) {
     int write_id = std::clamp(std::stoi(joint.parameters.at("node_id"), nullptr, 0), 0x141, 0x160);
     int gear_ratio = std::abs(std::stoi(joint.parameters.at("gear_ratio")));
-    joint_node_write_ids.push_back(write_id);
-    joint_node_read_ids.push_back(write_id+0x100);
 
-    joint_gear_ratios.push_back(gear_ratio);
-    joint_orientation.push_back(std::stoi(joint.parameters.at("joint_orientation")) == -1 ? -1 : 1);
-    operating_velocity = std::clamp(
-      std::stoi(joint.parameters.at("operating_velocity")),
-      0,
-      static_cast<int>(3.5 * gear_ratio)
+    // Collect state interface names
+    std::vector<std::string> state_if_names;
+    for (const auto &si : joint.state_interfaces) {
+      state_if_names.push_back(si.name);
+    }
+
+    // Collect command interface names
+    std::vector<std::string> command_if_names;
+    for (const auto &ci : joint.command_interfaces) {
+      command_if_names.push_back(ci.name);
+    }
+
+    // Copy parameters into an unordered_map<string,string>
+    std::unordered_map<std::string, std::string> params_map;
+    for (const auto &p : joint.parameters) {
+      params_map.emplace(p.first, p.second);
+    }
+
+    RMDJoints_.push_back(
+      RMDJoint{
+        .name = joint.name,
+        .node_write_id = static_cast<uint32_t>(write_id),
+        .node_read_id = static_cast<uint32_t>(write_id + 0x100),
+        .gear_ratio = gear_ratio,
+        .orientation = std::stoi(joint.parameters.at("joint_orientation")) == -1 ? -1 : 1,
+        .operating_velocity = static_cast<uint16_t>(std::clamp(
+          std::stoi(joint.parameters.at("operating_velocity")),
+          0,
+          static_cast<int>(3.5 * gear_ratio)
+        )),
+        .control_level = integration_level_t::POSITION,
+        .joint_state_position = std::numeric_limits<double>::quiet_NaN(),
+        .joint_state_velocity = 0.0,
+        .motor_temperature = std::numeric_limits<double>::quiet_NaN(),
+        .motor_torque_current = std::numeric_limits<double>::quiet_NaN(),
+        .motor_status = std::numeric_limits<double>::quiet_NaN(),
+
+        .joint_command_position = std::numeric_limits<double>::quiet_NaN(),
+        .joint_command_velocity = 0.0,
+        .motor_status_req = 0.0,
+        .motor_maintenance_req = 0.0,
+        .maintenance_cmd_id = std::numeric_limits<double>::quiet_NaN(),
+
+        .prev_status_req = 0.0,
+        .prev_maintenance_req = 0.0,
+        .prev_maintenance_cmd_id = std::numeric_limits<double>::quiet_NaN(),
+        .elapsed_status_request_time = 0.0,
+        .elapsed_maintenance_request_time = 0.0,
+        .motor_velocity = 0.0,
+        .motor_position = 0.0,
+        .prev_joint_command_position = std::numeric_limits<double>::quiet_NaN(),
+        .prev_joint_command_velocity = std::numeric_limits<double>::quiet_NaN(),
+        .state_interface_names = state_if_names,
+        .command_interface_names = command_if_names,
+        .parameters = params_map
+      }
     );
-
   }
 
-  num_joints = static_cast<int>(info_.joints.size());
+  num_joints = static_cast<int>(RMDJoints_.size());
   update_rate = std::stoi(info_.hardware_parameters.at("update_rate"));
   logger_rate = std::stoi(info_.hardware_parameters.at("logger_rate"));
   logger_state = std::stoi(info_.hardware_parameters.at("logger_state"));
@@ -190,26 +272,6 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
   elapsed_update_time = 0.0;
   elapsed_time = 0.0;
   elapsed_logger_time = 0.0;
-  elapsed_status_request_time_.assign(num_joints, 0.0);
-  
-  // Initializes command and state interface values
-  joint_state_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
-  joint_state_velocity_.assign(num_joints, 0);
-  motor_temperature_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
-  motor_torque_current_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
-  motor_status_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
-
-  joint_command_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
-  joint_command_velocity_.assign(num_joints, 0);
-  motor_status_req_.assign(num_joints, 0);
-  motor_maintenance_req_.assign(num_joints, 0);
-
-  prev_status_req_.assign(num_joints, 0.0);
-
-  motor_position.assign(num_joints, 0.0);
-  motor_velocity.assign(num_joints, 0.0);
-
-  control_level_.resize(num_joints, integration_level_t::POSITION);
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -229,24 +291,28 @@ std::vector<hardware_interface::StateInterface> RMDHardwareInterface::export_sta
   std::vector<hardware_interface::StateInterface> state_interfaces;
 
   // Each RMD motor corresponds to a different joint.
-  for(int i = 0; i < num_joints; i++){   
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_POSITION, &joint_state_position_[i]));
+  for (auto & joint : RMDJoints_) {
+    for (auto & iface : joint.state_interface_names) {
+      double * val = nullptr;
+      if (iface == "position") {
+        val = &joint.joint_state_position;
+      } else if (iface == "velocity") {
+        val = &joint.joint_state_velocity;
+      } else if (iface == "motor_temperature") {
+        val = &joint.motor_temperature;
+      } else if (iface == "torque_current") {
+        val = &joint.motor_torque_current;
+      } else if (iface == "status") {
+        val = &joint.motor_status;
+      } else {
+        RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Unknown state interface '%s' for joint '%s'", iface.c_str(), joint.name.c_str());
+        continue;
+      }
 
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &joint_state_velocity_[i]));
-
-    // Telemetry interfaces (published via /dynamic_joint_states by joint_state_broadcaster)
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "motor_temperature", &motor_temperature_[i]));
-
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "torque_current", &motor_torque_current_[i]));
-
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "status", &motor_status_[i]));
+      state_interfaces.emplace_back(hardware_interface::StateInterface(
+        joint.name, iface, val));
+    }
   }
-  
   return state_interfaces;
 }
 
@@ -254,23 +320,29 @@ std::vector<hardware_interface::StateInterface> RMDHardwareInterface::export_sta
 std::vector<hardware_interface::CommandInterface>
 RMDHardwareInterface::export_command_interfaces()
 {
-  // TODO: Make a struct that contains each value needed to fill out the third parameter in Command interface
-  // Then, you can loop through the joints and given command interfaces in the xacro file and populate command
-  // interfaces via changing this struct
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  for(int i = 0; i < num_joints; i++){
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_POSITION, &joint_command_position_[i]));
+  for (auto & joint : RMDJoints_) {
+    for (auto & iface : joint.command_interface_names) {
+      double * val = nullptr;
+      if (iface == "position") {
+        val = &joint.joint_command_position;
+      } else if (iface == "velocity") {
+        val = &joint.joint_command_velocity;
+      } else if (iface == "status_request") {
+        val = &joint.motor_status_req;
+      } else if (iface == "maintenance_request") {
+        val = &joint.motor_maintenance_req;
+      } else if (iface == "maintenance_cmd_id") {
+        val = &joint.maintenance_cmd_id;
+      } else {
+        RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Unknown command interface '%s' for joint '%s'", iface.c_str(), joint.name.c_str());
+        continue;
+      }
 
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &joint_command_velocity_[i]));
-
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "status_request", &motor_status_req_[i]));
-
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "maintenance_request", &motor_maintenance_req_[i]));
+      command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        joint.name, iface, val));
+    }
   }
 
   return command_interfaces;
@@ -295,11 +367,12 @@ void RMDHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
   std::vector<int> data(8, 0x00);
 
   // Decode CAN Message
-  for(int i = 0; i < num_joints; i++){
-    if(can_rx_frame_.id == joint_node_read_ids[i] && 
-      (can_rx_frame_.data[0] == SPEED_CONTROL_CMD  || 
-       can_rx_frame_.data[0] == ABSOLUTE_POS_CONTROL_CMD  || 
-       can_rx_frame_.data[0] == MOTOR_STATUS_2_CMD) &&
+  for (auto & joint : RMDJoints_) {
+
+    if(can_rx_frame_.id == joint.node_read_id && 
+      (can_rx_frame_.data[0] == static_cast<uint8_t>(ControlCommands::SPEED_CONTROL_CMD)  || 
+       can_rx_frame_.data[0] == static_cast<uint8_t>(ControlCommands::ABSOLUTE_POS_CONTROL_CMD)  || 
+       can_rx_frame_.data[0] == static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_2_CMD)) &&
        can_rx_frame_.data[1] != 0x00) {
     
       // Speed Control, Absolute Position Control, and Motor Status 2 all share the same reply  
@@ -312,22 +385,22 @@ void RMDHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
       data[7] = can_rx_frame_.data[7]; // encoder position high byte
 
       // TEMPERATURE (1 byte, degrees C)
-      motor_temperature_[i] = static_cast<double>(data[1]);
+      joint.motor_temperature = static_cast<double>(data[1]);
 
       // TORQUE CURRENT (16-bit signed, 0.01A per LSB)
-      motor_torque_current_[i] = static_cast<double>(static_cast<int16_t>((data[3] << 8) | data[2])) * 0.01;
+      joint.motor_torque_current = static_cast<double>(static_cast<int16_t>((data[3] << 8) | data[2])) * 0.01;
 
       // POSITION 
       // uint16 -> int16 -> double (for calcs)
-      motor_position[i] = static_cast<double>(static_cast<int16_t>((data[7] << 8) | data[6]));
+      joint.motor_position = static_cast<double>(static_cast<int16_t>((data[7] << 8) | data[6]));
 
       // VELOCITY
       // uint16 -> int16 -> double (for calcs)
-      motor_velocity[i] = static_cast<double>(static_cast<int16_t>((data[5] << 8) | data[4]));
+      joint.motor_velocity = static_cast<double>(static_cast<int16_t>((data[5] << 8) | data[4]));
     }
-    else if(can_rx_frame_.id == joint_node_read_ids[i] && 
-            can_rx_frame_.data[0] == MOTOR_STATUS_1_CMD &&
-            can_rx_frame_.data[1] != 0x00) {
+            else if(can_rx_frame_.id == joint.node_read_id && 
+              can_rx_frame_.data[0] == static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_1_CMD) &&
+              can_rx_frame_.data[1] != 0x00) {
 
       // DECODING Motor Status 1 Message
       data[1] = can_rx_frame_.data[1]; // Motor Temperature
@@ -339,16 +412,16 @@ void RMDHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
       data[7] = can_rx_frame_.data[7]; // Error state high byted
 
       // TEMPERATURE (degrees C)
-      motor_temperature_[i] = static_cast<double>(data[1]);
+      joint.motor_temperature = static_cast<double>(data[1]);
       
       // Initialize motor status command
-      motor_status_[i] = 0.0;
+      joint.motor_status = 0.0;
 
       // BRAKE STATUS (0: Locked, 1: Released)
-      motor_status_[i] = motor_status_[i] + static_cast<double>(data[3]);
+      joint.motor_status = joint.motor_status + static_cast<double>(data[3]);
       
       // ERROR STATE
-      motor_status_[i] = motor_status_[i] + static_cast<double>(static_cast<int16_t>((data[7] << 8) | data[6]));
+      joint.motor_status = joint.motor_status + static_cast<double>(static_cast<int16_t>((data[7] << 8) | data[6]));
     } 
     else {
       if(logger_state == 1) {
@@ -362,11 +435,9 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_cleanup(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   // If cleanup occurs before shutdown, this is the last opportunity to shutdown motor since pointers must be deleted here
-  std::vector<int> data(8, 0x00);
-
-  for(int i = 0; i < num_joints; i++){
-    send_command(joint_node_write_ids[i], MOTOR_SHUTDOWN_CMD); // Motor Shutdown Command
-    send_command(joint_node_write_ids[i], BRAKE_LOCK_CMD); // Brake Lock Command (don't think this works)
+    for (const auto & joint : RMDJoints_) {
+    send_command(joint.node_write_id, static_cast<int>(MaintenanceCommands::MOTOR_SHUTDOWN_CMD)); // Motor Shutdown Command
+    send_command(joint.node_write_id, static_cast<int>(MaintenanceCommands::BRAKE_LOCK_CMD)); // Brake Lock Command (don't think this works)
   }
 
   canBus.close();
@@ -379,13 +450,15 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_activate(
 {
   RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Activating ...please wait...");
 
-  for(int i = 0; i < num_joints; i++){
+  for (const auto & joint : RMDJoints_) {
     // Brake Release command (pretty sure brakes don't work)
-    send_command(joint_node_write_ids[i], BRAKE_RELEASE_CMD);
+    send_command(joint.node_write_id, static_cast<int>(MaintenanceCommands::BRAKE_RELEASE_CMD));
   }
 
   // Sets initial command to joint state
-  joint_command_position_ = joint_state_position_;
+  for (auto & joint : RMDJoints_) {
+    joint.joint_command_position = joint.joint_state_position;
+  }
 
   RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Successfully activated!");
 
@@ -398,9 +471,9 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_deactivate(
 {
   RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Deactivating ...please wait...");
 
-  for(int i = 0; i < num_joints; i++){
-    send_command(joint_node_write_ids[i], MOTOR_STOP_CMD); // Motor Stop Command
-    send_command(joint_node_write_ids[i], BRAKE_LOCK_CMD); // Brake Lock Command (don't think this works)
+  for (const auto & joint : RMDJoints_) {
+    send_command(joint.node_write_id, static_cast<int>(MaintenanceCommands::MOTOR_STOP_CMD)); // Motor Stop Command
+    send_command(joint.node_write_id, static_cast<int>(MaintenanceCommands::BRAKE_LOCK_CMD)); // Brake Lock Command (don't think this works)
   }
 
   RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Successfully deactivated all RMD motors!");
@@ -413,17 +486,15 @@ hardware_interface::return_type RMDHardwareInterface::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {  
   // CALCULATING JOINT STATE
-  for(int i = 0; i < num_joints; i++) {
-    joint_state_velocity_[i] = calculate_joint_velocity_from_motor_velocity(motor_velocity[i], joint_gear_ratios[i]);
-    joint_state_position_[i] = calculate_joint_position_from_motor_position(motor_position[i], joint_gear_ratios[i]);
+  for (auto & joint : RMDJoints_) {
+    joint.joint_state_velocity = calculate_joint_velocity_from_motor_velocity(joint.motor_velocity, joint.gear_ratio);
+    joint.joint_state_position = calculate_joint_position_from_motor_position(joint.motor_position, joint.gear_ratio);
 
     // Process status logs warning and errors and returns false if fatal error occurs
-    if (!process_status(motor_status_[i], rclcpp::get_logger("RMDHardwareInterface"))) {
+    if (!process_status(joint.motor_status, rclcpp::get_logger("RMDHardwareInterface"))) {
       return hardware_interface::return_type::ERROR;
     }
   }
-
-  
 
   return hardware_interface::return_type::OK;
 }
@@ -432,7 +503,7 @@ hardware_interface::return_type RMDHardwareInterface::read(
 hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
-  int data[8] = {0x00};
+  uint8_t data[8] = {0x00};
   int32_t joint_angle = 0;
   int32_t joint_velocity = 0;
 
@@ -448,24 +519,54 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
   }
 
   // Status request handling
-
-  for (int i = 0; i < num_joints; i++) {
+  for (auto & joint : RMDJoints_) {
     can_tx_frame_ = CANLib::CanFrame();
-    can_tx_frame_.id = joint_node_write_ids[i];
+    can_tx_frame_.id = joint.node_write_id;
     can_tx_frame_.dlc = 8;
-    can_tx_frame_.data[0] = MOTOR_STATUS_1_CMD;
+    can_tx_frame_.data[0] = static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_1_CMD);
 
-    double curr_status_req = motor_status_req_[i];
-    if (curr_status_req < 0 && prev_status_req_[i] >= 0) // Send one shot status request
+    double curr_status_req = joint.motor_status_req;
+    if (curr_status_req < 0 && joint.prev_status_req >= 0) // Send one shot status request
+    {
+      canBus.send(can_tx_frame_);
+      RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "One shot status request sent for joint '%s'", joint.name.c_str());
+    }
+    else if (joint.motor_status_req > 0) // Send status request at specified frequency (Hz)
+    {
+      joint.elapsed_status_request_time += period.seconds();
+      double status_request_period = 1.0 / joint.motor_status_req;
+      if(joint.elapsed_status_request_time > status_request_period){
+        joint.elapsed_status_request_time = 0.0;
+        canBus.send(can_tx_frame_); 
+        RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Periodic status request sent for joint '%s'", joint.name.c_str());
+      }
+    }
+    else
+    {
+      continue;
+    }
+    joint.prev_status_req = curr_status_req;
+  }
+
+  // Maintenance request handling
+  for (auto & joint : RMDJoints_) {
+    can_tx_frame_ = CANLib::CanFrame();
+    can_tx_frame_.id = joint.node_write_id;
+    can_tx_frame_.dlc = 8;
+
+    double curr_maintenance_req = joint.motor_maintenance_req;
+    uint8_t maintenance_cmd_id = 0x00;
+    can_tx_frame_.data[0] = maintenance_cmd_id;
+    if (curr_maintenance_req < 0 && joint.prev_maintenance_req >= 0) // Send one shot maintenance request
     {
       canBus.send(can_tx_frame_); 
     }
-    else if (motor_status_req_[i] > 0) // Send status request at specified frequency (Hz)
+    else if(joint.motor_maintenance_req > 0) // Send maintenance request at specified frequency (Hz)
     {
-    elapsed_status_request_time_[i] += period.seconds();
-      double status_request_period = 1.0/motor_status_req_[i];
-      if(elapsed_status_request_time_[i] > status_request_period){
-        elapsed_status_request_time_[i] = 0.0;
+      joint.elapsed_maintenance_request_time += period.seconds();
+      double maintenance_request_period = 1.0 / joint.motor_maintenance_req;
+      if(joint.elapsed_maintenance_request_time > maintenance_request_period){
+        joint.elapsed_maintenance_request_time = 0.0;
         canBus.send(can_tx_frame_); 
       }
     }
@@ -473,10 +574,8 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
     {
       continue;
     }
-    prev_status_req_[i] = curr_status_req;
+    joint.prev_maintenance_req = curr_maintenance_req;
   }
-
-  
 
   // HWI can only go as fast as the controller manager. To limit frequency of bus messages,
   // keep track of time passed over iterations of this function and if it exceeds the 
@@ -485,45 +584,50 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
   double update_period = 1.0/update_rate;
   if(elapsed_update_time > update_period){
     elapsed_update_time = 0.0;
-    for(int i = 0; i < num_joints; i++) {
+    for(auto & joint : RMDJoints_) {
+      std::fill(std::begin(data), std::end(data), 0x00);
       can_tx_frame_ = CANLib::CanFrame(); // Must reinstantiate else data from past iteration gets repeated
-      can_tx_frame_.id = joint_node_write_ids[i];
+      can_tx_frame_.id = joint.node_write_id;
       can_tx_frame_.dlc = 8;
       
-      if(control_level_[i] == integration_level_t::POSITION && std::isfinite(joint_command_position_[i])) {
-
+        if (joint.control_level == integration_level_t::POSITION && std::isfinite(joint.joint_command_position) &&
+          joint.joint_command_position != joint.prev_joint_command_position) {
         // CALCULATE DESIRED JOINT ANGLE
-        joint_angle = joint_orientation[i]*calculate_motor_position_from_desired_joint_position(joint_command_position_[i], joint_gear_ratios[i]);
-        
+        joint_angle = joint.orientation * calculate_motor_position_from_desired_joint_position(
+          joint.joint_command_position, joint.gear_ratio);
+
         // ENCODING CAN MESSAGE
-        data[0] = ABSOLUTE_POS_CONTROL_CMD;
+        data[0] = static_cast<uint8_t>(ControlCommands::ABSOLUTE_POS_CONTROL_CMD);
         data[1] = 0x00;
-        data[2] = operating_velocity & 0xFF;
-        data[3] = (operating_velocity >> 8) & 0xFF;
+        data[2] = joint.operating_velocity & 0xFF;
+        data[3] = (joint.operating_velocity >> 8) & 0xFF;
         data[4] = joint_angle & 0xFF;
         data[5] = (joint_angle >> 8) & 0xFF;
         data[6] = (joint_angle >> 16) & 0xFF;
-        data[7] = (joint_angle >> 24) & 0xFF;      
-      }
-      else if(control_level_[i] == integration_level_t::VELOCITY && std::isfinite(joint_command_velocity_[i])) {
-        
+        data[7] = (joint_angle >> 24) & 0xFF;
+
+        joint.prev_joint_command_position = joint.joint_command_position;
+      } else if (joint.control_level == integration_level_t::VELOCITY && std::isfinite(joint.joint_command_velocity) &&
+                 joint.joint_command_velocity != joint.prev_joint_command_velocity) {
         // CALCULATE DESIRED JOINT VELOCITY
-        joint_velocity = joint_orientation[i]*calculate_motor_velocity_from_desired_joint_velocity(joint_command_velocity_[i], joint_gear_ratios[i]);
-     
+        joint_velocity = joint.orientation * calculate_motor_velocity_from_desired_joint_velocity(
+          joint.joint_command_velocity, joint.gear_ratio);
+
         // ENCODING CAN MESSAGE
-        data[0] = SPEED_CONTROL_CMD;
+        data[0] = static_cast<uint8_t>(ControlCommands::SPEED_CONTROL_CMD);
         data[1] = 0x00;
         data[2] = 0x00;
-        data[3] = 0x00;  
+        data[3] = 0x00;
         data[4] = joint_velocity & 0xFF;
         data[5] = (joint_velocity >> 8) & 0xFF;
         data[6] = (joint_velocity >> 16) & 0xFF;
         data[7] = (joint_velocity >> 24) & 0xFF;
-      }
-      else{
-        // RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Joint command value not found or undefined command state. Sending Motor Status 3 commands for now.");
-        // ENCODING CAN MESSAGE
-        data[0] = MOTOR_STATUS_2_CMD;
+
+        joint.prev_joint_command_velocity = joint.joint_command_velocity;
+      } else {
+        // No new control command to send; send status poll instead
+        data[0] = static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_2_CMD);
+        // RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Joint command value not found or undefined command state. Sending Motor Status 2 command for joint '%s'", joint.name.c_str());
       }
 
       // Cast data to uint8_t
@@ -532,6 +636,12 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
         can_tx_frame_.data[j] = data[j];
       }
       canBus.send(can_tx_frame_);
+      RCLCPP_INFO(
+        rclcpp::get_logger("RMDHardwareInterface"),
+        "Sent CAN message for joint '%s' with command '%s'",
+        joint.name.c_str(),
+        std::to_string(data[0]).c_str()
+      );    
     }
   }
 
@@ -579,43 +689,43 @@ hardware_interface::return_type RMDHardwareInterface::perform_command_mode_switc
     }
   }
 
-  // Now apply the requested_modes to control_level_.
+  // Now apply the requested_modes to each joint.
   // For any joint with UNDEFINED in requested_modes, we only change it if it was explicitly stopped.
   for (int i = 0; i < num_joints; ++i) {
+    auto & joint = RMDJoints_[i];
     if (requested_modes[i] == integration_level_t::UNDEFINED) {
       // if stop requested, set to UNDEFINED; otherwise leave existing mode
       // (we only set to UNDEFINED if this joint was mentioned in stop_interfaces)
       bool was_stopped = false;
       for (const auto &ifname : stop_interfaces) {
-        if (ifname.find(info_.joints[i].name) != std::string::npos) {
+        if (ifname.find(joint.name) != std::string::npos) {
           was_stopped = true;
           break;
         }
       }
       if (was_stopped) {
-        control_level_[i] = integration_level_t::UNDEFINED;
-        joint_command_velocity_[i] = 0;
+        joint.control_level = integration_level_t::UNDEFINED;
+        joint.joint_command_velocity = 0;
         // optional: reset position cmd to current state to be safe
-        joint_command_position_[i] = joint_state_position_[i];
+        joint.joint_command_position = joint.joint_state_position;
         RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"),
-          "Joint %s: stopped -> set UNDEFINED", info_.joints[i].name.c_str());
+          "Joint %s: stopped -> set UNDEFINED", joint.name.c_str());
       }
-      // else, leave control_level_ as-is
+      // else, leave the existing control mode as-is
     } else {
       // Set the mode requested
-      control_level_[i] = requested_modes[i];
+      joint.control_level = requested_modes[i];
       // If switching to velocity, optionally set command velocity to current state to avoid jumps
       if (requested_modes[i] == integration_level_t::VELOCITY) {
-        // joint_command_velocity_[i] = joint_state_velocity_[i];
-        joint_command_velocity_[i] = 0;
+        joint.joint_command_velocity = 0;
         RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"),
           "Joint %s: switched to VELOCITY (cmd vel initialized from state: %f)",
-          info_.joints[i].name.c_str(), joint_command_velocity_[i]);
+          joint.name.c_str(), joint.joint_command_velocity);
       } else if (requested_modes[i] == integration_level_t::POSITION) {
-        joint_command_position_[i] = joint_state_position_[i];
+        joint.joint_command_position = joint.joint_state_position;
         RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"),
           "Joint %s: switched to POSITION (cmd pos initialized from state: %f)",
-          info_.joints[i].name.c_str(), joint_command_position_[i]);
+          joint.name.c_str(), joint.joint_command_position);
       }
     }
   }

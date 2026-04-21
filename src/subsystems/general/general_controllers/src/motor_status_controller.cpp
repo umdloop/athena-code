@@ -35,6 +35,11 @@ controller_interface::CallbackReturn MotorStatusController::on_init()
     return controller_interface::CallbackReturn::ERROR;
   }
 
+  status_req_joint_name = "";
+  status_request_rate = 0;
+  maintenance_req_joint_name = "";
+  maintenance_request_rate = 0;
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -95,53 +100,49 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
   motor_status_publisher_ = get_node()->create_publisher<msgs::msg::SystemInfo>(
     "~/motor_status", rclcpp::SystemDefaultsQoS());
 
-  auto configure_request_rate =
-    [this](const int32_t request_rate, const std::string & service_name) -> std::string
-    {
-      if (request_rate < 0) {
-        publish_enabled_ = false;
-        publish_once_requested_ = true;
-        return service_name + " queued a one-shot publish";
-      }
-
-      publish_once_requested_ = false;
-      if (request_rate == 0) {
-        publish_enabled_ = false;
-        publish_period_ = rclcpp::Duration(0, 0);
-        return service_name + " stopped publishing";
-      }
-
-      publish_enabled_ = true;
-      publish_period_ = rclcpp::Duration::from_seconds(1.0 / static_cast<double>(request_rate));
-      return service_name + " set publish rate to " + std::to_string(request_rate) + " Hz";
-    };
-
   status_request_service_ = get_node()->create_service<msgs::srv::StatusReq>(
     "~/status_request",
-    [this, configure_request_rate](
+    [this](
       const std::shared_ptr<msgs::srv::StatusReq::Request> request,
       std::shared_ptr<msgs::srv::StatusReq::Response> response)
     {
+      if (request->joint_name.empty()) {
+        response->success = false;
+        response->message = "Joint name cannot be empty";
+        RCLCPP_WARN(get_node()->get_logger(), "%s", response->message.c_str());
+        return;
+      }
+
+      status_req_joint_name = request->joint_name;
+      status_request_rate = request->request_rate;
+
+      std::string msg = "Received status_request for joint " + status_req_joint_name + " at request_rate: " + std::to_string(status_request_rate);
       response->success = true;
-      response->message = configure_request_rate(request->request_rate, "status_request");
-      RCLCPP_INFO(
-        get_node()->get_logger(),
-        "Received status_request request_rate: %d",
-        request->request_rate);
+      response->message = msg;
+      RCLCPP_INFO(get_node()->get_logger(), "%s", msg.c_str());
     });
 
   maintenance_request_service_ = get_node()->create_service<msgs::srv::MaintenanceReq>(
     "~/maintenance_request",
-    [this, configure_request_rate](
+    [this](
       const std::shared_ptr<msgs::srv::MaintenanceReq::Request> request,
       std::shared_ptr<msgs::srv::MaintenanceReq::Response> response)
     {
+      if (request->joint_name.empty()) {
+        response->success = false;
+        response->message = "Joint name cannot be empty";
+        RCLCPP_WARN(get_node()->get_logger(), "%s", response->message.c_str());
+        return;
+      }
+
+      maintenance_req_joint_name = request->joint_name;
+      maintenance_request_rate = request->request_rate;
+      maintenance_cmd_id = request->command_id;
+
+      std::string msg = "Received maintenance_request " + std::to_string(maintenance_cmd_id) + " for joint " + maintenance_req_joint_name + " at request_rate: " + std::to_string(maintenance_request_rate);
       response->success = true;
-      response->message = configure_request_rate(request->request_rate, "maintenance_request");
-      RCLCPP_INFO(
-        get_node()->get_logger(),
-        "Received maintenance_request request_rate: %d",
-        request->request_rate);
+      response->message = msg;
+      RCLCPP_INFO(get_node()->get_logger(), "%s", msg.c_str());
     });
 
   RCLCPP_INFO(
@@ -190,15 +191,13 @@ controller_interface::CallbackReturn MotorStatusController::on_deactivate(
 controller_interface::return_type MotorStatusController::update(
   const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
 {
+  // Rate limit publishing
   const bool periodic_publish_due =
-    publish_enabled_ &&
     (publish_period_.seconds() <= 0.0 || (time - last_publish_time_) >= publish_period_);
 
-  if (!publish_once_requested_ && !periodic_publish_due) {
+  if (!periodic_publish_due) {
     return controller_interface::return_type::OK;
   }
-
-  publish_once_requested_ = false;
   last_publish_time_ = time;
 
   msgs::msg::SystemInfo system_info_msg;
@@ -211,9 +210,15 @@ controller_interface::return_type MotorStatusController::update(
       std::string key = joint + "/" + iface;
       auto it = command_interface_map_.find(key);
       if (it != command_interface_map_.end()) {
-        double value = command_interfaces_[it->second].get_value();
-        RCLCPP_INFO(get_node()->get_logger(), "Command Interface - Joint: %s, Interface: %s, Value: %f",
-                    joint.c_str(), iface.c_str(), value);
+        if (iface == "maintenance_cmd_id" && joint == maintenance_req_joint_name) {
+          command_interfaces_[it->second].set_value(maintenance_cmd_id);
+        }
+        else if (iface == "status_request" && joint == status_req_joint_name) {
+          command_interfaces_[it->second].set_value(status_request_rate);
+        }
+        else if (iface == "maintenance_request" && joint == maintenance_req_joint_name) {
+          command_interfaces_[it->second].set_value(maintenance_request_rate);
+        }
       } else {
         RCLCPP_WARN(get_node()->get_logger(), "Command interface %s not found for joint %s", iface.c_str(), joint.c_str());
       }

@@ -73,6 +73,11 @@ protected:
   // Services for command interfaces
   rclcpp::Service<msgs::srv::StatusReq>::SharedPtr status_request_service_;
   rclcpp::Service<msgs::srv::MaintenanceReq>::SharedPtr maintenance_request_service_;
+  std::string status_req_joint_name;
+  int status_request_rate;
+  std::string maintenance_req_joint_name;
+  int maintenance_request_rate;
+  uint8_t maintenance_cmd_id;
 
   // Map from "joint/interface" to index in state_interfaces_
   std::unordered_map<std::string, size_t> state_interface_map_;
@@ -83,8 +88,6 @@ protected:
   // Publish rate limiting
   rclcpp::Duration publish_period_{0, 0};
   rclcpp::Time last_publish_time_{0, 0, RCL_CLOCK_UNINITIALIZED};
-  bool publish_enabled_{false};
-  bool publish_once_requested_{false};
 
   enum class MotorStatus : uint8_t {
     UNKNOWN = 0,
