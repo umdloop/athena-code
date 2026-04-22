@@ -636,12 +636,6 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
         can_tx_frame_.data[j] = data[j];
       }
       canBus.send(can_tx_frame_);
-      RCLCPP_INFO(
-        rclcpp::get_logger("RMDHardwareInterface"),
-        "Sent CAN message for joint '%s' with command '%s'",
-        joint.name.c_str(),
-        std::to_string(data[0]).c_str()
-      );    
     }
   }
 

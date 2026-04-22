@@ -39,6 +39,7 @@ controller_interface::CallbackReturn MotorStatusController::on_init()
   status_request_rate = 0;
   maintenance_req_joint_name = "";
   maintenance_request_rate = 0;
+  one_shot_sent = false;
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -214,7 +215,21 @@ controller_interface::return_type MotorStatusController::update(
           command_interfaces_[it->second].set_value(maintenance_cmd_id);
         }
         else if (iface == "status_request" && joint == status_req_joint_name) {
-          command_interfaces_[it->second].set_value(status_request_rate);
+          if (status_request_rate < 0 && one_shot_sent == false) {
+            command_interfaces_[it->second].set_value(status_request_rate);
+            RCLCPP_WARN(get_node()->get_logger(), "One shot sent: .");
+            one_shot_sent = true;
+            one_shot_time = time;
+          }
+          else if (status_request_rate < 0 && one_shot_sent == true && (time - one_shot_time) >= one_shot_delay) {
+            status_request_rate = 0;
+            command_interfaces_[it->second].set_value(status_request_rate);
+            one_shot_sent = false;
+            RCLCPP_WARN(get_node()->get_logger(), "One shot reset.");
+          }
+          else if (status_request_rate >= 0) {
+            command_interfaces_[it->second].set_value(status_request_rate);
+          }
         }
         else if (iface == "maintenance_request" && joint == maintenance_req_joint_name) {
           command_interfaces_[it->second].set_value(maintenance_request_rate);

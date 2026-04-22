@@ -78,6 +78,7 @@ protected:
   std::string maintenance_req_joint_name;
   int maintenance_request_rate;
   uint8_t maintenance_cmd_id;
+  bool one_shot_sent;
 
   // Map from "joint/interface" to index in state_interfaces_
   std::unordered_map<std::string, size_t> state_interface_map_;
@@ -88,7 +89,9 @@ protected:
   // Publish rate limiting
   rclcpp::Duration publish_period_{0, 0};
   rclcpp::Time last_publish_time_{0, 0, RCL_CLOCK_UNINITIALIZED};
-
+  rclcpp::Time one_shot_time{0, 0, RCL_CLOCK_UNINITIALIZED};
+  rclcpp::Duration one_shot_delay{0, 500000000};
+  
   enum class MotorStatus : uint8_t {
     UNKNOWN = 0,
     IDLE = 1,
