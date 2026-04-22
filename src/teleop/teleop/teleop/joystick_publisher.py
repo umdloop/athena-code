@@ -42,10 +42,10 @@ class JoystickPublisher(Node):
             config = yaml.safe_load(f)
 
 
-        axes_list = config['ros__parameters']['controllers'][self.joystick_type]['axes']
+        axes_list = config['/**']['ros__parameters']['controllers'][self.joystick_type]['axes']
 
         self._axes_config = {e['name']: e for e in axes_list}
-        slots = config['ros__parameters']['subsystems'][self.subsystem]['output_slots']
+        slots = config['/**']['ros__parameters']['subsystems'][self.subsystem]['output_slots']
         self._slot_params = [self._axes_config[name] for name in slots]
 
         
@@ -67,17 +67,23 @@ class JoystickPublisher(Node):
         self.button_data = None
         self.hat_data = None
         self.activation = 0.08
+        JOYSTICK_NAMES = {
+            "thrustmaster": "thrustmaster t.16000m",
+            "xbox": "xbox series x controller",
+        }
+        target_name = JOYSTICK_NAMES[self.joystick_type]
+
         self.joystick_index = None
 
         # Pygame Controller
         pygame.init()
-        pygame.joystick.init()            
+        pygame.joystick.init()
         joysticks = pygame.joystick.get_count()
 
         for i in range(joysticks):
             js = pygame.joystick.Joystick(i)
             name = js.get_name().lower()
-            if(name == self.joystick_type):
+            if(name == target_name):
                 self.joystick_index = i
                 break
 
@@ -110,7 +116,7 @@ class JoystickPublisher(Node):
                 self.hat_data[i] = (0, 0)
 
         self.previous_axes = np.zeros(len(self._slot_params))
-        self.previous_buttons = np.zeros(13)        
+        self.previous_buttons = np.zeros(len(self.button_data))
 
     def _normalize(self, raw, invert, trigger):
         if abs(raw) < self.activation:
@@ -148,7 +154,7 @@ class JoystickPublisher(Node):
                 )
 
             # Buttons
-            for i in range(13):
+            for i in self.button_data:
                 button_activations[i] = self.button_data[i]
 
         # Save current numpy array for joystick and buttons
