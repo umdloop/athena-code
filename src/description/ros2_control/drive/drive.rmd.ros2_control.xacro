@@ -19,7 +19,9 @@
         <command_interface name="velocity"/>
         <command_interface name="status_request"/>
         <command_interface name="maintenance_request"/>
-        <command_interface name="maintenance_cmd_id"/>
+        <command_interface name="maintenance_frame_high"/>
+        <command_interface name="maintenance_frame_low"/>
+        <command_interface name="maintenance_data_count"/>
         <state_interface name="position"/>
         <state_interface name="velocity"/>
         <state_interface name="motor_temperature"/>
@@ -36,7 +38,9 @@
         <command_interface name="velocity"/>
         <command_interface name="status_request"/>
         <command_interface name="maintenance_request"/>
-        <command_interface name="maintenance_cmd_id"/>
+        <command_interface name="maintenance_frame_high"/>
+        <command_interface name="maintenance_frame_low"/>
+        <command_interface name="maintenance_data_count"/>
         <state_interface name="position"/>
         <state_interface name="velocity"/>
         <state_interface name="motor_temperature"/>
@@ -53,7 +57,9 @@
         <command_interface name="velocity"/>
         <command_interface name="status_request"/>
         <command_interface name="maintenance_request"/>
-        <command_interface name="maintenance_cmd_id"/>
+        <command_interface name="maintenance_frame_high"/>
+        <command_interface name="maintenance_frame_low"/>
+        <command_interface name="maintenance_data_count"/>
         <state_interface name="position"/>
         <state_interface name="velocity"/>
         <state_interface name="motor_temperature"/>
@@ -70,7 +76,9 @@
         <command_interface name="velocity"/>
         <command_interface name="status_request"/>
         <command_interface name="maintenance_request"/>
-        <command_interface name="maintenance_cmd_id"/>
+        <command_interface name="maintenance_frame_high"/>
+        <command_interface name="maintenance_frame_low"/>
+        <command_interface name="maintenance_data_count"/>
         <state_interface name="position"/>
         <state_interface name="velocity"/>
         <state_interface name="motor_temperature"/>

@@ -13,6 +13,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <bit>
 
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/lexical_casts.hpp"
@@ -24,6 +25,8 @@ using std::placeholders::_1;
 
 namespace rmd_ros2_control
 {
+
+  // -- HELPER FUNCTIONS -- //
 
 double RMDHardwareInterface::calculate_joint_position_from_motor_position(double motor_position, int gear_ratio){
   // Converts from 0.01 deg to deg to radians/s
@@ -96,44 +99,21 @@ void RMDHardwareInterface::logger_function(){
         << " | Joint Command Velocity: " << joint.joint_command_velocity << "\n"
         << "Motor Status Request: " << joint.motor_status_req
         << " | Motor Maintenance Request Rate: " << joint.motor_maintenance_req
-        << " | Motor Maintenance Command ID: " << joint.maintenance_cmd_id << "\n"
+        << " | Motor Maintenance Command High: " << joint.maintenance_frame_high
+        << " | Motor Maintenance Command Low: " << joint.maintenance_frame_low
+        << " | Motor Maintenance Command Full: " << joint.maintenance_frame << "\n"
         << "Previous: Motor Status Request Rate: " << joint.prev_status_req
         << " | Motor Maintenance Request Rate: " << joint.prev_maintenance_req
-        << " | Motor Maintenance Command ID: " << joint.prev_maintenance_cmd_id << "\n"
-        << "-- State --\n"
+        << "Decoded Maintenance Frame: ";
+        for (const auto& byte : joint.decoded_maintenance_frame) {
+          oss << std::hex << std::uppercase << static_cast<int>(byte) << " ";
+        }
+    oss << "\n-- State --\n"
         << "Joint Position: " << joint.joint_state_position
         << " | Joint Velocity: " << joint.joint_state_velocity << "\n"
         << "-- Telemetry --\n"
         << "Motor Temperature: " << joint.motor_temperature << " C"
         << " | Torque Current: " << joint.motor_torque_current << " A\n";
-
-    /*
-    // Interfaces
-    oss << "-- Interfaces --\n";
-    oss << "State Interfaces: ";
-    for (size_t si = 0; si < joint.state_interface_names.size(); ++si) {
-      if (si) oss << ", ";
-      oss << joint.state_interface_names[si];
-    }
-    oss << "\n";
-
-    oss << "Command Interfaces: ";
-    for (size_t ci = 0; ci < joint.command_interface_names.size(); ++ci) {
-      if (ci) oss << ", ";
-      oss << joint.command_interface_names[ci];
-    }
-    oss << "\n";
-
-    // Parameters map
-    oss << "-- Parameters --\n";
-    bool first_param = true;
-    for (const auto &p : joint.parameters) {
-      if (!first_param) oss << ", ";
-      oss << p.first << ": " << p.second;
-      first_param = false;
-    }
-    oss << "\n";
-    */
   }
 
   log_msg += oss.str();
@@ -190,6 +170,160 @@ bool RMDHardwareInterface::process_status(uint16_t status, const rclcpp::Logger 
   return !has_fatal_error;
 }
 
+bool RMDHardwareInterface::format_maintenance_command(CANLib::CanFrame & frame, const DecodedCommand & decoded_cmd) {
+  std::fill(std::begin(frame.data), std::end(frame.data), 0x00);
+  frame.data[0] = decoded_cmd.command_id; // Set multiplexor
+  switch (static_cast<MaintenanceCommands>(decoded_cmd.command_id)) {
+    case MaintenanceCommands::WRITE_PID_TO_RAM_CMD:
+      if(decoded_cmd.u8_data.size() != 6 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        frame.data[2] = decoded_cmd.u8_data[0]; // Current Loop P gain
+        frame.data[3] = decoded_cmd.u8_data[1]; // Current Loop I gain
+        frame.data[4] = decoded_cmd.u8_data[2]; // Speed Loop P gain
+        frame.data[5] = decoded_cmd.u8_data[3]; // Speed Loop I gain
+        frame.data[6] = decoded_cmd.u8_data[4]; // Position Loop P gain
+        frame.data[7] = decoded_cmd.u8_data[5]; // Position Loop I gain
+        return true;
+      }
+    case MaintenanceCommands::WRITE_PID_TO_ROM_CMD:
+      if(decoded_cmd.u8_data.size() != 6 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        frame.data[2] = decoded_cmd.u8_data[0]; // Current Loop P gain
+        frame.data[3] = decoded_cmd.u8_data[1]; // Current Loop I gain
+        frame.data[4] = decoded_cmd.u8_data[2]; // Speed Loop P gain
+        frame.data[5] = decoded_cmd.u8_data[3]; // Speed Loop I gain
+        frame.data[6] = decoded_cmd.u8_data[4]; // Position Loop P gain
+        frame.data[7] = decoded_cmd.u8_data[5]; // Position Loop I gain
+        return true;
+      }
+    case MaintenanceCommands::WRITE_ACCELERATION_CMD:
+      if(decoded_cmd.u8_data.size() != 1 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 1){
+        return false; // Invalid data format for this command
+      }
+      else{
+        frame.data[1] = decoded_cmd.u8_data[0]; // Function Index
+        frame.data[4] = decoded_cmd.i32_data[0] & 0xFF; // Acceleration low byte
+        frame.data[5] = (decoded_cmd.i32_data[0] >> 8) & 0xFF; // Acceleration byte 2
+        frame.data[6] = (decoded_cmd.i32_data[0] >> 16) & 0xFF; // Acceleration byte 3
+        frame.data[7] = (decoded_cmd.i32_data[0] >> 24) & 0xFF; // Acceleration high byte
+        return true;
+      }
+    case MaintenanceCommands::WRITE_ENCODER_MULTI_TURN_ZERO_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 1){
+        return false; // Invalid data format for this command
+      }
+      else{
+        frame.data[4] = decoded_cmd.i32_data[0] & 0xFF; // Encoder offset low byte
+        frame.data[5] = (decoded_cmd.i32_data[0] >> 8) & 0xFF; // Encoder offset byte 2
+        frame.data[6] = (decoded_cmd.i32_data[0] >> 16) & 0xFF; // Encoder offset byte 3
+        frame.data[7] = (decoded_cmd.i32_data[0] >> 24) & 0xFF; // Encoder offset high byte
+        return true;
+      }
+    case MaintenanceCommands::WRITE_CURRENT_MULTI_TURN_POS_ZERO_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
+    case MaintenanceCommands::SYSTEM_RESET_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
+    case MaintenanceCommands::BRAKE_RELEASE_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
+    case MaintenanceCommands::BRAKE_LOCK_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
+    case MaintenanceCommands::MOTOR_SHUTDOWN_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
+    case MaintenanceCommands::MOTOR_STOP_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
+    default:
+      return false;
+  }
+}
+
+void RMDHardwareInterface::format_control_command(CANLib::CanFrame & frame, RMDJoint & joint) {
+  std::fill(std::begin(frame.data), std::end(frame.data), 0x00);
+  if (joint.control_level == integration_level_t::POSITION &&
+    std::isfinite(joint.joint_command_position) &&
+    joint.joint_command_position != joint.prev_joint_command_position)
+  {
+    int32_t joint_angle = joint.orientation *
+      calculate_motor_position_from_desired_joint_position(
+        joint.joint_command_position, joint.gear_ratio);
+
+    frame.data[0] = static_cast<uint8_t>(ControlCommands::ABSOLUTE_POS_CONTROL_CMD);
+    frame.data[1] = 0x00;
+    frame.data[2] = joint.operating_velocity & 0xFF;
+    frame.data[3] = (joint.operating_velocity >> 8) & 0xFF;
+    frame.data[4] = joint_angle & 0xFF;
+    frame.data[5] = (joint_angle >> 8) & 0xFF;
+    frame.data[6] = (joint_angle >> 16) & 0xFF;
+    frame.data[7] = (joint_angle >> 24) & 0xFF;
+
+    joint.prev_joint_command_position = joint.joint_command_position;
+  }
+  else if (joint.control_level == integration_level_t::VELOCITY &&
+          std::isfinite(joint.joint_command_velocity) &&
+          joint.joint_command_velocity != joint.prev_joint_command_velocity)
+  {
+    int32_t joint_velocity = joint.orientation *
+      calculate_motor_velocity_from_desired_joint_velocity(
+        joint.joint_command_velocity, joint.gear_ratio);
+
+    frame.data[0] = static_cast<uint8_t>(ControlCommands::SPEED_CONTROL_CMD);
+    frame.data[1] = 0x00;
+    frame.data[2] = 0x00;
+    frame.data[3] = 0x00;
+    frame.data[4] = joint_velocity & 0xFF;
+    frame.data[5] = (joint_velocity >> 8) & 0xFF;
+    frame.data[6] = (joint_velocity >> 16) & 0xFF;
+    frame.data[7] = (joint_velocity >> 24) & 0xFF;
+
+    joint.prev_joint_command_velocity = joint.joint_command_velocity;
+  }
+  else
+  {
+    frame.data[0] = static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_2_CMD);
+  }
+}
+
+// -- LIFECYCLE CALLBACKS --
+
 hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
   const hardware_interface::HardwareInfo & info) // Info stores all parameters in xacro file
 {
@@ -245,11 +379,14 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
         .joint_command_velocity = 0.0,
         .motor_status_req = 0.0,
         .motor_maintenance_req = 0.0,
-        .maintenance_cmd_id = std::numeric_limits<double>::quiet_NaN(),
+        .maintenance_frame_high = 0.0,
+        .maintenance_frame_low = 0.0,
+        .maintenance_frame = 0.0,
+        .maintenance_data_count = 0.0,
+        .decoded_maintenance_frame = {},
 
         .prev_status_req = 0.0,
         .prev_maintenance_req = 0.0,
-        .prev_maintenance_cmd_id = std::numeric_limits<double>::quiet_NaN(),
         .elapsed_status_request_time = 0.0,
         .elapsed_maintenance_request_time = 0.0,
         .motor_velocity = 0.0,
@@ -333,8 +470,12 @@ RMDHardwareInterface::export_command_interfaces()
         val = &joint.motor_status_req;
       } else if (iface == "maintenance_request") {
         val = &joint.motor_maintenance_req;
-      } else if (iface == "maintenance_cmd_id") {
-        val = &joint.maintenance_cmd_id;
+      } else if (iface == "maintenance_frame_high") {
+        val = &joint.maintenance_frame_high;
+      } else if (iface == "maintenance_frame_low") {
+        val = &joint.maintenance_frame_low;
+      } else if (iface == "maintenance_data_count") {
+        val = &joint.maintenance_data_count;
       } else {
         RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Unknown command interface '%s' for joint '%s'", iface.c_str(), joint.name.c_str());
         continue;
@@ -504,8 +645,6 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
   uint8_t data[8] = {0x00};
-  int32_t joint_angle = 0;
-  int32_t joint_velocity = 0;
 
   // Logger update
   elapsed_time+=period.seconds();
@@ -520,30 +659,24 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
 
   // Status request handling
   for (auto & joint : RMDJoints_) {
-    can_tx_frame_ = CANLib::CanFrame();
-    can_tx_frame_.id = joint.node_write_id;
-    can_tx_frame_.dlc = 8;
-    can_tx_frame_.data[0] = static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_1_CMD);
-
     double curr_status_req = joint.motor_status_req;
     if (curr_status_req < 0 && joint.prev_status_req >= 0) // Send one shot status request
     {
-      canBus.send(can_tx_frame_);
-      RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "One shot status request sent for joint '%s'", joint.name.c_str());
+      for (auto & status_command : kStatusCommands) {
+        send_command(joint.node_write_id, static_cast<int>(status_command));
+      }
+      RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "One-shot status request sent for joint '%s'.", joint.name.c_str());
     }
-    else if (joint.motor_status_req > 0) // Send status request at specified frequency (Hz)
+    else if (curr_status_req > 0) // Send status request at specified frequency (Hz)
     {
       joint.elapsed_status_request_time += period.seconds();
-      double status_request_period = 1.0 / joint.motor_status_req;
+      double status_request_period = 1.0 / curr_status_req;
       if(joint.elapsed_status_request_time > status_request_period){
         joint.elapsed_status_request_time = 0.0;
-        canBus.send(can_tx_frame_); 
-        RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Periodic status request sent for joint '%s'", joint.name.c_str());
+        for (auto & status_command : kStatusCommands) {
+          send_command(joint.node_write_id, static_cast<int>(status_command));
+        }
       }
-    }
-    else
-    {
-      continue;
     }
     joint.prev_status_req = curr_status_req;
   }
@@ -554,25 +687,42 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
     can_tx_frame_.id = joint.node_write_id;
     can_tx_frame_.dlc = 8;
 
+    auto doubles_to_payload = [](double high, double low) -> int64_t
+    {
+        uint64_t h = static_cast<uint64_t>(high);
+        uint64_t l = static_cast<uint64_t>(low);
+        return static_cast<int64_t>((h << 32) | l);
+    };
+
+    // Call it and store the result
+    joint.maintenance_frame = doubles_to_payload(joint.maintenance_frame_high,
+                                                joint.maintenance_frame_low);
+
+    // Decode the maintenance command interfaces
+    DecodedCommand decoded_maintenance_cmd = unpack_command_full(static_cast<uint32_t>(joint.maintenance_data_count), static_cast<uint64_t>(joint.maintenance_frame));
+
+    pack_decoded_maintenance_frame(joint, decoded_maintenance_cmd); // Store decoded maintenance command in joint struct for logging and validation
+
+    if(!format_maintenance_command(can_tx_frame_, decoded_maintenance_cmd)){ // Validate maintenance command ID before sending
+      // RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Invalid maintenance command for joint '%s'.", joint.name.c_str());
+      continue;
+    }
+
     double curr_maintenance_req = joint.motor_maintenance_req;
-    uint8_t maintenance_cmd_id = 0x00;
-    can_tx_frame_.data[0] = maintenance_cmd_id;
+
     if (curr_maintenance_req < 0 && joint.prev_maintenance_req >= 0) // Send one shot maintenance request
     {
-      canBus.send(can_tx_frame_); 
+      canBus.send(can_tx_frame_);
+      RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "One-shot maintenance request sent for joint '%s'.", joint.name.c_str());
     }
-    else if(joint.motor_maintenance_req > 0) // Send maintenance request at specified frequency (Hz)
+    else if(curr_maintenance_req > 0) // Send maintenance request at specified frequency (Hz)
     {
       joint.elapsed_maintenance_request_time += period.seconds();
       double maintenance_request_period = 1.0 / joint.motor_maintenance_req;
       if(joint.elapsed_maintenance_request_time > maintenance_request_period){
         joint.elapsed_maintenance_request_time = 0.0;
-        canBus.send(can_tx_frame_); 
+        canBus.send(can_tx_frame_);
       }
-    }
-    else
-    {
-      continue;
     }
     joint.prev_maintenance_req = curr_maintenance_req;
   }
@@ -590,51 +740,7 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
       can_tx_frame_.id = joint.node_write_id;
       can_tx_frame_.dlc = 8;
       
-        if (joint.control_level == integration_level_t::POSITION && std::isfinite(joint.joint_command_position) &&
-          joint.joint_command_position != joint.prev_joint_command_position) {
-        // CALCULATE DESIRED JOINT ANGLE
-        joint_angle = joint.orientation * calculate_motor_position_from_desired_joint_position(
-          joint.joint_command_position, joint.gear_ratio);
-
-        // ENCODING CAN MESSAGE
-        data[0] = static_cast<uint8_t>(ControlCommands::ABSOLUTE_POS_CONTROL_CMD);
-        data[1] = 0x00;
-        data[2] = joint.operating_velocity & 0xFF;
-        data[3] = (joint.operating_velocity >> 8) & 0xFF;
-        data[4] = joint_angle & 0xFF;
-        data[5] = (joint_angle >> 8) & 0xFF;
-        data[6] = (joint_angle >> 16) & 0xFF;
-        data[7] = (joint_angle >> 24) & 0xFF;
-
-        joint.prev_joint_command_position = joint.joint_command_position;
-      } else if (joint.control_level == integration_level_t::VELOCITY && std::isfinite(joint.joint_command_velocity) &&
-                 joint.joint_command_velocity != joint.prev_joint_command_velocity) {
-        // CALCULATE DESIRED JOINT VELOCITY
-        joint_velocity = joint.orientation * calculate_motor_velocity_from_desired_joint_velocity(
-          joint.joint_command_velocity, joint.gear_ratio);
-
-        // ENCODING CAN MESSAGE
-        data[0] = static_cast<uint8_t>(ControlCommands::SPEED_CONTROL_CMD);
-        data[1] = 0x00;
-        data[2] = 0x00;
-        data[3] = 0x00;
-        data[4] = joint_velocity & 0xFF;
-        data[5] = (joint_velocity >> 8) & 0xFF;
-        data[6] = (joint_velocity >> 16) & 0xFF;
-        data[7] = (joint_velocity >> 24) & 0xFF;
-
-        joint.prev_joint_command_velocity = joint.joint_command_velocity;
-      } else {
-        // No new control command to send; send status poll instead
-        data[0] = static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_2_CMD);
-        // RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Joint command value not found or undefined command state. Sending Motor Status 2 command for joint '%s'", joint.name.c_str());
-      }
-
-      // Cast data to uint8_t
-      for(int j = 0; j < 8; j++){
-        data[j] = static_cast<uint8_t>(data[j]);
-        can_tx_frame_.data[j] = data[j];
-      }
+      format_control_command(can_tx_frame_, joint);
       canBus.send(can_tx_frame_);
     }
   }

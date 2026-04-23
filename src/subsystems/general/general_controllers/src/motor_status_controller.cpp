@@ -39,7 +39,7 @@ controller_interface::CallbackReturn MotorStatusController::on_init()
   status_request_rate = 0;
   maintenance_req_joint_name = "";
   maintenance_request_rate = 0;
-  one_shot_sent = false;
+  status_one_shot_sent = false;
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -138,9 +138,42 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
 
       maintenance_req_joint_name = request->joint_name;
       maintenance_request_rate = request->request_rate;
-      maintenance_cmd_id = request->command_id;
 
-      std::string msg = "Received maintenance_request " + std::to_string(maintenance_cmd_id) + " for joint " + maintenance_req_joint_name + " at request_rate: " + std::to_string(maintenance_request_rate);
+      auto packed = pack_command_full(
+                    request->command_id,
+                    request->u8_data,
+                    request->i16_data,
+                    request->i32_data);
+
+      auto payload_to_doubles = [](int64_t value) -> std::pair<double, double>
+      {
+          uint64_t u = static_cast<uint64_t>(value);
+          double high = static_cast<double>(u >> 32);
+          double low  = static_cast<double>(u & 0xFFFFFFFF);
+          return {high, low};
+      };
+
+      auto [high, low] = payload_to_doubles(packed.payload);
+
+      maintenance_frame_high = high;
+      maintenance_frame_low  = low;
+      maintenance_data_count = static_cast<double>(packed.counts);
+
+      std::ostringstream oss;
+
+      oss << "Received maintenance_request for joint "
+          << maintenance_req_joint_name
+          << " with frame: 0x"
+          << std::hex << std::uppercase
+          << std::setfill('0') << std::setw(8) << static_cast<uint64_t>(maintenance_frame_high)
+          << std::setfill('0') << std::setw(8) << static_cast<uint64_t>(maintenance_frame_low)
+          << std::dec << std::nouppercase
+          << " and data count(s): "
+          << maintenance_data_count
+          << " at request_rate: "
+          << maintenance_request_rate;
+
+      std::string msg = oss.str();
       response->success = true;
       response->message = msg;
       RCLCPP_INFO(get_node()->get_logger(), "%s", msg.c_str());
@@ -211,28 +244,50 @@ controller_interface::return_type MotorStatusController::update(
       std::string key = joint + "/" + iface;
       auto it = command_interface_map_.find(key);
       if (it != command_interface_map_.end()) {
-        if (iface == "maintenance_cmd_id" && joint == maintenance_req_joint_name) {
-          command_interfaces_[it->second].set_value(maintenance_cmd_id);
+        if (iface == "maintenance_frame_high" && joint == maintenance_req_joint_name) {
+          command_interfaces_[it->second].set_value(maintenance_frame_high);
+        }
+        else if (iface == "maintenance_frame_low" && joint == maintenance_req_joint_name) {
+          command_interfaces_[it->second].set_value(maintenance_frame_low);
+        }
+        else if(iface == "maintenance_data_count" && joint == maintenance_req_joint_name) {
+          command_interfaces_[it->second].set_value(maintenance_data_count);
         }
         else if (iface == "status_request" && joint == status_req_joint_name) {
-          if (status_request_rate < 0 && one_shot_sent == false) {
+          // Controller must turn status request back to 0 if it's a one-shot request
+          if (status_request_rate < 0 && status_one_shot_sent == false) {
             command_interfaces_[it->second].set_value(status_request_rate);
-            RCLCPP_WARN(get_node()->get_logger(), "One shot sent: .");
-            one_shot_sent = true;
-            one_shot_time = time;
+            RCLCPP_WARN(get_node()->get_logger(), "Status one shot sent: ");
+            status_one_shot_sent = true;
+            status_one_shot_time = time;
           }
-          else if (status_request_rate < 0 && one_shot_sent == true && (time - one_shot_time) >= one_shot_delay) {
+          else if (status_request_rate < 0 && status_one_shot_sent == true && (time - status_one_shot_time) >= one_shot_delay) {
             status_request_rate = 0;
             command_interfaces_[it->second].set_value(status_request_rate);
-            one_shot_sent = false;
-            RCLCPP_WARN(get_node()->get_logger(), "One shot reset.");
+            status_one_shot_sent = false;
+            RCLCPP_WARN(get_node()->get_logger(), "Status one shot reset.");
           }
           else if (status_request_rate >= 0) {
             command_interfaces_[it->second].set_value(status_request_rate);
           }
         }
         else if (iface == "maintenance_request" && joint == maintenance_req_joint_name) {
-          command_interfaces_[it->second].set_value(maintenance_request_rate);
+          // Controller must turn maintenance request back to 0 if it's a one-shot request
+          if (maintenance_request_rate < 0 && maintenance_one_shot_sent == false) {
+            command_interfaces_[it->second].set_value(maintenance_request_rate);
+            RCLCPP_WARN(get_node()->get_logger(), "Maintenance one shot sent: ");
+            maintenance_one_shot_sent = true;
+            maintenance_one_shot_time = time;
+          }
+          else if (maintenance_request_rate < 0 && maintenance_one_shot_sent == true && (time - maintenance_one_shot_time) >= one_shot_delay) {
+            maintenance_request_rate = 0;
+            command_interfaces_[it->second].set_value(maintenance_request_rate);
+            maintenance_one_shot_sent = false;
+            RCLCPP_WARN(get_node()->get_logger(), "Maintenance one shot reset.");
+          }
+          else if (maintenance_request_rate >= 0) {
+            command_interfaces_[it->second].set_value(maintenance_request_rate);
+          }
         }
       } else {
         RCLCPP_WARN(get_node()->get_logger(), "Command interface %s not found for joint %s", iface.c_str(), joint.c_str());

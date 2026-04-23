@@ -77,8 +77,11 @@ protected:
   int status_request_rate;
   std::string maintenance_req_joint_name;
   int maintenance_request_rate;
-  uint8_t maintenance_cmd_id;
-  bool one_shot_sent;
+  double maintenance_frame_high;
+  double maintenance_frame_low;
+  double maintenance_data_count;
+  bool status_one_shot_sent;
+  bool maintenance_one_shot_sent;
 
   // Map from "joint/interface" to index in state_interfaces_
   std::unordered_map<std::string, size_t> state_interface_map_;
@@ -89,8 +92,56 @@ protected:
   // Publish rate limiting
   rclcpp::Duration publish_period_{0, 0};
   rclcpp::Time last_publish_time_{0, 0, RCL_CLOCK_UNINITIALIZED};
-  rclcpp::Time one_shot_time{0, 0, RCL_CLOCK_UNINITIALIZED};
-  rclcpp::Duration one_shot_delay{0, 500000000};
+  rclcpp::Time status_one_shot_time{0, 0, RCL_CLOCK_UNINITIALIZED};
+  rclcpp::Time maintenance_one_shot_time{0, 0, RCL_CLOCK_UNINITIALIZED};
+  rclcpp::Duration one_shot_delay{0, 100000000};
+
+  struct PackedCommand
+  {
+    int32_t counts; // 24 bits for count of each data type (u8, i16, i32)
+    int64_t payload; // 8 bits for command_id, followed by packed data (u8, i16, i32)
+  };
+
+  inline PackedCommand pack_command_full(
+      uint8_t command_id,
+      const std::vector<uint8_t>& u8_data,
+      const std::vector<int16_t>& i16_data,
+      const std::vector<int32_t>& i32_data)
+  {
+    size_t total_bits = 8 + 8 * u8_data.size() + 16 * i16_data.size() + 32 * i32_data.size();
+    if (total_bits > 64) {
+        RCLCPP_ERROR(rclcpp::get_logger("MotorStatusController"), "Payload exceeds 64 bits: total_bits=%zu", total_bits);
+        return PackedCommand{0, 0};
+    }
+
+    // PACK COUNTS (only 24 bits needed: 8 bits each for u8/i16/i32 counts)
+    uint32_t counts = 0;
+    int count_offset = 24;
+    auto push_count = [&](uint32_t value, int bits) {
+        count_offset -= bits;
+        counts |= (value & ((1U << bits) - 1)) << count_offset;
+    };
+    push_count(static_cast<uint32_t>(u8_data.size()),  8);
+    push_count(static_cast<uint32_t>(i16_data.size()), 8);
+    push_count(static_cast<uint32_t>(i32_data.size()), 8);
+
+    // PACK PAYLOAD
+    uint64_t payload = 0;
+    int payload_offset = 64;
+    auto push_payload = [&](uint64_t value, int bits) {
+        payload_offset -= bits;
+        payload |= (value & ((1ULL << bits) - 1)) << payload_offset;
+    };
+    push_payload(command_id, 8);
+    for (auto v : u8_data)  push_payload(v, 8);
+    for (auto v : i16_data) push_payload(static_cast<uint16_t>(v), 16);
+    for (auto v : i32_data) push_payload(static_cast<uint32_t>(v), 32);
+
+    return PackedCommand{
+        static_cast<int32_t>(counts),
+        static_cast<int64_t>(payload)
+    };
+  }
   
   enum class MotorStatus : uint8_t {
     UNKNOWN = 0,
