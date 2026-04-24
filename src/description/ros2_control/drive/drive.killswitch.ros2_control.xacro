@@ -15,9 +15,11 @@
         <state_interface name="kill_main_sent"/>
         <state_interface name="kill_jetson_sent"/>
         <state_interface name="is_connected"/>
+        <state_interface name="status"/>
         <command_interface name="kill_all"/>
         <command_interface name="kill_main"/>
         <command_interface name="kill_jetson"/>
+        <command_interface name="status_request"/>
       </gpio>
 
     </ros2_control>

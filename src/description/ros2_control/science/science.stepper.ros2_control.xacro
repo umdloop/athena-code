@@ -12,11 +12,18 @@
             <joint name="stepper_motor_a">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
+                <command_interface name="status_request"/>
+                <command_interface name="maintenance_request"/>
+                <command_interface name="maintenance_frame_high"/>
+                <command_interface name="maintenance_frame_low"/>
+                <command_interface name="maintenance_data_count"/>
                 <state_interface name="position"/>
                 <param name="initial_position">0.0</param>
                 <state_interface name="velocity"/>
                 <state_interface name="motor_temperature"/>
                 <state_interface name="torque_current"/>
+                <state_interface name="status"/>
+                <param name="node_id">0x151</param>
                 <param name="gear_ratio">1</param>
 
                 <!-- TEMPORARY PARAMETERS -->
@@ -26,11 +33,18 @@
             <joint name="stepper_motor_b">
                 <command_interface name="position"/>
                 <command_interface name="velocity"/>
+                <command_interface name="status_request"/>
+                <command_interface name="maintenance_request"/>
+                <command_interface name="maintenance_frame_high"/>
+                <command_interface name="maintenance_frame_low"/>
+                <command_interface name="maintenance_data_count"/>
                 <state_interface name="position"/>
                 <param name="initial_position">0.0</param>
                 <state_interface name="velocity"/>
                 <state_interface name="motor_temperature"/>
                 <state_interface name="torque_current"/>
+                <state_interface name="status"/>
+                <param name="node_id">0x152</param>
                 <param name="gear_ratio">1</param>
 
                 <!-- TEMPORARY PARAMETERS -->

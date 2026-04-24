@@ -15,7 +15,9 @@
                 <state_interface name="laser_state"/>
                 <state_interface name="temperature"/>
                 <state_interface name="is_connected"/>
+                <state_interface name="status"/>
                 <command_interface name="laser_command"/>
+                <command_interface name="status_request"/>
             </gpio>
 
         </ros2_control>
@@ -23,4 +25,3 @@
     </xacro:macro>
 
 </robot>
-

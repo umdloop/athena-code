@@ -1,18 +1,3 @@
-// Copyright (c) 2024 UMD Loop
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-
 #ifndef LED_ROS2_CONTROL__LED_HARDWARE_INTERFACE_HPP_
 #define LED_ROS2_CONTROL__LED_HARDWARE_INTERFACE_HPP_
 
@@ -31,30 +16,13 @@
 namespace led_ros2_control
 {
 
-// GPIO utility functions (Linux sysfs)
 namespace gpio_utils
 {
-  int setup_gpio_output(int pin);
-  void cleanup_gpio(int pin, int fd);
-  bool write_gpio(int fd, bool value);
+int setup_gpio_output(int pin);
+void cleanup_gpio(int pin, int fd);
+bool write_gpio(int fd, bool value);
 }
 
-/**
- * @brief Hardware interface for LED control via ros2_control
- * 
- * This is a SystemInterface for controlling status LEDs through GPIO.
- * 
- * State Interfaces (read by controllers):
- * - led_state: Current LED state (0.0 = OFF, 1.0 = ON)
- * - is_connected: Is hardware connected and ready (0.0 or 1.0)
- * 
- * Command Interfaces (written by controllers):
- * - led_command: LED command (0.0 = turn OFF, 1.0 = turn ON)
- * 
- * Hardware Parameters (from URDF):
- * - gpio_pin: GPIO pin number for LED output (required)
- * - default_state: "on" or "off" (default: "off")
- */
 class LEDHardwareInterface : public hardware_interface::SystemInterface
 {
 public:
@@ -62,52 +30,46 @@ public:
 
   hardware_interface::CallbackReturn on_init(
     const hardware_interface::HardwareInfo & info) override;
-
   hardware_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override;
 
   std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
-
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
   hardware_interface::CallbackReturn on_activate(
     const rclcpp_lifecycle::State & previous_state) override;
-
   hardware_interface::CallbackReturn on_deactivate(
     const rclcpp_lifecycle::State & previous_state) override;
-
   hardware_interface::CallbackReturn on_cleanup(
     const rclcpp_lifecycle::State & previous_state) override;
-
   hardware_interface::CallbackReturn on_shutdown(
     const rclcpp_lifecycle::State & previous_state) override;
 
   hardware_interface::return_type read(
-    const rclcpp::Time & time,
-    const rclcpp::Duration & period) override;
-
+    const rclcpp::Time & time, const rclcpp::Duration & period) override;
   hardware_interface::return_type write(
-    const rclcpp::Time & time,
-    const rclcpp::Duration & period) override;
+    const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
 private:
-  // Configuration parameters
-  int gpio_pin_;
-  bool default_state_;
+  struct LEDJoint
+  {
+    std::string name;
+    int gpio_pin;
+    bool default_state;
+    double led_state;
+    double is_connected;
+    double status;
+    double led_command;
+    double status_request;
+    double prev_status_request;
+    double elapsed_status_request_time;
+  };
 
-  // State variables (hardware → ros2_control)
-  double led_state_;      // Current state: 0.0 = OFF, 1.0 = ON
-  double is_connected_;   // Hardware ready status
-
-  // Command variables (ros2_control → hardware)
-  double led_command_;    // Commanded state
-
-  // Hardware interface
   int gpio_fd_;
   bool hw_connected_;
+  std::vector<LEDJoint> LEDJoints_;
 };
 
 }  // namespace led_ros2_control
 
 #endif  // LED_ROS2_CONTROL__LED_HARDWARE_INTERFACE_HPP_
-

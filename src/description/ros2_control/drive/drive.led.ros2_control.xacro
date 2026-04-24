@@ -13,7 +13,9 @@
       <gpio name="${name}">
         <state_interface name="led_state"/>
         <state_interface name="is_connected"/>
+        <state_interface name="status"/>
         <command_interface name="led_command"/>
+        <command_interface name="status_request"/>
       </gpio>
 
     </ros2_control>
