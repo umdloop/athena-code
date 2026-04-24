@@ -189,11 +189,6 @@ private:
   std::string can_interface;
   
   // Joint specific parameters
-  std::vector<uint32_t> joint_node_write_ids;
-  std::vector<uint32_t> joint_node_read_ids;
-  std::vector<int> joint_gear_ratios;
-  std::vector<int> joint_orientation;
-
   std::vector<RMDJoint> RMDJoints_;
 
   // CAN Commands
