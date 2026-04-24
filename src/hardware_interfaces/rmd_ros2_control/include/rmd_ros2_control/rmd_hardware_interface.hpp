@@ -112,6 +112,13 @@ public:
     double motor_temperature;
     double motor_torque_current;
     double motor_status;
+    double current_Kp;
+    double current_Ki;
+    double speed_Kp;
+    double speed_Ki;
+    double position_Kp;
+    double position_Ki;
+    double acceleration;
 
     double joint_command_position;
     double joint_command_velocity;
