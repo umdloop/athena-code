@@ -202,6 +202,9 @@ motor_status_controller:
       - base_yaw
       - shoulder_pitch
       - elbow_pitch
+      - wrist_pitch
+      - wrist_roll
+      - actuator
     interfaces:
       - motor_temperature
       - torque_current
