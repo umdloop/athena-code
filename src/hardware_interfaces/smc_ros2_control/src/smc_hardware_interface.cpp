@@ -13,6 +13,8 @@
 namespace smc_ros2_control
 {
 
+// -- HELPER FUNCTIONS -- //
+
 double SMCHardwareInterface::calculate_joint_position_from_motor_position(
   double motor_position, int gear_ratio)
 {
@@ -112,6 +114,22 @@ bool SMCHardwareInterface::interpret_settings_parameters(
       joint.current_Ki = static_cast<double>(static_cast<int16_t>((data[5] << 8) | data[4]));
       joint.current_Kd = static_cast<double>(static_cast<int16_t>((data[7] << 8) | data[6]));
       return true;
+    case ParamID::MAX_TORQUE:
+      joint.max_torque = static_cast<double>(static_cast<int16_t>((data[3] << 8) | data[2]));
+      return true;
+    case ParamID::MAX_SPEED:
+      joint.max_speed = static_cast<double>(static_cast<int32_t>((data[5] << 24) | (data[4] << 16) | (data[3] << 8) | data[2]));
+      return true;
+    case ParamID::MAX_ANGLE_A:
+    case ParamID::MAX_ANGLE_B:
+      joint.max_angle = static_cast<double>(static_cast<int32_t>((data[5] << 24) | (data[4] << 16) | (data[3] << 8) | data[2])) * 0.01 * (M_PI / 180.0);
+      return true;
+    case ParamID::CURRENT_RAMP:
+      joint.current_ramp = static_cast<double>(static_cast<int16_t>((data[3] << 8) | data[2]));
+      return true;
+    case ParamID::SPEED_RAMP:
+      joint.speed_ramp = static_cast<double>(static_cast<int32_t>((data[5] << 24) | (data[4] << 16) | (data[3] << 8) | data[2]));
+      return true;
     default:
       return false;
   }
@@ -162,39 +180,79 @@ void SMCHardwareInterface::format_control_command(CANLib::CanFrame & frame, SMCJ
   frame.data[0] = static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_2_CMD);
 }
 
-bool SMCHardwareInterface::format_status_command(CANLib::CanFrame & frame, uint8_t command_id)
-{
-  std::fill(std::begin(frame.data), std::end(frame.data), 0x00);
-  frame.data[0] = command_id;
-  switch (static_cast<StatusCommands>(command_id)) {
-    case StatusCommands::READ_ACCELERATION_CMD:
-    case StatusCommands::READ_SETTINGS_CMD:
-    case StatusCommands::READ_ENCODER_CMD:
-    case StatusCommands::READ_ABS_ANGLE_CMD:
-    case StatusCommands::MOTOR_STATUS_1_CMD:
-    case StatusCommands::MOTOR_STATUS_2_CMD:
-      return true;
-    default:
-      return false;
-  }
-}
-
 bool SMCHardwareInterface::format_maintenance_command(
   CANLib::CanFrame & frame, const DecodedCommand & decoded_cmd)
 {
   std::fill(std::begin(frame.data), std::end(frame.data), 0x00);
-  frame.data[0] = decoded_cmd.command_id;
-
+  frame.data[0] = decoded_cmd.command_id; // Set multiplexor
   switch (static_cast<MaintenanceCommands>(decoded_cmd.command_id)) {
     case MaintenanceCommands::WRITE_ACCELERATION_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 1){
+        return false; // Invalid data format for this command
+      }
+      else{
+        frame.data[4] = decoded_cmd.i32_data[0] & 0xFF; // Acceleration low byte
+        frame.data[5] = (decoded_cmd.i32_data[0] >> 8) & 0xFF; // Acceleration byte 2
+        frame.data[6] = (decoded_cmd.i32_data[0] >> 16) & 0xFF; // Acceleration byte 3
+        frame.data[7] = (decoded_cmd.i32_data[0] >> 24) & 0xFF; // Acceleration high byte
+        return true;
+      }
     case MaintenanceCommands::WRITE_SETTINGS_TO_RAM_CMD:
+      if(decoded_cmd.u8_data.size() != 1 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        frame.data[1] = decoded_cmd.u8_data[0]; // Parameter ID
+        return true;
+      }
     case MaintenanceCommands::WRITE_SETTINGS_TO_ROM_CMD:
+      if(decoded_cmd.u8_data.size() != 1 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        frame.data[1] = decoded_cmd.u8_data[0]; // Parameter ID
+        return true;
+      }
     case MaintenanceCommands::MOTOR_SHUTDOWN_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
     case MaintenanceCommands::MOTOR_STOP_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
     case MaintenanceCommands::MOTOR_RUNNING_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
     case MaintenanceCommands::CLEAR_MOTOR_ANGLE_CMD:
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
     case MaintenanceCommands::CLEAR_ERROR_CMD:
-      break;
+      if(decoded_cmd.u8_data.size() != 0 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        // Empty
+        return true;
+      }
     default:
       return false;
   }
@@ -240,72 +298,89 @@ hardware_interface::CallbackReturn SMCHardwareInterface::on_init(
   logger_state = std::stoi(info_.hardware_parameters.at("logger_state"));
   can_interface = info_.hardware_parameters.at("can_interface");
 
+  // Per Joint Parameters
   for (const auto & joint : info_.joints) {
-    std::vector<std::string> state_if_names;
-    for (const auto & si : joint.state_interfaces) {
-      state_if_names.push_back(si.name);
-    }
-
-    std::vector<std::string> command_if_names;
-    for (const auto & ci : joint.command_interfaces) {
-      command_if_names.push_back(ci.name);
-    }
-
-    std::unordered_map<std::string, std::string> params_map;
-    for (const auto & p : joint.parameters) {
-      params_map.emplace(p.first, p.second);
-    }
-
+    // Collect joint specific parameters
     const int node_id = std::clamp(std::stoi(joint.parameters.at("node_id"), nullptr, 0), 0x141, 0x160);
     const int gear_ratio = std::abs(std::stoi(joint.parameters.at("gear_ratio")));
     const int orientation = joint.parameters.count("joint_orientation") &&
       std::stoi(joint.parameters.at("joint_orientation")) == -1 ? -1 : 1;
     const int operating_velocity = std::clamp(
       std::stoi(joint.parameters.at("operating_velocity")), 0, 65 * gear_ratio);
+    
+    // Collect state interface names
+    std::vector<std::string> state_if_names;
+    for (const auto & si : joint.state_interfaces) {
+      state_if_names.push_back(si.name);
+    }
+    
+    // Collect command interface names
+    std::vector<std::string> command_if_names;
+    for (const auto & ci : joint.command_interfaces) {
+      command_if_names.push_back(ci.name);
+    }
+    
+    // Copy parameters into an unordered_map<string,string>
+    std::unordered_map<std::string, std::string> params_map;
+    for (const auto & p : joint.parameters) {
+      params_map.emplace(p.first, p.second);
+    }
 
+    // Populate each SMCJoint object
     SMCJoint smc_joint{};
-    smc_joint.name = joint.name;
-    smc_joint.node_id = static_cast<uint32_t>(node_id);
-    smc_joint.gear_ratio = gear_ratio;
-    smc_joint.orientation = orientation;
-    smc_joint.operating_velocity = static_cast<uint16_t>(operating_velocity);
-    smc_joint.control_level = integration_level_t::POSITION;
-    smc_joint.joint_state_position = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.joint_state_velocity = 0.0;
-    smc_joint.motor_temperature = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.motor_torque_current = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.motor_status = 0.0;
-    smc_joint.current_Kp = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.current_Ki = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.current_Kd = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.speed_Kp = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.speed_Ki = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.speed_Kd = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.position_Kp = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.position_Ki = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.position_Kd = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.acceleration = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.joint_command_position = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.joint_command_velocity = 0.0;
-    smc_joint.motor_status_req = 0.0;
-    smc_joint.motor_maintenance_req = 0.0;
-    smc_joint.maintenance_frame_high = 0.0;
-    smc_joint.maintenance_frame_low = 0.0;
-    smc_joint.maintenance_frame = 0.0;
-    smc_joint.maintenance_data_count = 0.0;
-    smc_joint.prev_status_req = 0.0;
-    smc_joint.prev_maintenance_req = 0.0;
-    smc_joint.elapsed_status_request_time = 0.0;
-    smc_joint.elapsed_maintenance_request_time = 0.0;
-    smc_joint.motor_velocity = 0.0;
-    smc_joint.motor_position = 0.0;
-    smc_joint.encoder_position = 0.0;
-    smc_joint.prev_joint_command_position = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.prev_joint_command_velocity = std::numeric_limits<double>::quiet_NaN();
-    smc_joint.state_interface_names = state_if_names;
-    smc_joint.command_interface_names = command_if_names;
-    smc_joint.parameters = params_map;
-    SMCJoints_.push_back(std::move(smc_joint));
+    SMCJoints_.push_back(
+      SMCJoint{
+        .name = joint.name,
+        .node_id = static_cast<uint32_t>(node_id),
+        .gear_ratio = gear_ratio,
+        .orientation = orientation,
+        .operating_velocity = static_cast<uint16_t>(operating_velocity),
+        .control_level = integration_level_t::POSITION,
+        .joint_state_position = std::numeric_limits<double>::quiet_NaN(),
+        .joint_state_velocity = 0.0,
+        .motor_temperature = std::numeric_limits<double>::quiet_NaN(),
+        .motor_torque_current = std::numeric_limits<double>::quiet_NaN(),
+        .motor_status = 0.0,
+        .current_Kp = std::numeric_limits<double>::quiet_NaN(),
+        .current_Ki = std::numeric_limits<double>::quiet_NaN(),
+        .current_Kd = std::numeric_limits<double>::quiet_NaN(),
+        .speed_Kp = std::numeric_limits<double>::quiet_NaN(),
+        .speed_Ki = std::numeric_limits<double>::quiet_NaN(),
+        .speed_Kd = std::numeric_limits<double>::quiet_NaN(),
+        .position_Kp = std::numeric_limits<double>::quiet_NaN(),
+        .position_Ki = std::numeric_limits<double>::quiet_NaN(),
+        .position_Kd = std::numeric_limits<double>::quiet_NaN(),
+        .acceleration = std::numeric_limits<double>::quiet_NaN(),
+        .max_torque = std::numeric_limits<double>::quiet_NaN(),
+        .max_speed = std::numeric_limits<double>::quiet_NaN(),
+        .max_angle = std::numeric_limits<double>::quiet_NaN(),
+        .current_ramp = std::numeric_limits<double>::quiet_NaN(),
+        .speed_ramp = std::numeric_limits<double>::quiet_NaN(),
+
+        .joint_command_position = std::numeric_limits<double>::quiet_NaN(),
+        .joint_command_velocity = 0.0,
+        .motor_status_req = 0.0,
+        .motor_maintenance_req = 0.0,
+        .maintenance_frame_high = 0.0,
+        .maintenance_frame_low = 0.0,
+        .maintenance_frame = 0.0,
+        .maintenance_data_count = 0.0,
+        .decoded_maintenance_frame = {},
+
+        .prev_status_req = 0.0,
+        .prev_maintenance_req = 0.0,
+        .elapsed_status_request_time = 0.0,
+        .elapsed_maintenance_request_time = 0.0,
+        .motor_velocity = 0.0,
+        .motor_position = 0.0,
+        .encoder_position = 0.0,
+        .prev_joint_command_position = std::numeric_limits<double>::quiet_NaN(),
+        .prev_joint_command_velocity = std::numeric_limits<double>::quiet_NaN(),
+        .state_interface_names = state_if_names,
+        .command_interface_names = command_if_names,
+        .parameters = params_map
+      }
+    );
   }
 
   num_joints = static_cast<int>(SMCJoints_.size());
@@ -338,9 +413,7 @@ std::vector<hardware_interface::StateInterface> SMCHardwareInterface::export_sta
         value = &joint.motor_torque_current;
       } else if (iface == "status") {
         value = &joint.motor_status;
-      }
-
-      if (value == nullptr) {
+      } else {
         RCLCPP_WARN(
           rclcpp::get_logger("SMCHardwareInterface"),
           "Unknown state interface '%s' for joint '%s'",
@@ -373,9 +446,7 @@ std::vector<hardware_interface::CommandInterface> SMCHardwareInterface::export_c
         value = &joint.maintenance_frame_low;
       } else if (iface == "maintenance_data_count") {
         value = &joint.maintenance_data_count;
-      }
-
-      if (value == nullptr) {
+      } else {
         RCLCPP_WARN(
           rclcpp::get_logger("SMCHardwareInterface"),
           "Unknown command interface '%s' for joint '%s'",
@@ -453,6 +524,12 @@ void SMCHardwareInterface::on_can_message(const CANLib::CanFrame & frame)
       joint.acceleration = static_cast<double>(
         (frame.data[7] << 24) | (frame.data[6] << 16) | (frame.data[5] << 8) | frame.data[4]);
     }
+
+    if(frame.data[0] == static_cast<uint8_t>(StatusCommands::READ_SETTINGS_CMD)) {
+      if(!interpret_settings_parameters(joint, frame.data)) {
+        RCLCPP_ERROR(rclcpp::get_logger("SMCHardwareInterface"), "Failed to interpret settings parameters for joint '%s'.", joint.name.c_str());
+      }
+    }
   }
 }
 
@@ -513,26 +590,21 @@ hardware_interface::return_type SMCHardwareInterface::write(
 
   for (auto & joint : SMCJoints_) {
     const double curr_status_req = joint.motor_status_req;
-    if (curr_status_req < 0.0 && joint.prev_status_req >= 0.0) {
+    if (curr_status_req < 0.0 && joint.prev_status_req >= 0.0) 
+    {
       for (auto status_cmd : kStatusCommands) {
-        CANLib::CanFrame frame;
-        frame.id = joint.node_id;
-        frame.dlc = 8;
-        if (format_status_command(frame, static_cast<uint8_t>(status_cmd))) {
-          canBus.send(frame);
-        }
+        send_command(joint.node_id, static_cast<int>(status_cmd));
       }
-    } else if (curr_status_req > 0.0) {
+      RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "One-shot status request sent for joint '%s'.", joint.name.c_str());
+    } 
+    else if (curr_status_req > 0.0) 
+    {
       joint.elapsed_status_request_time += period.seconds();
-      if (joint.elapsed_status_request_time > (1.0 / curr_status_req)) {
+      double status_request_period = 1.0 / curr_status_req;
+      if (joint.elapsed_status_request_time > status_request_period) {
         joint.elapsed_status_request_time = 0.0;
         for (auto status_cmd : kStatusCommands) {
-          CANLib::CanFrame frame;
-          frame.id = joint.node_id;
-          frame.dlc = 8;
-          if (format_status_command(frame, static_cast<uint8_t>(status_cmd))) {
-            canBus.send(frame);
-          }
+          send_command(joint.node_id, static_cast<int>(status_cmd));
         }
       }
     }
@@ -566,7 +638,8 @@ hardware_interface::return_type SMCHardwareInterface::write(
       canBus.send(frame);
     } else if (curr_maintenance_req > 0.0) {
       joint.elapsed_maintenance_request_time += period.seconds();
-      if (joint.elapsed_maintenance_request_time > (1.0 / curr_maintenance_req)) {
+      double maintenance_request_period = 1.0 / curr_maintenance_req;
+      if (joint.elapsed_maintenance_request_time > maintenance_request_period) {
         joint.elapsed_maintenance_request_time = 0.0;
         canBus.send(frame);
       }

@@ -35,20 +35,25 @@ class SMCHardwareInterface : public hardware_interface::SystemInterface
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(SMCHardwareInterface)
 
+  // -- Lifecycle Functions --
   hardware_interface::CallbackReturn on_init(
     const hardware_interface::HardwareInfo & info) override;
 
   std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
-
+  
   hardware_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_cleanup(
     const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_activate(
     const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_deactivate(
     const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_shutdown(
     const rclcpp_lifecycle::State & previous_state) override;
 
@@ -99,6 +104,11 @@ public:
     double position_Ki;
     double position_Kd;
     double acceleration;
+    double max_torque;
+    double max_speed;
+    double max_angle;
+    double current_ramp;
+    double speed_ramp;
 
     double joint_command_position;
     double joint_command_velocity;
@@ -146,12 +156,14 @@ public:
   bool format_maintenance_command(CANLib::CanFrame & frame, const DecodedCommand & decoded_cmd);
 
 private:
+  // Hardware Interface Parameters
   int update_rate;
-  double elapsed_update_time;
-  double elapsed_time;
-  double elapsed_logger_time;
-  int logger_rate;
-  int logger_state;
+  double elapsed_update_time; // Time since last hardware interface update
+  double elapsed_time; // Time since first hardware interface update
+  double elapsed_logger_time; // Time since last logger update
+  int logger_rate; // Logger update rate
+  int logger_state; // Logger on/off state
+
   int num_joints;
 
   CANLib::SocketCanBus canBus;
@@ -266,7 +278,5 @@ private:
       i32_ptr + decoded_maintenance_cmd.i32_data.size() * sizeof(int32_t));
   }
 };
-
 }  // namespace smc_ros2_control
-
 #endif  // SMC_HARDWARE_INTERACE_HPP_

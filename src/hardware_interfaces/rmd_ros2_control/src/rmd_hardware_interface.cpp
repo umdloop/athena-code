@@ -20,13 +20,10 @@
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-
-using std::placeholders::_1;
-
 namespace rmd_ros2_control
 {
 
-  // -- HELPER FUNCTIONS -- //
+// -- HELPER FUNCTIONS -- //
 
 double RMDHardwareInterface::calculate_joint_position_from_motor_position(double motor_position, int gear_ratio){
   // Converts from 0.01 deg to deg to radians/s
@@ -66,9 +63,7 @@ void RMDHardwareInterface::logger_function(){
   std::string log_msg = "\033[2J\033[H \nRMD Logger";
   std::string control_mode = "";
   
-  // HWI Specific
   std::ostringstream oss;
-
   oss << "\n--- HWI Specific ---\n"
       << "CAN Interface: " << can_interface
       << " | HWI Update Rate: " << update_rate
@@ -462,7 +457,10 @@ std::vector<hardware_interface::StateInterface> RMDHardwareInterface::export_sta
       } else if (iface == "status") {
         val = &joint.motor_status;
       } else {
-        RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Unknown state interface '%s' for joint '%s'", iface.c_str(), joint.name.c_str());
+        RCLCPP_WARN(
+          rclcpp::get_logger("RMDHardwareInterface"),
+          "Unknown state interface '%s' for joint '%s'",
+          iface.c_str(), joint.name.c_str());
         continue;
       }
 
@@ -497,7 +495,10 @@ RMDHardwareInterface::export_command_interfaces()
       } else if (iface == "maintenance_data_count") {
         val = &joint.maintenance_data_count;
       } else {
-        RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Unknown command interface '%s' for joint '%s'", iface.c_str(), joint.name.c_str());
+        RCLCPP_WARN(
+          rclcpp::get_logger("RMDHardwareInterface"), 
+          "Unknown command interface '%s' for joint '%s'", 
+          iface.c_str(), joint.name.c_str());
         continue;
       }
 
@@ -712,8 +713,8 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
     double curr_status_req = joint.motor_status_req;
     if (curr_status_req < 0 && joint.prev_status_req >= 0) // Send one shot status request
     {
-      for (auto & status_command : kStatusCommands) {
-        send_command(joint.node_write_id, static_cast<int>(status_command));
+      for (auto & status_cmd : kStatusCommands) {
+        send_command(joint.node_write_id, static_cast<int>(status_cmd));
       }
       RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "One-shot status request sent for joint '%s'.", joint.name.c_str());
     }
@@ -723,8 +724,8 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
       double status_request_period = 1.0 / curr_status_req;
       if(joint.elapsed_status_request_time > status_request_period){
         joint.elapsed_status_request_time = 0.0;
-        for (auto & status_command : kStatusCommands) {
-          send_command(joint.node_write_id, static_cast<int>(status_command));
+        for (auto & status_cmd : kStatusCommands) {
+          send_command(joint.node_write_id, static_cast<int>(status_cmd));
         }
       }
     }
@@ -755,6 +756,7 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
 
     if(!format_maintenance_command(can_tx_frame_, decoded_maintenance_cmd)){ // Validate maintenance command ID before sending
       // RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Invalid maintenance command for joint '%s'.", joint.name.c_str());
+      joint.prev_maintenance_req = joint.motor_maintenance_req;
       continue;
     }
 

@@ -256,27 +256,31 @@ private:
 
   inline DecodedCommand unpack_command_full(int32_t counts_in, int64_t payload_in)
   {
-    uint32_t counts  = static_cast<uint32_t>(counts_in);
-    uint64_t payload = static_cast<uint64_t>(payload_in);
+    const uint32_t counts = static_cast<uint32_t>(counts_in);
+    const uint64_t payload = static_cast<uint64_t>(payload_in);
 
-    // Counts are packed in the top 24 bits of a 32-bit value
-    uint8_t u8_count  = (counts >> 16) & 0xFF;
-    uint8_t i16_count = (counts >> 8)  & 0xFF;
-    uint8_t i32_count = (counts >> 0)  & 0xFF;
+    const uint8_t u8_count = static_cast<uint8_t>((counts >> 16) & 0xFF);
+    const uint8_t i16_count = static_cast<uint8_t>((counts >> 8) & 0xFF);
+    const uint8_t i32_count = static_cast<uint8_t>(counts & 0xFF);
 
     int bit_offset = 64;
     auto pop_bits = [&](int bits) -> uint64_t {
-        bit_offset -= bits;
-        uint64_t mask = (1ULL << bits) - 1;
-        return (payload >> bit_offset) & mask;
+      bit_offset -= bits;
+      const uint64_t mask = (bits == 64) ? std::numeric_limits<uint64_t>::max() : ((1ULL << bits) - 1ULL);
+      return (payload >> bit_offset) & mask;
     };
 
-    DecodedCommand result;
+    DecodedCommand result{};
     result.command_id = static_cast<uint8_t>(pop_bits(8));
-    for (uint8_t i = 0; i < u8_count;  ++i) result.u8_data.push_back(static_cast<uint8_t>(pop_bits(8)));
-    for (uint8_t i = 0; i < i16_count; ++i) result.i16_data.push_back(static_cast<int16_t>(static_cast<uint16_t>(pop_bits(16))));
-    for (uint8_t i = 0; i < i32_count; ++i) result.i32_data.push_back(static_cast<int32_t>(static_cast<uint32_t>(pop_bits(32))));
-
+    for (uint8_t i = 0; i < u8_count; ++i) {
+      result.u8_data.push_back(static_cast<uint8_t>(pop_bits(8)));
+    }
+    for (uint8_t i = 0; i < i16_count; ++i) {
+      result.i16_data.push_back(static_cast<int16_t>(static_cast<uint16_t>(pop_bits(16))));
+    }
+    for (uint8_t i = 0; i < i32_count; ++i) {
+      result.i32_data.push_back(static_cast<int32_t>(static_cast<uint32_t>(pop_bits(32))));
+    }
     return result;
   }
 

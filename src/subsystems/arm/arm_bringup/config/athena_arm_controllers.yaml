@@ -205,7 +205,8 @@ motor_status_controller:
       - wrist_pitch
       - wrist_roll
       - actuator
-    interfaces:
+    state_interfaces:
       - motor_temperature
       - torque_current
+      - status
     publish_rate: 10.0
