@@ -63,6 +63,9 @@ public:
   controller_interface::return_type update(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
+  GENERAL_CONTROLLERS__VISIBILITY_PUBLIC
+    void logger_function();
+
 protected:
   std::shared_ptr<motor_status_controller::ParamListener> param_listener_;
   motor_status_controller::Params params_;
@@ -95,6 +98,9 @@ protected:
   rclcpp::Time status_one_shot_time{0, 0, RCL_CLOCK_UNINITIALIZED};
   rclcpp::Time maintenance_one_shot_time{0, 0, RCL_CLOCK_UNINITIALIZED};
   rclcpp::Duration one_shot_delay{0, 100000000};
+
+    std::vector<std::string> available_state_interfaces;
+    std::vector<std::string> available_command_interfaces;
 
   struct PackedCommand
   {

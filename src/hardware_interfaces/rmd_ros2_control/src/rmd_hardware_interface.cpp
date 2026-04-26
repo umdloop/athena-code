@@ -805,13 +805,13 @@ hardware_interface::return_type RMDHardwareInterface::perform_command_mode_switc
   const std::vector<std::string>& stop_interfaces)
 {
   // Debug: print incoming requests
-  std::ostringstream ss;
-  ss << "perform_command_mode_switch called. start_interfaces: [";
-  for (auto &s : start_interfaces) ss << s << ",";
-  ss << "] stop_interfaces: [";
-  for (auto &s : stop_interfaces) ss << s << ",";
-  ss << "]";
-  RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), ss.str().c_str());
+  // std::ostringstream ss;
+  // ss << "perform_command_mode_switch called. start_interfaces: [";
+  // for (auto &s : start_interfaces) ss << s << ",";
+  // ss << "] stop_interfaces: [";
+  // for (auto &s : stop_interfaces) ss << s << ",";
+  // ss << "]";
+  // RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), ss.str().c_str());
 
   // For each joint, decide its new control mode based on start/stop interfaces.
   // We allow partial starts/stops: only affected joints are switched.
