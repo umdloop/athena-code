@@ -70,6 +70,7 @@ class JoystickPublisher(Node):
         JOYSTICK_NAMES = {
             "thrustmaster": "thrustmaster t.16000m",
             "xbox": "xbox series x controller",
+            "aibus": "t.a320 pilot"
         }
         target_name = JOYSTICK_NAMES[self.joystick_type]
 

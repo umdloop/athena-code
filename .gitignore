@@ -178,9 +178,9 @@ cython_debug/
 # Prerequisites
 *.d
 
-
+# AI
 .kiro
-
+.claude
 
 # Compiled Object files
 *.slo
@@ -212,4 +212,3 @@ cython_debug/
 
 .DS_Store
 *.mcap
-

@@ -54,7 +54,7 @@ static constexpr size_t CMD_MY_ITFS = 0;
 static constexpr int joystick_axes = 6;
 
 // amount of joystick buttons
-static constexpr int joystick_buttons = 13;
+static constexpr int joystick_buttons = 17;
 
 // name constants for amount of velocities being commanded (yaw, y, z, thetadot, wrist roll, open claw, close claw)
 static constexpr size_t CMD_VELOCITIES_SIZE = 7;

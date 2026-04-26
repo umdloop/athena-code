@@ -60,7 +60,7 @@ manual_arm_joint_by_joint_controller:
   # }
   joystick_topic: {
     type: string,
-    default_value: "controller_input/xbox",
+    default_value: "controller_input/airbus",
     description: "Topic name for joystick input (sensor_msgs/Joy).",
     read_only: true,
     validation: {
