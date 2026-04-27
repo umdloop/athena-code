@@ -179,9 +179,6 @@ def launch_setup(context, *args, **kwargs):
         name='joystick',
         output='screen',
         parameters=[joystick_config, {'subsystem': 'drive'}],
-        remappings=[
-            (f'controller_input/{joystick_type}', 'joy'),
-        ],
     )
 
     teleop_twist_joy = Node(
@@ -191,6 +188,7 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[teleop_twist_config],
         remappings=[
+            ('joy', f'controller_input/{joystick_type}'),
             ('/cmd_vel', '/rear_ackermann_controller/reference'),
         ],
     )

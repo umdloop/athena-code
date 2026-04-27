@@ -293,8 +293,8 @@ controller_interface::return_type ScienceManual::update(
   // rack_left_position  += axis_left  * rack_speed * left_gain * dt;
   // rack_right_position -= axis_right * rack_speed * right_gain * dt;
 
-  // ** TEMPORARY FOR SAR
-  bool lift_button = (msg->buttons.size() > 11 && msg->buttons[12]);
+  // ** TEMPORARY FOR SAR 
+  bool lift_button = (msg->buttons.size() > 1 && msg->buttons[1]);
   if (lift_button && !prev_lift_button) {
     lift_toggle = !lift_toggle;
   }

@@ -30,15 +30,18 @@
       arm:
         # Controller: Airbus TCA Sidestick (joystick_type: airbus)
 
-        # Slot → axis name → Joint-by-Joint use              | Cylindrical use
-        # [0]  joystick_y     → base yaw / wrist roll*       | unused
+        # Slot → axis name → Joint-by-Joint use               | Cylindrical use
+        # [0]  joystick_y     → base yaw / wrist roll*        | unused
         # [1]  joystick_x     → shoulder pitch / wrist pitch* | vy (reach in/out) / theta-dot*
         # [2]  joystick_twist → unused                        | yaw (rotate base)
         # [3]  throttle_level → elbow pitch                   | vz (height)
-        # [4]  hat_switch_y   → gripper open  (dead slot — always 0, gripper uses buttons[4])
-        # [5]  hat_switch_x   → gripper close (dead slot — always 0, gripper uses buttons[5])
+        # [4]  hat_switch_y   → unused (dead slot)
+        # [5]  hat_switch_x   → unusued (dead slot)
 
-        # * modifier = buttons[1]; buttons[3] = actuator trigger
+        # center button(buttons[1]) = *modifier
+        # red button(buttons[3]) = actuator trigger
+        # left 1 (buttons[4]) = gripper open
+        #left 2 (buttons[5]) = gripper close
         output_slots: [joystick_y, joystick_x, joystick_twist, throttle_level, hat_switch_y, hat_switch_x]
       
       science:
@@ -46,13 +49,19 @@
 
         # Slot → axis name       → use
         # [0]  left_stick_lr    → auger lift
-        # [1]  left_stick_ud    → linear actuator left / sampler lift
-        # [2]  left_trigger     → unused
-        # [3]  right_stick_lr   → linear actuator right / sampler lift
-        # [4]  right_stick_ud   → auger spin (reverse via buttons[4])
+        # [1]  left_stick_ud    → unused
+        # [2]  right_stick_lr   → unused
+        # [3]  right_stick_ud   → sampler lift
+        # [4]  left_trigger     → auger spin (reverse via buttons[4])
         # [5]  right_trigger    → scoop (reverse via buttons[5])
 
-        # buttons[0] = servo scoop B, buttons[2] = pump, buttons[3] = servo scoop A, buttons[12] = lift
+        # A(buttons[0]) = servo scoop B (toggle)
+        # B(buttons[1]) = rack & pinion lift (toggle between two hardcoded positions)
+        # X(buttons[2]) = pump (toggle)
+        # Y(buttons[3]) = servo scoop A (toggle)
+        # LB(buttons[4]) = reverse auger spin
+        # RB(buttons[5]) = reverse scoop
+        
         output_slots: [left_stick_lr, left_stick_ud, right_stick_lr, right_stick_ud, left_trigger, right_trigger]
 
       
@@ -61,9 +70,9 @@
         # All 6 axes published in order → remapped to /joy → consumed by teleop_twist_joy
         # Slot → axis name       → use
         # [0]  joystick_twist   → steering (angular velocity)
-        # [1]  joystick_x       → unused by twist joy
+        # [1]  joystick_x       → forward/reverse speed (linear velocity)
         # [2]  joystick_y       → unused by twist joy
-        # [3]  throttle_level   → forward/reverse speed (linear velocity)
+        # [3]  throttle_level   → unused by twist joy
         # [4]  hat_switch_y     → unused
         # [5]  hat_switch_x     → unused
         output_slots: [joystick_twist, joystick_x, joystick_y, throttle_level, hat_switch_y, hat_switch_x]
