@@ -67,10 +67,10 @@ class JoystickPublisher(Node):
         self.button_data = None
         self.hat_data = None
         self.activation = 0.08
-        JOYSTICK_NAMES = {
+        JOYSTICK_NAMES = {s
             "thrustmaster": "thrustmaster t.16000m",
-            "xbox": "xbox series x controller",
-            "aibus": "t.a320 pilot"
+            "xbox": "xbox 360 controller",
+            "airbus": "thrustmaster t.a320 copilot"
         }
         target_name = JOYSTICK_NAMES[self.joystick_type]
 
@@ -119,14 +119,14 @@ class JoystickPublisher(Node):
         self.previous_axes = np.zeros(len(self._slot_params))
         self.previous_buttons = np.zeros(len(self.button_data))
 
-    def _normalize(self, raw, invert, trigger):
+    def _normalize(self, raw, invert, trigger, range_inverted=False):
         if abs(raw) < self.activation:
             val = 0.0
         else:
             val = (abs(raw) - self.activation) / (1.0 - self.activation)
             val = val if raw > 0 else -val
         if trigger:
-            val = (val + 1.0) / 2.0
+            val = (1.0 - val) / 2.0 if range_inverted else (val + 1.0) / 2.0
         if invert:
             val = -val
         return val
@@ -151,7 +151,8 @@ class JoystickPublisher(Node):
                 joystick_vels[i] = self._normalize(
                     self.axis_data.get(slot['axis'], 0.0),
                     slot['invert'],
-                    slot['trigger']
+                    slot['trigger'],
+                    slot.get('range_inverted', False)
                 )
 
             # Buttons
