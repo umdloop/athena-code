@@ -45,6 +45,8 @@ public:
   hardware_interface::return_type write(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
+  void logger_function();
+
 private:
   struct LaserJoint
   {
@@ -67,6 +69,11 @@ private:
   CANLib::CanFrame can_tx_frame_;
   bool can_connected_;
   std::vector<LaserJoint> LASERJoints_;
+  int update_rate_;
+  int logger_rate_;
+  int logger_state_;
+  double elapsed_time_;
+  double elapsed_logger_time_;
 
   static constexpr uint8_t CMD_LASER_ON = 0x60;
   static constexpr uint8_t CMD_LASER_OFF = 0x80;

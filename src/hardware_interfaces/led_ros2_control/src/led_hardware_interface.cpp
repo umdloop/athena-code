@@ -63,6 +63,34 @@ bool write_gpio(int fd, bool value)
 
 }  // namespace gpio_utils
 
+void LEDHardwareInterface::logger_function()
+{
+  if (LEDJoints_.empty()) {
+    return;
+  }
+
+  const auto & joint = LEDJoints_.front();
+  std::ostringstream oss;
+  oss << "\033[2J\033[H \nLED Logger"
+      << "\n--- HWI Specific ---\n"
+      << "GPIO Pin: " << joint.gpio_pin
+      << " | HWI Update Rate: " << update_rate_
+      << " | Logger Update Rate: " << logger_rate_ << "\n"
+      << "Elapsed Time since first update: " << elapsed_time_ << "\n"
+      << "\n--- Joint Specific ---\n"
+      << "JOINT: " << joint.name << "\n"
+      << "Parameters: Default State: " << (joint.default_state ? "ON" : "OFF") << "\n"
+      << "-- Commands --\n"
+      << "LED Command: " << joint.led_command
+      << " | Status Request: " << joint.status_request << "\n"
+      << "-- State --\n"
+      << "LED State: " << joint.led_state
+      << " | Is Connected: " << joint.is_connected
+      << " | Status: " << joint.status << "\n";
+
+  RCLCPP_INFO(rclcpp::get_logger("LEDHardwareInterface"), "%s", oss.str().c_str());
+}
+
 hardware_interface::CallbackReturn LEDHardwareInterface::on_init(
   const hardware_interface::HardwareInfo & info)
 {
@@ -80,6 +108,12 @@ hardware_interface::CallbackReturn LEDHardwareInterface::on_init(
   const int gpio_pin = std::stoi(info_.hardware_parameters.at("gpio_pin"));
   const bool default_state = info_.hardware_parameters.count("default_state") &&
     info_.hardware_parameters.at("default_state") == "on";
+  update_rate_ = info_.hardware_parameters.count("update_rate") ?
+    std::stoi(info_.hardware_parameters.at("update_rate")) : 0;
+  logger_rate_ = info_.hardware_parameters.count("logger_rate") ?
+    std::stoi(info_.hardware_parameters.at("logger_rate")) : 0;
+  logger_state_ = info_.hardware_parameters.count("logger_state") ?
+    std::stoi(info_.hardware_parameters.at("logger_state")) : 0;
 
   LEDJoints_.clear();
   LEDJoints_.push_back(LEDJoint{
@@ -97,6 +131,8 @@ hardware_interface::CallbackReturn LEDHardwareInterface::on_init(
 
   gpio_fd_ = -1;
   hw_connected_ = false;
+  elapsed_time_ = 0.0;
+  elapsed_logger_time_ = 0.0;
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -181,6 +217,15 @@ hardware_interface::return_type LEDHardwareInterface::write(
   const rclcpp::Time &, const rclcpp::Duration & period)
 {
   auto & joint = LEDJoints_.front();
+
+  elapsed_time_ += period.seconds();
+  elapsed_logger_time_ += period.seconds();
+  if (logger_rate_ > 0 && elapsed_logger_time_ > (1.0 / static_cast<double>(logger_rate_))) {
+    elapsed_logger_time_ = 0.0;
+    if (logger_state_ == 1) {
+      logger_function();
+    }
+  }
 
   const bool commanded_on = joint.led_command > 0.5;
   const bool currently_on = joint.led_state > 0.5;

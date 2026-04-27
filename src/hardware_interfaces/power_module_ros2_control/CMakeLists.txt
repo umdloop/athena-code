@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(killswitch_ros2_control)
+project(power_module_ros2_control)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -26,22 +26,22 @@ ament_auto_find_build_dependencies()
 include_directories(include)
 
 add_library(
-  killswitch_ros2_control
+  power_module_ros2_control
   SHARED
-  src/killswitch_hardware_interface.cpp
+  src/power_module_hardware_interface.cpp
 )
 
-target_compile_features(killswitch_ros2_control PUBLIC cxx_std_20)
-target_include_directories(killswitch_ros2_control PUBLIC
+target_compile_features(power_module_ros2_control PUBLIC cxx_std_20)
+target_include_directories(power_module_ros2_control PUBLIC
 $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-$<INSTALL_INTERFACE:include/killswitch_ros2_control>
+$<INSTALL_INTERFACE:include/power_module_ros2_control>
 )
 
 # Link CAN library
-target_link_libraries(killswitch_ros2_control PUBLIC umdloop_can_library::umdloop_can_library)
+target_link_libraries(power_module_ros2_control PUBLIC umdloop_can_library::umdloop_can_library)
 
 ament_target_dependencies(
-  killswitch_ros2_control PUBLIC
+  power_module_ros2_control PUBLIC
   hardware_interface
   pluginlib
   rclcpp
@@ -49,16 +49,16 @@ ament_target_dependencies(
 )
 
 # Export hardware plugins
-pluginlib_export_plugin_description_file(hardware_interface killswitch_hardware_interface.xml)
+pluginlib_export_plugin_description_file(hardware_interface power_module_hardware_interface.xml)
 
 # INSTALL
 install(
   DIRECTORY include/
-  DESTINATION include/killswitch_ros2_control
+  DESTINATION include/power_module_ros2_control
 )
 
-install(TARGETS killswitch_ros2_control
-  EXPORT export_killswitch_ros2_control
+install(TARGETS power_module_ros2_control
+  EXPORT export_power_module_ros2_control
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -71,7 +71,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_export_targets(export_killswitch_ros2_control)
+ament_export_targets(export_power_module_ros2_control)
 ament_export_include_directories(include)
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 ament_package()

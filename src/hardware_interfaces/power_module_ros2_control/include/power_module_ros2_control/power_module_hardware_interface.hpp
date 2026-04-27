@@ -1,5 +1,5 @@
-#ifndef KILLSWITCH_ROS2_CONTROL__KILLSWITCH_HARDWARE_INTERFACE_HPP_
-#define KILLSWITCH_ROS2_CONTROL__KILLSWITCH_HARDWARE_INTERFACE_HPP_
+#ifndef POWER_MODULE_ROS2_CONTROL__POWER_MODULE_HARDWARE_INTERFACE_HPP_
+#define POWER_MODULE_ROS2_CONTROL__POWER_MODULE_HARDWARE_INTERFACE_HPP_
 
 #include <memory>
 #include <string>
@@ -15,13 +15,13 @@
 #include "umdloop_can_library/CanFrame.hpp"
 #include "umdloop_can_library/SocketCanBus.hpp"
 
-namespace killswitch_ros2_control
+namespace power_module_ros2_control
 {
 
-class KillswitchHardwareInterface : public hardware_interface::SystemInterface
+class PowerModuleHardwareInterface : public hardware_interface::SystemInterface
 {
 public:
-  RCLCPP_SHARED_PTR_DEFINITIONS(KillswitchHardwareInterface)
+  RCLCPP_SHARED_PTR_DEFINITIONS(PowerModuleHardwareInterface)
 
   hardware_interface::CallbackReturn on_init(
     const hardware_interface::HardwareInfo & info) override;
@@ -45,8 +45,13 @@ public:
   hardware_interface::return_type write(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
+  // -- Helper Functions --
+  void on_can_message(const CANLib::CanFrame & frame);
+  void send_command(int can_id, int cmd_id);
+  void logger_function();
+
 private:
-  struct KillswitchJoint
+  struct PowerModuleJoint
   {
     std::string name;
     uint32_t can_id;
@@ -63,19 +68,27 @@ private:
     double elapsed_status_request_time;
   };
 
-  void onCanMessage(const CANLib::CanFrame & frame);
-
   std::string can_interface_;
   CANLib::SocketCanBus canBus_;
   CANLib::CanFrame can_tx_frame_;
   bool can_connected_;
-  std::vector<KillswitchJoint> KILLSWITCHJoints_;
+  std::vector<PowerModuleJoint> PowerModuleJoints_;
+  int update_rate_;
+  int logger_rate_;
+  int logger_state_;
+  double elapsed_time_;
+  double elapsed_logger_time_;
 
+  // Multiplexor byte
   static constexpr uint8_t CMD_KILL_ALL = 0x01;
   static constexpr uint8_t CMD_KILL_MAIN = 0x03;
   static constexpr uint8_t CMD_KILL_JETSON = 0x05;
+
+  // Parameter to confirm whether to send command or not via CAN
+  static constexpr uint8_t DECLINE_SEND = 0;
+  static constexpr uint8_t CONFIRM_SEND = 1;
 };
 
-}  // namespace killswitch_ros2_control
+}  // namespace power_module_ros2_control
 
-#endif  // KILLSWITCH_ROS2_CONTROL__KILLSWITCH_HARDWARE_INTERFACE_HPP_
+#endif  // POWER_MODULE_ROS2_CONTROL__POWER_MODULE_HARDWARE_INTERFACE_HPP_

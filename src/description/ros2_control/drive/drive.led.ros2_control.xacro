@@ -8,6 +8,9 @@
         <plugin>led_ros2_control/LEDHardwareInterface</plugin>
         <param name="gpio_pin">${gpio_pin}</param>
         <param name="default_state">${default_state}</param>
+        <param name="update_rate">10</param> <!-- Hz -->
+        <param name="logger_rate">5</param> <!-- Hz -->
+        <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
       </hardware>
 
       <gpio name="${name}">

@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>killswitch_ros2_control</name>
+  <name>power_module_ros2_control</name>
   <version>0.1.0</version>
-  <description>Killswitch hardware interface for ros2_control - CAN-based power killswitch system</description>
+  <description>PowerModule hardware interface for ros2_control - CAN-based power power_module system</description>
   <maintainer email="dwarakeshbaraneetharan@gmail.com">Dwarakesh Baraneetharan</maintainer>
   <license>Apache-2.0</license>
 

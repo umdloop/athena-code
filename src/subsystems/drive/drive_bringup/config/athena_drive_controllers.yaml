@@ -45,8 +45,8 @@ controller_manager:
     led_gpio_controller:
       type: gpio_controllers/GpioCommandController
 
-    # Killswitch GPIO Controller
-    killswitch_gpio_controller:
+    # PowerModule GPIO Controller
+    power_module_gpio_controller:
       type: gpio_controllers/GpioCommandController
 
     motor_status_controller:
@@ -126,19 +126,19 @@ led_gpio_controller:
           - led_state
           - is_connected
 
-# Killswitch GPIO Controller Configuration
-killswitch_gpio_controller:
+# PowerModule GPIO Controller Configuration
+power_module_gpio_controller:
   ros__parameters:
     gpios:
-      - drive_killswitch
+      - drive_power_module
     command_interfaces:
-      drive_killswitch:
+      drive_power_module:
         interfaces:
           - kill_all
           - kill_main
           - kill_jetson
     state_interfaces:
-      drive_killswitch:
+      drive_power_module:
         interfaces:
           - kill_all_sent
           - kill_main_sent

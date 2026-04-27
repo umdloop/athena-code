@@ -39,8 +39,8 @@
   <!-- Import LED ros2_control description -->
   <xacro:include filename="$(find description)/ros2_control/drive/drive.led.ros2_control.xacro" />
 
-  <!-- Import killswitch ros2_control description -->
-  <xacro:include filename="$(find description)/ros2_control/drive/drive.killswitch.ros2_control.xacro" />
+  <!-- Import power_module ros2_control description -->
+  <xacro:include filename="$(find description)/ros2_control/drive/drive.power_module.ros2_control.xacro" />
 
   <!-- Contains description of drive -->
   <xacro:description/>
@@ -80,8 +80,8 @@
     <!-- LED status indicator (GPIO-based) -->
     <xacro:led_ros2_control name="status_led" gpio_pin="25"/>
 
-    <!-- Killswitch (CAN-based) -->
-    <xacro:killswitch_ros2_control name="drive_killswitch"/>
+    <!-- PowerModule (CAN-based) -->
+    <xacro:power_module_ros2_control name="drive_power_module"/>
   </xacro:unless>
 
   

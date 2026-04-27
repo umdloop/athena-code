@@ -3,8 +3,39 @@
 #include "pluginlib/class_list_macros.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+#include <sstream>
+
 namespace laser_ros2_control
 {
+
+void LaserHardwareInterface::logger_function()
+{
+  if (LASERJoints_.empty()) {
+    return;
+  }
+
+  const auto & joint = LASERJoints_.front();
+  std::ostringstream oss;
+  oss << "\033[2J\033[H \nLASER Logger"
+      << "\n--- HWI Specific ---\n"
+      << "CAN Interface: " << can_interface_
+      << " | HWI Update Rate: " << update_rate_
+      << " | Logger Update Rate: " << logger_rate_ << "\n"
+      << "Elapsed Time since first update: " << elapsed_time_ << "\n"
+      << "\n--- Joint Specific ---\n"
+      << "JOINT: " << joint.name << "\n"
+      << "Parameters: CAN ID: 0x" << std::hex << std::uppercase << joint.can_id << std::dec << "\n"
+      << "-- Commands --\n"
+      << "Laser Command: " << joint.laser_command
+      << " | Status Request: " << joint.status_request << "\n"
+      << "-- State --\n"
+      << "Laser State: " << joint.laser_state
+      << " | Temperature: " << joint.temperature
+      << " | Is Connected: " << joint.is_connected
+      << " | Status: " << joint.status << "\n";
+
+  RCLCPP_INFO(rclcpp::get_logger("LaserHardwareInterface"), "%s", oss.str().c_str());
+}
 
 hardware_interface::CallbackReturn LaserHardwareInterface::on_init(
   const hardware_interface::HardwareInfo & info)
@@ -17,6 +48,12 @@ hardware_interface::CallbackReturn LaserHardwareInterface::on_init(
 
   can_interface_ = info_.hardware_parameters.count("can_interface") ?
     info_.hardware_parameters.at("can_interface") : "can0";
+  update_rate_ = info_.hardware_parameters.count("update_rate") ?
+    std::stoi(info_.hardware_parameters.at("update_rate")) : 0;
+  logger_rate_ = info_.hardware_parameters.count("logger_rate") ?
+    std::stoi(info_.hardware_parameters.at("logger_rate")) : 0;
+  logger_state_ = info_.hardware_parameters.count("logger_state") ?
+    std::stoi(info_.hardware_parameters.at("logger_state")) : 0;
   const uint32_t can_id = info_.hardware_parameters.count("can_id") ?
     static_cast<uint32_t>(std::stoul(info_.hardware_parameters.at("can_id"), nullptr, 0)) : 0x130;
 
@@ -35,6 +72,8 @@ hardware_interface::CallbackReturn LaserHardwareInterface::on_init(
   });
 
   can_connected_ = false;
+  elapsed_time_ = 0.0;
+  elapsed_logger_time_ = 0.0;
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -139,6 +178,15 @@ hardware_interface::return_type LaserHardwareInterface::write(
   const rclcpp::Time &, const rclcpp::Duration & period)
 {
   auto & joint = LASERJoints_.front();
+
+  elapsed_time_ += period.seconds();
+  elapsed_logger_time_ += period.seconds();
+  if (logger_rate_ > 0 && elapsed_logger_time_ > (1.0 / static_cast<double>(logger_rate_))) {
+    elapsed_logger_time_ = 0.0;
+    if (logger_state_ == 1) {
+      logger_function();
+    }
+  }
 
   const bool commanded_on = joint.laser_command > 0.5;
   const bool currently_on = joint.laser_state > 0.5;

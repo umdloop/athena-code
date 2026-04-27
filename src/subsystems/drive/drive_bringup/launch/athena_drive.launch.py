@@ -256,7 +256,7 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
 
-    gpio_controller_names = ["led_gpio_controller", "killswitch_gpio_controller"]
+    gpio_controller_names = ["led_gpio_controller", "power_module_gpio_controller"]
     gpio_controller_spawners = []
     for controller in gpio_controller_names:
         gpio_controller_spawners += [

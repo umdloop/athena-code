@@ -50,6 +50,8 @@ public:
   hardware_interface::return_type write(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
+  void logger_function();
+
 private:
   struct LEDJoint
   {
@@ -68,6 +70,11 @@ private:
   int gpio_fd_;
   bool hw_connected_;
   std::vector<LEDJoint> LEDJoints_;
+  int update_rate_;
+  int logger_rate_;
+  int logger_state_;
+  double elapsed_time_;
+  double elapsed_logger_time_;
 };
 
 }  // namespace led_ros2_control
