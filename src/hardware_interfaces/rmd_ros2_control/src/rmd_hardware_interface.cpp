@@ -693,8 +693,6 @@ hardware_interface::return_type RMDHardwareInterface::read(
 hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
-  uint8_t data[8] = {0x00};
-
   // Logger update
   elapsed_time+=period.seconds();
   elapsed_logger_time+=period.seconds();
@@ -744,8 +742,7 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
     };
 
     // Call it and store the result
-    joint.maintenance_frame = doubles_to_payload(joint.maintenance_frame_high,
-                                                joint.maintenance_frame_low);
+    joint.maintenance_frame = doubles_to_payload(joint.maintenance_frame_high, joint.maintenance_frame_low);
 
     // Decode the maintenance command interfaces
     DecodedCommand decoded_maintenance_cmd = unpack_command_full(static_cast<uint32_t>(joint.maintenance_data_count), static_cast<uint64_t>(joint.maintenance_frame));
@@ -754,7 +751,6 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
 
     if(!format_maintenance_command(can_tx_frame_, decoded_maintenance_cmd)){ // Validate maintenance command ID before sending
       // RCLCPP_WARN(rclcpp::get_logger("RMDHardwareInterface"), "Invalid maintenance command for joint '%s'.", joint.name.c_str());
-      joint.prev_maintenance_req = joint.motor_maintenance_req;
       continue;
     }
 
@@ -785,7 +781,6 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
   if(elapsed_update_time > update_period){
     elapsed_update_time = 0.0;
     for(auto & joint : RMDJoints_) {
-      std::fill(std::begin(data), std::end(data), 0x00);
       can_tx_frame_ = CANLib::CanFrame(); // Must reinstantiate else data from past iteration gets repeated
       can_tx_frame_.id = joint.node_write_id;
       can_tx_frame_.dlc = 8;

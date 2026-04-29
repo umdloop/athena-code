@@ -51,47 +51,116 @@ void SMCHardwareInterface::send_command(int can_id, int cmd_id)
 
 void SMCHardwareInterface::logger_function()
 {
-  if (num_joints == 0) {
+  // Prevent breaking the logger
+  if (SMCJoints_.empty()) {
     return;
   }
 
+  std::string log_msg = "\033[2J\033[H \nSMC Logger";
+  std::string control_mode = "";
+
   std::ostringstream oss;
-  oss << "\033[2J\033[H \nSMC Logger"
-      << "\n--- HWI Specific ---\n"
+  oss << "\n--- HWI Specific ---\n"
       << "CAN Interface: " << can_interface
       << " | HWI Update Rate: " << update_rate
       << " | Logger Update Rate: " << logger_rate << "\n"
       << "Elapsed Time since first update: " << elapsed_time << "\n"
       << "\n--- Joint Specific ---";
 
-  for (const auto & joint : SMCJoints_) {
-    std::string control_mode = "UNDEFINED";
+  for (auto & joint : SMCJoints_) {
+
     if (joint.control_level == integration_level_t::POSITION) {
       control_mode = "POSITION";
     } else if (joint.control_level == integration_level_t::VELOCITY) {
       control_mode = "VELOCITY";
+    } else {
+      control_mode = "UNDEFINED";
     }
 
-    oss << "\nJOINT: " << joint.name << "\n"
-        << "Parameters: CAN ID: 0x" << std::hex << std::uppercase << joint.node_id << std::dec
-        << " | Gear Ratio: " << joint.gear_ratio << "\n"
-        << "-- Commands --\n"
+    oss << "\n----- JOINT: " << joint.name << " -----\n"
+        << "Parameters: CAN ID: 0x"
+        << std::hex << std::uppercase << joint.node_id << std::dec
+        << " | Gear Ratio: " << joint.gear_ratio
+        << " | Orientation: " << joint.orientation
+        << " | Operating Velocity: " << joint.operating_velocity << "\n"
+
+        << "Curr P: " << joint.current_Kp
+        << " | Curr I: " << joint.current_Ki
+        << " | Curr D: " << joint.current_Kd << "\n"
+
+        << "Speed P: " << joint.speed_Kp
+        << " | Speed I: " << joint.speed_Ki
+        << " | Speed D: " << joint.speed_Kd << "\n"
+
+        << "Pos P: " << joint.position_Kp
+        << " | Pos I: " << joint.position_Ki
+        << " | Pos D: " << joint.position_Kd << "\n"
+
+        << "Max Torque: " << joint.max_torque
+        << " | Max Speed: " << joint.max_speed
+        << " | Max Angle: " << joint.max_angle << "\n"
+
+        << "Current Ramp: " << joint.current_ramp
+        << " | Speed Ramp: " << joint.speed_ramp << "\n"
+
+        << "\n-- Commands --\n"
         << "Control Mode: " << control_mode << "\n"
         << "Motor Position: " << joint.motor_position
         << " | Joint Command Position: " << joint.joint_command_position << "\n"
+
         << "Motor Velocity: " << joint.motor_velocity
         << " | Joint Command Velocity: " << joint.joint_command_velocity << "\n"
-        << "Status Request: " << joint.motor_status_req
-        << " | Maintenance Request: " << joint.motor_maintenance_req << "\n"
-        << "-- State --\n"
-        << "Joint Position: " << joint.joint_state_position
-        << " | Joint Velocity: " << joint.joint_state_velocity << "\n"
-        << "Motor Temperature: " << joint.motor_temperature
-        << " | Torque Current: " << joint.motor_torque_current
-        << " | Status: " << joint.motor_status << "\n";
-  }
 
-  RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "%s", oss.str().c_str());
+        << "Motor Status Request: " << joint.motor_status_req
+        << " | Motor Maintenance Request: " << joint.motor_maintenance_req << "\n"
+
+        << "Maintenance Command High: " << joint.maintenance_frame_high
+        << " | Low: " << joint.maintenance_frame_low
+        << " | Full: " << joint.maintenance_frame << "\n"
+
+        << "Maintenance Data Count: " << joint.maintenance_data_count << "\n"
+
+        << "Previous Status Req: " << joint.prev_status_req
+        << " | Previous Maintenance Req: " << joint.prev_maintenance_req << "\n"
+
+        << "Elapsed Status Req Time: " << joint.elapsed_status_request_time
+        << " | Elapsed Maintenance Req Time: "
+        << joint.elapsed_maintenance_request_time << "\n"
+
+        << "Decoded Maintenance Frame: ";
+
+    for (const auto & byte : joint.decoded_maintenance_frame) {
+      oss << std::hex << std::uppercase
+          << static_cast<int>(byte) << " ";
+    }
+
+    oss << std::dec
+        << "\n-- State --\n"
+        << "Joint Position: " << joint.joint_state_position << " rad"
+        << " | Joint Velocity: " << joint.joint_state_velocity << " rad/s"
+        << " | Acceleration: " << joint.acceleration << "\n"
+
+        << "Encoder Position: " << joint.encoder_position << "\n"
+
+        << "\n-- Telemetry --\n"
+        << "Motor Temperature: " << joint.motor_temperature << " C"
+        << " | Torque Current: " << joint.motor_torque_current << " A"
+        << " | Motor Status: " << joint.motor_status << "\n"
+
+        << "\n-- Previous Commands --\n"
+        << "Previous Joint Command Position: "
+        << joint.prev_joint_command_position
+        << " | Previous Joint Command Velocity: "
+        << joint.prev_joint_command_velocity << "\n";
+
+    log_msg += oss.str();
+    RCLCPP_INFO(
+      rclcpp::get_logger("SMCHardwareInterface"),
+      log_msg.c_str());
+
+    oss.str("");
+    oss.clear();
+  }
 }
 
 bool SMCHardwareInterface::interpret_settings_parameters(
@@ -158,8 +227,7 @@ void SMCHardwareInterface::format_control_command(CANLib::CanFrame & frame, SMCJ
     joint.prev_joint_command_position = joint.joint_command_position;
     return;
   }
-
-  if (
+  else if (
     joint.control_level == integration_level_t::VELOCITY &&
     std::isfinite(joint.joint_command_velocity) &&
     joint.joint_command_velocity != joint.prev_joint_command_velocity)
@@ -176,8 +244,12 @@ void SMCHardwareInterface::format_control_command(CANLib::CanFrame & frame, SMCJ
     joint.prev_joint_command_velocity = joint.joint_command_velocity;
     return;
   }
-
-  frame.data[0] = static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_2_CMD);
+  else{
+    state_iterator = state_iterator + 1;
+    (state_iterator%2 == 0) ? frame.data[0] = static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_2_CMD) :
+                         frame.data[0] = static_cast<uint8_t>(StatusCommands::READ_ABS_ANGLE_CMD);
+    return;
+  }
 }
 
 bool SMCHardwareInterface::format_maintenance_command(
@@ -195,6 +267,14 @@ bool SMCHardwareInterface::format_maintenance_command(
         frame.data[5] = (decoded_cmd.i32_data[0] >> 8) & 0xFF; // Acceleration byte 2
         frame.data[6] = (decoded_cmd.i32_data[0] >> 16) & 0xFF; // Acceleration byte 3
         frame.data[7] = (decoded_cmd.i32_data[0] >> 24) & 0xFF; // Acceleration high byte
+        return true;
+      }
+    case MaintenanceCommands::READ_SETTINGS_CMD:
+      if(decoded_cmd.u8_data.size() != 1 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else{
+        frame.data[1] = decoded_cmd.u8_data[0]; // Parameter ID
         return true;
       }
     case MaintenanceCommands::WRITE_SETTINGS_TO_RAM_CMD:
@@ -384,6 +464,7 @@ hardware_interface::CallbackReturn SMCHardwareInterface::on_init(
   }
 
   num_joints = static_cast<int>(SMCJoints_.size());
+  state_iterator = 0;
   elapsed_update_time = 0.0;
   elapsed_time = 0.0;
   elapsed_logger_time = 0.0;
@@ -514,18 +595,12 @@ void SMCHardwareInterface::on_can_message(const CANLib::CanFrame & frame)
       continue;
     }
 
-    if (frame.data[0] == static_cast<uint8_t>(StatusCommands::READ_SETTINGS_CMD)) {
-      const std::array<uint8_t, 8> data = frame.data;
-      interpret_settings_parameters(joint, data);
-      continue;
-    }
-
     if (frame.data[0] == static_cast<uint8_t>(StatusCommands::READ_ACCELERATION_CMD)) {
       joint.acceleration = static_cast<double>(
         (frame.data[7] << 24) | (frame.data[6] << 16) | (frame.data[5] << 8) | frame.data[4]);
     }
 
-    if(frame.data[0] == static_cast<uint8_t>(StatusCommands::READ_SETTINGS_CMD)) {
+    if(frame.data[0] == static_cast<uint8_t>(MaintenanceCommands::READ_SETTINGS_CMD)) {
       if(!interpret_settings_parameters(joint, frame.data)) {
         RCLCPP_ERROR(rclcpp::get_logger("SMCHardwareInterface"), "Failed to interpret settings parameters for joint '%s'.", joint.name.c_str());
       }
@@ -579,6 +654,7 @@ hardware_interface::return_type SMCHardwareInterface::read(
 hardware_interface::return_type SMCHardwareInterface::write(
   const rclcpp::Time &, const rclcpp::Duration & period)
 {
+  // Logger update
   elapsed_time += period.seconds();
   elapsed_logger_time += period.seconds();
   if (logger_rate > 0 && elapsed_logger_time > (1.0 / static_cast<double>(logger_rate))) {
@@ -588,6 +664,7 @@ hardware_interface::return_type SMCHardwareInterface::write(
     }
   }
 
+  // Status request handling
   for (auto & joint : SMCJoints_) {
     const double curr_status_req = joint.motor_status_req;
     if (curr_status_req < 0.0 && joint.prev_status_req >= 0.0) 
@@ -611,6 +688,7 @@ hardware_interface::return_type SMCHardwareInterface::write(
     joint.prev_status_req = curr_status_req;
   }
 
+  // Maintenance request handling
   for (auto & joint : SMCJoints_) {
     auto doubles_to_payload = [](double high, double low) -> int64_t {
       const uint64_t h = static_cast<uint64_t>(high);
@@ -629,24 +707,30 @@ hardware_interface::return_type SMCHardwareInterface::write(
     frame.id = joint.node_id;
     frame.dlc = 8;
     if (!format_maintenance_command(frame, decoded_maintenance_cmd)) {
-      joint.prev_maintenance_req = joint.motor_maintenance_req;
+      // RCLCPP_WARN(rclcpp::get_logger("SMCHardwareInterface"), "Invalid maintenance command for joint '%s'.", joint.name.c_str());
       continue;
     }
 
+    
     const double curr_maintenance_req = joint.motor_maintenance_req;
-    if (curr_maintenance_req < 0.0 && joint.prev_maintenance_req >= 0.0) {
+    if (curr_maintenance_req < 0.0 && joint.prev_maintenance_req >= 0.0) { // One-shot maintenance command
       canBus.send(frame);
+      RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "One-shot maintenance request sent for joint '%s'.", joint.name.c_str());
     } else if (curr_maintenance_req > 0.0) {
       joint.elapsed_maintenance_request_time += period.seconds();
       double maintenance_request_period = 1.0 / curr_maintenance_req;
       if (joint.elapsed_maintenance_request_time > maintenance_request_period) {
         joint.elapsed_maintenance_request_time = 0.0;
         canBus.send(frame);
+        RCLCPP_INFO(rclcpp::get_logger("SMCHardwareInterface"), "Periodic maintenance request sent for joint '%s'.", joint.name.c_str());
       }
     }
     joint.prev_maintenance_req = curr_maintenance_req;
   }
 
+  // HWI can only go as fast as the controller manager. To limit frequency of bus messages,
+  // keep track of time passed over iterations of this function and if it exceeds the 
+  // desired frequency of the HWI, skip message
   elapsed_update_time += period.seconds();
   if (update_rate > 0 && elapsed_update_time > (1.0 / static_cast<double>(update_rate))) {
     elapsed_update_time = 0.0;

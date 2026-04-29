@@ -16,19 +16,6 @@ void PowerModuleHardwareInterface::send_command(int can_id, int cmd_id){
   frame.data[0] = cmd_id;
   frame.data[1] = CONFIRM_SEND;
 
-  RCLCPP_INFO(
-    rclcpp::get_logger("can_logger"),
-    "Inputted can_id: 0x%X | cmd_id: 0x%X | CAN Frame | id: 0x%X | dlc: %u | ext: %s | rtr: %s | data: [%02X %02X %02X %02X %02X %02X %02X %02X]",
-    can_id,
-    cmd_id,
-    frame.id,
-    frame.dlc,
-    frame.is_extended ? "true" : "false",
-    frame.is_rtr ? "true" : "false",
-    frame.data[0], frame.data[1], frame.data[2], frame.data[3],
-    frame.data[4], frame.data[5], frame.data[6], frame.data[7]
-  );
-
   canBus.send(frame);
 }
 
@@ -239,8 +226,9 @@ hardware_interface::CallbackReturn PowerModuleHardwareInterface::on_cleanup(
   const rclcpp_lifecycle::State &)
 {
   canBus.close();
-  auto & gpio = PowerModuleGPIOs_.front();
-  gpio.status = 0.0;
+  for (auto & gpio : PowerModuleGPIOs_) {
+    gpio.status = 0.0;
+  }
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -259,8 +247,6 @@ hardware_interface::return_type PowerModuleHardwareInterface::read(
 hardware_interface::return_type PowerModuleHardwareInterface::write(
   const rclcpp::Time &, const rclcpp::Duration & period)
 {
-  auto & gpio = PowerModuleGPIOs_.front();
-
   elapsed_time_ += period.seconds();
   elapsed_logger_time_ += period.seconds();
   if (logger_rate_ > 0 && elapsed_logger_time_ > (1.0 / static_cast<double>(logger_rate_))) {
@@ -270,43 +256,44 @@ hardware_interface::return_type PowerModuleHardwareInterface::write(
     }
   }
 
-  if (gpio.cmd_kill_all > 0.5 && gpio.kill_all_sent < 0.5) {
-    send_command(gpio.can_id, CMD_KILL_ALL);
-    RCLCPP_INFO(rclcpp::get_logger("PowerModuleHardwareInterface"), "Sent Kill All Command to CAN ID 0x%X", gpio.can_id);
-    gpio.kill_all_sent = 1.0;
-  } else if (gpio.cmd_kill_all < 0.5) {
-    gpio.kill_all_sent = 0.0;
+  for (auto & gpio : PowerModuleGPIOs_) {
+    if (gpio.cmd_kill_all > 0.5 && gpio.kill_all_sent < 0.5) {
+      send_command(gpio.can_id, CMD_KILL_ALL);
+      RCLCPP_INFO(rclcpp::get_logger("PowerModuleHardwareInterface"), "Sent Kill All Command to CAN ID 0x%X", gpio.can_id);
+      gpio.kill_all_sent = 1.0;
+    } else if (gpio.cmd_kill_all < 0.5) {
+      gpio.kill_all_sent = 0.0;
+    }
+
+    if (gpio.cmd_kill_jetson > 0.5 && gpio.kill_jetson_sent < 0.5) {
+      send_command(gpio.can_id, CMD_KILL_JETSON);
+      RCLCPP_INFO(rclcpp::get_logger("PowerModuleHardwareInterface"), "Sent Kill Jetson Command to CAN ID 0x%X", gpio.can_id);
+      gpio.kill_jetson_sent = 1.0;
+    } else if (gpio.cmd_kill_jetson < 0.5) {
+      gpio.kill_jetson_sent = 0.0;
+    }
+
+    if (gpio.cmd_kill_main > 0.5 && gpio.kill_main_sent < 0.5) {
+      send_command(gpio.can_id, CMD_KILL_MAIN);
+      RCLCPP_INFO(rclcpp::get_logger("PowerModuleHardwareInterface"), "Sent Kill Main Command to CAN ID 0x%X", gpio.can_id);
+      gpio.kill_main_sent = 1.0;
+    } else if (gpio.cmd_kill_main < 0.5) {
+      gpio.kill_main_sent = 0.0;
+    }
+
+    if (gpio.cmd_kill_by_voltage > 0.5 && gpio.kill_by_voltage_sent < 0.5) {
+      send_command(gpio.can_id, CMD_KILL_BY_VOLTAGE);
+      RCLCPP_INFO(rclcpp::get_logger("PowerModuleHardwareInterface"), "Sent Kill By Voltage Command to CAN ID 0x%X", gpio.can_id);
+      gpio.kill_by_voltage_sent = 1.0;
+    } else if (gpio.cmd_kill_by_voltage < 0.5) {
+      gpio.kill_by_voltage_sent = 0.0;
+    }
+
+    gpio.status = (static_cast<uint8_t>(gpio.kill_all_sent) << 3) | 
+                  (static_cast<uint8_t>(gpio.cmd_kill_jetson) << 2) | 
+                  (static_cast<uint8_t>(gpio.cmd_kill_main) << 1) | 
+                  static_cast<uint8_t>(gpio.cmd_kill_by_voltage);
   }
-
-  if (gpio.cmd_kill_jetson > 0.5 && gpio.kill_jetson_sent < 0.5) {
-    send_command(gpio.can_id, CMD_KILL_JETSON);
-    RCLCPP_INFO(rclcpp::get_logger("PowerModuleHardwareInterface"), "Sent Kill Jetson Command to CAN ID 0x%X", gpio.can_id);
-    gpio.kill_jetson_sent = 1.0;
-  } else if (gpio.cmd_kill_jetson < 0.5) {
-    gpio.kill_jetson_sent = 0.0;
-  }
-
-  if (gpio.cmd_kill_main > 0.5 && gpio.kill_main_sent < 0.5) {
-    send_command(gpio.can_id, CMD_KILL_MAIN);
-    RCLCPP_INFO(rclcpp::get_logger("PowerModuleHardwareInterface"), "Sent Kill Main Command to CAN ID 0x%X", gpio.can_id);
-    gpio.kill_main_sent = 1.0;
-  } else if (gpio.cmd_kill_main < 0.5) {
-    gpio.kill_main_sent = 0.0;
-  }
-
-  if (gpio.cmd_kill_by_voltage > 0.5 && gpio.kill_by_voltage_sent < 0.5) {
-    send_command(gpio.can_id, CMD_KILL_BY_VOLTAGE);
-    RCLCPP_INFO(rclcpp::get_logger("PowerModuleHardwareInterface"), "Sent Kill By Voltage Command to CAN ID 0x%X", gpio.can_id);
-    gpio.kill_by_voltage_sent = 1.0;
-  } else if (gpio.cmd_kill_by_voltage < 0.5) {
-    gpio.kill_by_voltage_sent = 0.0;
-  }
-
-  gpio.status = (static_cast<uint8_t>(gpio.kill_all_sent) << 3) | 
-                 (static_cast<uint8_t>(gpio.cmd_kill_jetson) << 2) | 
-                 (static_cast<uint8_t>(gpio.cmd_kill_main) << 1) | 
-                 static_cast<uint8_t>(gpio.cmd_kill_by_voltage);
-
   return hardware_interface::return_type::OK;
 }
 

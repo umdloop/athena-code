@@ -9,6 +9,15 @@ ros2 service call /motor_status_controller/maintenance_request msgs/srv/Maintena
   u8_data: []
 }"
 
+ros2 service call /motor_status_controller/maintenance_request msgs/srv/MaintenanceReq "{
+  joint_name: wrist_roll,
+  request_rate: -1,
+  command_id: 0x40,
+  i32_data: [],
+  i16_data: [],
+  u8_data: [150]
+}"
+
 ros2 topic pub --once /power_module_gpio_controller/commands control_msgs/msg/DynamicInterfaceGroupValues " 
 interface_groups:
 - drive_power_module

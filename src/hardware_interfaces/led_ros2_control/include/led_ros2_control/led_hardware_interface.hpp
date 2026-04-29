@@ -4,6 +4,9 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <limits>
+#include <algorithm>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
@@ -52,6 +55,7 @@ public:
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
   // -- Helper Functions --
+  void send_command(int can_id, int cmd_id);
   void logger_function();
 
 private:
@@ -67,6 +71,11 @@ private:
     double status_request;
     double prev_status_request;
     double elapsed_status_request_time;
+    double prev_intensity;
+    double prev_red_command;
+    double prev_green_command;
+    double prev_blue_command;
+    uint32_t node_id;
 
     std::vector<std::string> state_interface_names;
     std::vector<std::string> command_interface_names;
@@ -77,12 +86,23 @@ private:
   CANLib::SocketCanBus canBus_;
   CANLib::CanFrame can_tx_frame_;
 
+  // CAN bus ID (constant for this HWI)
+  uint32_t can_id_ = 0;
+
   std::vector<LEDGPIO> LEDGPIOs_;
   int update_rate_;
   int logger_rate_;
   int logger_state_;
   double elapsed_time_;
   double elapsed_logger_time_;
+
+  // Multiplexor byte
+  static constexpr uint8_t CMD_INTENSITY = 0x20;
+  static constexpr uint8_t CMD_RGB = 0x30;
+
+  // Parameter to confirm whether to send command or not via CAN
+  static constexpr uint8_t DECLINE_SEND = 0;
+  static constexpr uint8_t CONFIRM_SEND = 1;
 };
 
 }  // namespace led_ros2_control

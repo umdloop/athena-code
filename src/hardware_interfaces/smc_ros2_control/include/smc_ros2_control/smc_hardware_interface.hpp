@@ -165,6 +165,7 @@ private:
   int logger_state; // Logger on/off state
 
   int num_joints;
+  int state_iterator;
 
   CANLib::SocketCanBus canBus;
   CANLib::CanFrame can_tx_frame_;
@@ -176,6 +177,7 @@ private:
   enum class MaintenanceCommands : uint8_t
   {
     WRITE_ACCELERATION_CMD = 0x34,
+    READ_SETTINGS_CMD = 0x40,
     WRITE_SETTINGS_TO_RAM_CMD = 0x42,
     WRITE_SETTINGS_TO_ROM_CMD = 0x44,
     MOTOR_SHUTDOWN_CMD = 0x80,
@@ -195,7 +197,6 @@ private:
   enum class StatusCommands : uint8_t
   {
     READ_ACCELERATION_CMD = 0x33,
-    READ_SETTINGS_CMD = 0x40,
     READ_ENCODER_CMD = 0x90,
     READ_ABS_ANGLE_CMD = 0x92,
     MOTOR_STATUS_1_CMD = 0x9A,
@@ -217,7 +218,6 @@ private:
 
   static constexpr std::array<StatusCommands, 6> kStatusCommands = {
     StatusCommands::READ_ACCELERATION_CMD,
-    StatusCommands::READ_SETTINGS_CMD,
     StatusCommands::READ_ENCODER_CMD,
     StatusCommands::READ_ABS_ANGLE_CMD,
     StatusCommands::MOTOR_STATUS_1_CMD,
