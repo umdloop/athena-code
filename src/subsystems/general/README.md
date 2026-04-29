@@ -3,8 +3,18 @@ ros2 service call /motor_status_controller/status_request msgs/srv/StatusReq "{j
 ros2 service call /motor_status_controller/maintenance_request msgs/srv/MaintenanceReq "{
   joint_name: propulsion_fl_joint,
   request_rate: -1,
-  command_id: 0x78,
+  command_id: 0x81,
   i32_data: [],
   i16_data: [],
   u8_data: []
 }"
+
+ros2 topic pub --once /power_module_gpio_controller/commands control_msgs/msg/DynamicInterfaceGroupValues " 
+interface_groups:
+- drive_power_module
+interface_values:
+- interface_names:
+  - kill_jetson
+  values:
+  - 1.0
+"

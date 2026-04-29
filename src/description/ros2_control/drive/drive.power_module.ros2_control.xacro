@@ -14,14 +14,15 @@
       </hardware>
 
       <gpio name="${name}">
-        <state_interface name="kill_all_sent"/>
-        <state_interface name="kill_main_sent"/>
-        <state_interface name="kill_jetson_sent"/>
-        <state_interface name="is_connected"/>
         <state_interface name="status"/>
+        <state_interface name="kill_all_sent"/>
+        <state_interface name="kill_jetson_sent"/>
+        <state_interface name="kill_main_sent"/>
+        <state_interface name="kill_by_voltage_sent"/>
         <command_interface name="kill_all"/>
         <command_interface name="kill_main"/>
         <command_interface name="kill_jetson"/>
+        <command_interface name="kill_by_voltage"/>
         <command_interface name="status_request"/>
       </gpio>
 

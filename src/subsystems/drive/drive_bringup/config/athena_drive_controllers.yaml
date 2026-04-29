@@ -72,10 +72,10 @@ ackermann_steering_controller:
 front_ackermann_controller:
   ros__parameters:
     drive_joints:
-      - "propulsion_fl_joint"
-      - "propulsion_fr_joint"
-      - "propulsion_bl_joint"
-      - "propulsion_br_joint"
+      - propulsion_fl_joint
+      - propulsion_fr_joint
+      - propulsion_bl_joint
+      - propulsion_br_joint
     steer_joints:
       - "steer_fl_joint"
       - "steer_fr_joint"
@@ -119,12 +119,15 @@ led_gpio_controller:
     command_interfaces:
       status_led:
         interfaces:
-          - led_command
+          - red
+          - green
+          - blue
+          - intensity
+          - status_request
     state_interfaces:
       status_led:
         interfaces:
-          - led_state
-          - is_connected
+          - status
 
 # PowerModule GPIO Controller Configuration
 power_module_gpio_controller:
@@ -135,15 +138,17 @@ power_module_gpio_controller:
       drive_power_module:
         interfaces:
           - kill_all
-          - kill_main
           - kill_jetson
+          - kill_main
+          - kill_by_voltage
+          - status_request
     state_interfaces:
       drive_power_module:
         interfaces:
           - kill_all_sent
-          - kill_main_sent
           - kill_jetson_sent
-          - is_connected
+          - kill_main_sent
+          - kill_by_voltage_sent
 
 motor_status_controller:
   ros__parameters:
@@ -164,10 +169,10 @@ rear_ackermann_controller:
       - "steer_bl_joint"
       - "steer_br_joint"
     drive_joints:
-      - "propulsion_fl_joint"
-      - "propulsion_fr_joint"
-      - "propulsion_bl_joint"
-      - "propulsion_br_joint"
+      - propulsion_fl_joint
+      - propulsion_fr_joint
+      - propulsion_bl_joint
+      - propulsion_br_joint
     wheelbase: 0.8382
     track_width: 0.645
     wheel_radius: 0.125

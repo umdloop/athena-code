@@ -463,7 +463,6 @@ std::vector<hardware_interface::StateInterface> RMDHardwareInterface::export_sta
           iface.c_str(), joint.name.c_str());
         continue;
       }
-
       state_interfaces.emplace_back(hardware_interface::StateInterface(
         joint.name, iface, val));
     }
@@ -501,7 +500,6 @@ RMDHardwareInterface::export_command_interfaces()
           iface.c_str(), joint.name.c_str());
         continue;
       }
-
       command_interfaces.emplace_back(hardware_interface::CommandInterface(
         joint.name, iface, val));
     }
@@ -514,7 +512,7 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_configure(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   if (!canBus.open(can_interface, std::bind(&RMDHardwareInterface::on_can_message, this, std::placeholders::_1))) {
-    RCLCPP_INFO(rclcpp::get_logger("RMDHardwareInterface"), "Failed to open CAN interface");
+    RCLCPP_ERROR(rclcpp::get_logger("RMDHardwareInterface"), "Failed to open CAN interface");
     return hardware_interface::CallbackReturn::ERROR;
   }
 

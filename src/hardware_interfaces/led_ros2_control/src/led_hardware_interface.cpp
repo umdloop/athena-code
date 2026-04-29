@@ -10,83 +10,28 @@
 namespace led_ros2_control
 {
 
-namespace gpio_utils
-{
-
-int setup_gpio_output(int pin)
-{
-  int fd = ::open("/sys/class/gpio/export", O_WRONLY);
-  if (fd >= 0) {
-    const std::string pin_str = std::to_string(pin);
-    ::write(fd, pin_str.c_str(), pin_str.length());
-    ::close(fd);
-    usleep(100000);
-  }
-
-  std::stringstream direction_path;
-  direction_path << "/sys/class/gpio/gpio" << pin << "/direction";
-  fd = ::open(direction_path.str().c_str(), O_WRONLY);
-  if (fd < 0) {
-    return -1;
-  }
-  ::write(fd, "out", 3);
-  ::close(fd);
-
-  std::stringstream value_path;
-  value_path << "/sys/class/gpio/gpio" << pin << "/value";
-  return ::open(value_path.str().c_str(), O_RDWR);
-}
-
-void cleanup_gpio(int pin, int fd)
-{
-  if (fd >= 0) {
-    ::close(fd);
-  }
-
-  int export_fd = ::open("/sys/class/gpio/unexport", O_WRONLY);
-  if (export_fd >= 0) {
-    const std::string pin_str = std::to_string(pin);
-    ::write(export_fd, pin_str.c_str(), pin_str.length());
-    ::close(export_fd);
-  }
-}
-
-bool write_gpio(int fd, bool value)
-{
-  if (fd < 0) {
-    return false;
-  }
-  const char val = value ? '1' : '0';
-  lseek(fd, 0, SEEK_SET);
-  return (::write(fd, &val, 1) == 1);
-}
-
-}  // namespace gpio_utils
-
 void LEDHardwareInterface::logger_function()
 {
-  if (LEDJoints_.empty()) {
+  if (LEDGPIOs_.empty()) {
     return;
   }
 
-  const auto & joint = LEDJoints_.front();
+  const auto & gpio = LEDGPIOs_.front();
   std::ostringstream oss;
   oss << "\033[2J\033[H \nLED Logger"
       << "\n--- HWI Specific ---\n"
-      << "GPIO Pin: " << joint.gpio_pin
-      << " | HWI Update Rate: " << update_rate_
+      << "HWI Update Rate: " << update_rate_
       << " | Logger Update Rate: " << logger_rate_ << "\n"
       << "Elapsed Time since first update: " << elapsed_time_ << "\n"
-      << "\n--- Joint Specific ---\n"
-      << "JOINT: " << joint.name << "\n"
-      << "Parameters: Default State: " << (joint.default_state ? "ON" : "OFF") << "\n"
+      << "\n--- GPIO Specific ---\n"
+      << "GPIO: " << gpio.name << "\n"
       << "-- Commands --\n"
-      << "LED Command: " << joint.led_command
-      << " | Status Request: " << joint.status_request << "\n"
+      << "Red Command: " << gpio.red_command
+      << " | Green Command: " << gpio.green_command
+      << " | Blue Command: " << gpio.blue_command
+      << " | Status Request: " << gpio.status_request << "\n"
       << "-- State --\n"
-      << "LED State: " << joint.led_state
-      << " | Is Connected: " << joint.is_connected
-      << " | Status: " << joint.status << "\n";
+      << "Status: " << gpio.status << "\n";
 
   RCLCPP_INFO(rclcpp::get_logger("LEDHardwareInterface"), "%s", oss.str().c_str());
 }
@@ -99,38 +44,63 @@ hardware_interface::CallbackReturn LEDHardwareInterface::on_init(
   {
     return hardware_interface::CallbackReturn::ERROR;
   }
-
-  if (!info_.hardware_parameters.count("gpio_pin")) {
-    RCLCPP_ERROR(rclcpp::get_logger("LEDHardwareInterface"), "gpio_pin parameter is required");
-    return hardware_interface::CallbackReturn::ERROR;
-  }
-
-  const int gpio_pin = std::stoi(info_.hardware_parameters.at("gpio_pin"));
-  const bool default_state = info_.hardware_parameters.count("default_state") &&
-    info_.hardware_parameters.at("default_state") == "on";
+  
+  // General HWI parameters
+  can_interface_ = info_.hardware_parameters.count("can_interface") ?
+    info_.hardware_parameters.at("can_interface") : "can0";
   update_rate_ = info_.hardware_parameters.count("update_rate") ?
-    std::stoi(info_.hardware_parameters.at("update_rate")) : 0;
+    std::stoi(info_.hardware_parameters.at("update_rate")) : 5;
   logger_rate_ = info_.hardware_parameters.count("logger_rate") ?
     std::stoi(info_.hardware_parameters.at("logger_rate")) : 0;
   logger_state_ = info_.hardware_parameters.count("logger_state") ?
     std::stoi(info_.hardware_parameters.at("logger_state")) : 0;
+  if(info_.hardware_parameters.count("can_id")) {
+    const uint32_t can_id = static_cast<uint32_t>(std::stoul(info_.hardware_parameters.at("can_id"), nullptr, 0));
+  }
+  else {
+    RCLCPP_ERROR(rclcpp::get_logger("PowerModuleHardwareInterface"), "CAN ID parameter 'can_id' is missing or invalid in hardware configuration.");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
 
-  LEDJoints_.clear();
-  LEDJoints_.push_back(LEDJoint{
-    info_.gpios[0].name,
-    gpio_pin,
-    default_state,
-    default_state ? 1.0 : 0.0,
-    0.0,
-    0.0,
-    default_state ? 1.0 : 0.0,
-    0.0,
-    0.0,
-    0.0
-  });
+  for (auto& gpio : info_.gpios) {
+    // Collect state interface names
+    std::vector<std::string> state_if_names;
+    for (const auto &si : gpio.state_interfaces) {
+      state_if_names.push_back(si.name);
+    }
 
-  gpio_fd_ = -1;
-  hw_connected_ = false;
+    // Collect command interface names
+    std::vector<std::string> command_if_names;
+    for (const auto &ci : gpio.command_interfaces) {
+      command_if_names.push_back(ci.name);
+    }
+
+    // Copy parameters into an unordered_map<string,string>
+    std::unordered_map<std::string, std::string> params_map;
+    for (const auto &p : gpio.parameters) {
+      params_map.emplace(p.first, p.second);
+    }
+
+    LEDGPIOs_.push_back(
+      LEDGPIO{
+        .name = info_.gpios[0].name,
+        .is_rgb = false,
+        .status = 0.0,
+        .intensity = 0.0,
+        .red_command = 0.0,
+        .green_command = 0.0,
+        .blue_command = 0.0,
+        .status_request = 0.0,
+        .prev_status_request = 0.0,
+        .elapsed_status_request_time = 0.0,
+
+        .state_interface_names = state_if_names,
+        .command_interface_names = command_if_names,
+        .parameters = params_map
+      }
+    );
+  }
+
   elapsed_time_ = 0.0;
   elapsed_logger_time_ = 0.0;
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -139,33 +109,70 @@ hardware_interface::CallbackReturn LEDHardwareInterface::on_init(
 hardware_interface::CallbackReturn LEDHardwareInterface::on_configure(
   const rclcpp_lifecycle::State &)
 {
-  auto & joint = LEDJoints_.front();
-  gpio_fd_ = gpio_utils::setup_gpio_output(joint.gpio_pin);
-  hw_connected_ = gpio_fd_ >= 0;
-  if (hw_connected_) {
-    gpio_utils::write_gpio(gpio_fd_, joint.default_state);
-  }
-  joint.is_connected = hw_connected_ ? 1.0 : 0.0;
-  joint.status = joint.is_connected;
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 std::vector<hardware_interface::StateInterface> LEDHardwareInterface::export_state_interfaces()
 {
-  auto & joint = LEDJoints_.front();
   std::vector<hardware_interface::StateInterface> state_interfaces;
-  state_interfaces.emplace_back(joint.name, "led_state", &joint.led_state);
-  state_interfaces.emplace_back(joint.name, "is_connected", &joint.is_connected);
-  state_interfaces.emplace_back(joint.name, "status", &joint.status);
+
+  for (auto & gpio : LEDGPIOs_) {
+    for (auto & iface : gpio.state_interface_names) {
+      double * val = nullptr;
+      if (iface == "status") {
+        val = &gpio.status;
+      } else {
+        RCLCPP_WARN(
+          rclcpp::get_logger("LEDHardwareInterface"), 
+          "Unknown state interface '%s' for GPIO '%s'", 
+          iface.c_str(), gpio.name.c_str());
+        continue;
+      }
+      state_interfaces.emplace_back(hardware_interface::StateInterface(
+        gpio.name, iface, val));
+    }
+  }
   return state_interfaces;
 }
 
 std::vector<hardware_interface::CommandInterface> LEDHardwareInterface::export_command_interfaces()
 {
-  auto & joint = LEDJoints_.front();
   std::vector<hardware_interface::CommandInterface> command_interfaces;
-  command_interfaces.emplace_back(joint.name, "led_command", &joint.led_command);
-  command_interfaces.emplace_back(joint.name, "status_request", &joint.status_request);
+
+  for (auto & gpio : LEDGPIOs_) {
+    for (auto & iface : gpio.command_interface_names) {
+      double * val = nullptr;
+      if (iface == "red") {
+        val = &gpio.red_command;
+      } else if (iface == "green") {
+        val = &gpio.green_command;
+      } else if (iface == "blue") {
+        val = &gpio.blue_command;
+      } else if (iface == "status_request") {
+        val = &gpio.status_request;
+      } else if (iface == "intensity") {
+        if(gpio.is_rgb) {
+          RCLCPP_ERROR(
+            rclcpp::get_logger("LEDHardwareInterface"), 
+            "Intensity command interface is not supported for RGB GPIO '%s'", 
+            gpio.name.c_str());
+            continue;
+        }
+        else {
+          val = &gpio.intensity;
+        }
+      } else {
+        RCLCPP_WARN(
+          rclcpp::get_logger("LEDHardwareInterface"), 
+          "Unknown command interface '%s' for GPIO '%s'", 
+          iface.c_str(), gpio.name.c_str());
+        continue;
+      }
+      command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        gpio.name, iface, val));
+    }
+  }
+
   return command_interfaces;
 }
 
@@ -178,26 +185,14 @@ hardware_interface::CallbackReturn LEDHardwareInterface::on_activate(
 hardware_interface::CallbackReturn LEDHardwareInterface::on_deactivate(
   const rclcpp_lifecycle::State &)
 {
-  auto & joint = LEDJoints_.front();
-  if (hw_connected_ && gpio_fd_ >= 0) {
-    gpio_utils::write_gpio(gpio_fd_, false);
-  }
-  joint.led_state = 0.0;
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::CallbackReturn LEDHardwareInterface::on_cleanup(
   const rclcpp_lifecycle::State &)
 {
-  if (gpio_fd_ >= 0) {
-    gpio_utils::write_gpio(gpio_fd_, false);
-    gpio_utils::cleanup_gpio(LEDJoints_.front().gpio_pin, gpio_fd_);
-    gpio_fd_ = -1;
-  }
-  hw_connected_ = false;
-  auto & joint = LEDJoints_.front();
-  joint.is_connected = 0.0;
-  joint.status = 0.0;
+  auto & gpio = LEDGPIOs_.front();
+  gpio.status = 0.0;
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -216,7 +211,7 @@ hardware_interface::return_type LEDHardwareInterface::read(
 hardware_interface::return_type LEDHardwareInterface::write(
   const rclcpp::Time &, const rclcpp::Duration & period)
 {
-  auto & joint = LEDJoints_.front();
+  auto & gpio = LEDGPIOs_.front();
 
   elapsed_time_ += period.seconds();
   elapsed_logger_time_ += period.seconds();
@@ -227,25 +222,14 @@ hardware_interface::return_type LEDHardwareInterface::write(
     }
   }
 
-  const bool commanded_on = joint.led_command > 0.5;
-  const bool currently_on = joint.led_state > 0.5;
-  if (commanded_on != currently_on) {
-    if (hw_connected_ && gpio_fd_ >= 0) {
-      gpio_utils::write_gpio(gpio_fd_, commanded_on);
-    }
-    joint.led_state = commanded_on ? 1.0 : 0.0;
-  }
-
-  if (joint.status_request < 0.0 && joint.prev_status_request >= 0.0) {
-    joint.status = hw_connected_ ? 1.0 : 0.0;
-  } else if (joint.status_request > 0.0) {
-    joint.elapsed_status_request_time += period.seconds();
-    if (joint.elapsed_status_request_time > (1.0 / joint.status_request)) {
-      joint.elapsed_status_request_time = 0.0;
-      joint.status = hw_connected_ ? 1.0 : 0.0;
+  if (gpio.status_request < 0.0 && gpio.prev_status_request >= 0.0) {
+  } else if (gpio.status_request > 0.0) {
+    gpio.elapsed_status_request_time += period.seconds();
+    if (gpio.elapsed_status_request_time > (1.0 / gpio.status_request)) {
+      gpio.elapsed_status_request_time = 0.0;
     }
   }
-  joint.prev_status_request = joint.status_request;
+  gpio.prev_status_request = gpio.status_request;
 
   return hardware_interface::return_type::OK;
 }

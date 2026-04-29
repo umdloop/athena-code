@@ -12,8 +12,14 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+
 #include "umdloop_can_library/CanFrame.hpp"
 #include "umdloop_can_library/SocketCanBus.hpp"
+
+namespace CANLib 
+{
+  struct CanFrame;
+}
 
 namespace power_module_ros2_control
 {
@@ -51,28 +57,33 @@ public:
   void logger_function();
 
 private:
-  struct PowerModuleJoint
+  struct PowerModuleGPIO
   {
     std::string name;
     uint32_t can_id;
     double kill_all_sent;
-    double kill_main_sent;
     double kill_jetson_sent;
-    double is_connected;
+    double kill_main_sent;
+    double kill_by_voltage_sent;
     double status;
     double cmd_kill_all;
-    double cmd_kill_main;
     double cmd_kill_jetson;
+    double cmd_kill_main;
+    double cmd_kill_by_voltage;
     double status_request;
     double prev_status_request;
     double elapsed_status_request_time;
+
+    std::vector<std::string> state_interface_names;
+    std::vector<std::string> command_interface_names;
+    std::unordered_map<std::string, std::string> parameters;
   };
 
   std::string can_interface_;
-  CANLib::SocketCanBus canBus_;
+  uint32_t can_id;
+  CANLib::SocketCanBus canBus;
   CANLib::CanFrame can_tx_frame_;
-  bool can_connected_;
-  std::vector<PowerModuleJoint> PowerModuleJoints_;
+  std::vector<PowerModuleGPIO> PowerModuleGPIOs_;
   int update_rate_;
   int logger_rate_;
   int logger_state_;
@@ -80,9 +91,10 @@ private:
   double elapsed_logger_time_;
 
   // Multiplexor byte
-  static constexpr uint8_t CMD_KILL_ALL = 0x01;
-  static constexpr uint8_t CMD_KILL_MAIN = 0x03;
-  static constexpr uint8_t CMD_KILL_JETSON = 0x05;
+  static constexpr uint8_t CMD_KILL_ALL = 0x12;
+  static constexpr uint8_t CMD_KILL_JETSON = 0x13;
+  static constexpr uint8_t CMD_KILL_MAIN = 0x14;
+  static constexpr uint8_t CMD_KILL_BY_VOLTAGE = 0x15;
 
   // Parameter to confirm whether to send command or not via CAN
   static constexpr uint8_t DECLINE_SEND = 0;

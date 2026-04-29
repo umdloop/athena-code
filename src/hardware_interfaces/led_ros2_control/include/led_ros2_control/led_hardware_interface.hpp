@@ -13,15 +13,16 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
+#include "umdloop_can_library/SocketCanBus.hpp"
+#include "umdloop_can_library/CanFrame.hpp"
+
+namespace CANLib 
+{
+  struct CanFrame;
+}
+
 namespace led_ros2_control
 {
-
-namespace gpio_utils
-{
-int setup_gpio_output(int pin);
-void cleanup_gpio(int pin, int fd);
-bool write_gpio(int fd, bool value);
-}
 
 class LEDHardwareInterface : public hardware_interface::SystemInterface
 {
@@ -50,26 +51,33 @@ public:
   hardware_interface::return_type write(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
+  // -- Helper Functions --
   void logger_function();
 
 private:
-  struct LEDJoint
+  struct LEDGPIO
   {
     std::string name;
-    int gpio_pin;
-    bool default_state;
-    double led_state;
-    double is_connected;
+    bool is_rgb;
     double status;
-    double led_command;
+    double intensity;
+    double red_command;
+    double green_command;
+    double blue_command;
     double status_request;
     double prev_status_request;
     double elapsed_status_request_time;
+
+    std::vector<std::string> state_interface_names;
+    std::vector<std::string> command_interface_names;
+    std::unordered_map<std::string, std::string> parameters;
   };
 
-  int gpio_fd_;
-  bool hw_connected_;
-  std::vector<LEDJoint> LEDJoints_;
+  std::string can_interface_;
+  CANLib::SocketCanBus canBus_;
+  CANLib::CanFrame can_tx_frame_;
+
+  std::vector<LEDGPIO> LEDGPIOs_;
   int update_rate_;
   int logger_rate_;
   int logger_state_;
