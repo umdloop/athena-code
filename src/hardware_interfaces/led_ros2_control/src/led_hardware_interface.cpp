@@ -30,8 +30,8 @@ void LEDHardwareInterface::logger_function()
     return;
   }
 
-  const auto & gpio = LEDGPIOs_.front();
-  std::ostringstream oss;
+  for (const auto & gpio : LEDGPIOs_) {
+    std::ostringstream oss;
     oss << "\033[2J\033[H \nLED Logger"
       << "\n--- HWI Specific ---\n"
       << "CAN Interface: " << can_interface_
@@ -49,7 +49,8 @@ void LEDHardwareInterface::logger_function()
       << "-- State --\n"
       << "Status: " << gpio.status << "\n";
 
-  RCLCPP_INFO(rclcpp::get_logger("LEDHardwareInterface"), "%s", oss.str().c_str());
+    RCLCPP_INFO(rclcpp::get_logger("LEDHardwareInterface"), "%s", oss.str().c_str());
+  }
 }
 
 hardware_interface::CallbackReturn LEDHardwareInterface::on_init(
@@ -110,7 +111,7 @@ hardware_interface::CallbackReturn LEDHardwareInterface::on_init(
     uint32_t gpio_node_id = 0;
     if (params_map.count("node_id")) {
       try {
-        gpio_node_id = static_cast<uint32_t>(std::stoul(params_map.at("node_id"), nullptr, 0));
+        gpio_node_id = static_cast<uint32_t>(std::stoul(params_map.at("node_id")));
       } catch (const std::exception & e) {
         RCLCPP_WARN(rclcpp::get_logger("LEDHardwareInterface"), "Failed to parse gpio node_id for '%s': %s", gpio.name.c_str(), e.what());
       }
@@ -229,8 +230,9 @@ hardware_interface::CallbackReturn LEDHardwareInterface::on_deactivate(
 hardware_interface::CallbackReturn LEDHardwareInterface::on_cleanup(
   const rclcpp_lifecycle::State &)
 {
-  auto & gpio = LEDGPIOs_.front();
-  gpio.status = 0.0;
+  for (auto & gpio : LEDGPIOs_) {
+    gpio.status = 0.0;
+  }
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -249,8 +251,6 @@ hardware_interface::return_type LEDHardwareInterface::read(
 hardware_interface::return_type LEDHardwareInterface::write(
   const rclcpp::Time &, const rclcpp::Duration & period)
 {
-  auto & gpio = LEDGPIOs_.front();
-
   elapsed_time_ += period.seconds();
   elapsed_logger_time_ += period.seconds();
   if (logger_rate_ > 0 && elapsed_logger_time_ > (1.0 / static_cast<double>(logger_rate_))) {
@@ -260,54 +260,50 @@ hardware_interface::return_type LEDHardwareInterface::write(
     }
   }
 
-  if (gpio.status_request < 0.0 && gpio.prev_status_request >= 0.0) {
-  } else if (gpio.status_request > 0.0) {
-    gpio.elapsed_status_request_time += period.seconds();
-    if (gpio.elapsed_status_request_time > (1.0 / gpio.status_request)) {
-      gpio.elapsed_status_request_time = 0.0;
+  for (auto & gpio : LEDGPIOs_) {
+    if (gpio.status_request < 0.0 && gpio.prev_status_request >= 0.0) {
+    } else if (gpio.status_request > 0.0) {
+      gpio.elapsed_status_request_time += period.seconds();
+      if (gpio.elapsed_status_request_time > (1.0 / gpio.status_request)) {
+        gpio.elapsed_status_request_time = 0.0;
+      }
     }
-  }
-  gpio.prev_status_request = gpio.status_request;
-  // Build and send CAN frames for LED commands
-  CANLib::CanFrame frame;
-  frame.id = can_id_;
-  frame.dlc = 8;
-  frame.data.fill(0);
+    gpio.prev_status_request = gpio.status_request;
+    // Build and send CAN frames for LED commands
+    CANLib::CanFrame frame;
+    frame.id = can_id_;
+    frame.dlc = 8;
+    frame.data.fill(0);
 
-  if (gpio.is_rgb) {
-    // RGB mode: send when any channel changed
-    const double r = gpio.red_command;
-    const double g = gpio.green_command;
-    const double b = gpio.blue_command;
-    const bool changed = (std::isnan(gpio.prev_red_command) || r != gpio.prev_red_command) ||
-                         (std::isnan(gpio.prev_green_command) || g != gpio.prev_green_command) ||
-                         (std::isnan(gpio.prev_blue_command) || b != gpio.prev_blue_command);
-    if (changed) {
-      auto clamp_u8 = [](double v) -> uint8_t {
-        return static_cast<uint8_t>(std::clamp(static_cast<int>(std::round(v)), 0, 255));
-      };
-      frame.data[0] = static_cast<uint8_t>(CMD_RGB + static_cast<uint8_t>(gpio.node_id & 0xFF));
-      frame.data[1] = clamp_u8(r);
-      frame.data[2] = clamp_u8(g);
-      frame.data[3] = clamp_u8(b);
-      canBus.send(frame);
-      gpio.prev_red_command = r;
-      gpio.prev_green_command = g;
-      gpio.prev_blue_command = b;
-      RCLCPP_INFO(rclcpp::get_logger("LEDHardwareInterface"), "Sent RGB frame to node 0x%X (CAN ID 0x%X)", gpio.node_id, can_id_);
-    }
-  } else {
-    const double intensity = gpio.intensity;
-    const bool changed = std::isnan(gpio.prev_intensity) || intensity != gpio.prev_intensity;
-    if (changed) {
-      auto clamp_u8 = [](double v) -> uint8_t {
-        return static_cast<uint8_t>(std::clamp(static_cast<int>(std::round(v)), 0, 255));
-      };
-      frame.data[0] = static_cast<uint8_t>(CMD_INTENSITY + static_cast<uint8_t>(gpio.node_id & 0xFF));
-      frame.data[1] = clamp_u8(intensity);
-      canBus.send(frame);
-      gpio.prev_intensity = intensity;
-      RCLCPP_INFO(rclcpp::get_logger("LEDHardwareInterface"), "Sent intensity frame to node 0x%X (CAN ID 0x%X val=%d)", gpio.node_id, can_id_, frame.data[1]);
+    if (gpio.is_rgb) {
+      // RGB mode: send when any channel changed
+      const double r = gpio.red_command;
+      const double g = gpio.green_command;
+      const double b = gpio.blue_command;
+      const bool changed = (std::isnan(gpio.prev_red_command) || r != gpio.prev_red_command) ||
+                          (std::isnan(gpio.prev_green_command) || g != gpio.prev_green_command) ||
+                          (std::isnan(gpio.prev_blue_command) || b != gpio.prev_blue_command);
+      if (changed) {
+        frame.data[0] = static_cast<uint8_t>(CMD_RGB + static_cast<uint8_t>(gpio.node_id & 0xFF));
+        frame.data[1] = std::clamp(static_cast<int>(std::round(r)), 0, 255);
+        frame.data[2] = std::clamp(static_cast<int>(std::round(g)), 0, 255);
+        frame.data[3] = std::clamp(static_cast<int>(std::round(b)), 0, 255);
+        canBus.send(frame);
+        gpio.prev_red_command = r;
+        gpio.prev_green_command = g;
+        gpio.prev_blue_command = b;
+        RCLCPP_INFO(rclcpp::get_logger("LEDHardwareInterface"), "Sent RGB frame to node 0x%X (CAN ID 0x%X)", gpio.node_id, can_id_);
+      }
+    } else {
+      const double intensity = gpio.intensity;
+      const bool changed = std::isnan(gpio.prev_intensity) || intensity != gpio.prev_intensity;
+      if (changed) {
+        frame.data[0] = static_cast<uint8_t>(CMD_INTENSITY + static_cast<uint8_t>(gpio.node_id & 0xFF));
+        frame.data[1] = std::clamp(static_cast<int>(std::round(intensity)), 0, 255);
+        canBus.send(frame);
+        gpio.prev_intensity = intensity;
+        RCLCPP_INFO(rclcpp::get_logger("LEDHardwareInterface"), "Sent intensity frame to node 0x%X (CAN ID 0x%X val=%d)", gpio.node_id, can_id_, frame.data[1]);
+      }
     }
   }
 

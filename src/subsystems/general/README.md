@@ -27,3 +27,13 @@ interface_values:
   values:
   - 1.0
 "
+
+ros2 topic pub --once /drive_led_gpio_controller/commands control_msgs/msg/DynamicInterfaceGroupValues " 
+interface_groups:
+- drive_led
+interface_values:
+- interface_names:
+  - red
+  values:
+  - 255.0
+"

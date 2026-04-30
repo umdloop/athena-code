@@ -63,6 +63,7 @@ private:
   {
     std::string name;
     bool is_rgb;
+    uint32_t node_id;
     double status;
     double intensity;
     double red_command;
@@ -75,7 +76,6 @@ private:
     double prev_red_command;
     double prev_green_command;
     double prev_blue_command;
-    uint32_t node_id;
 
     std::vector<std::string> state_interface_names;
     std::vector<std::string> command_interface_names;
@@ -83,7 +83,7 @@ private:
   };
 
   std::string can_interface_;
-  CANLib::SocketCanBus canBus_;
+  CANLib::SocketCanBus canBus;
   CANLib::CanFrame can_tx_frame_;
 
   // CAN bus ID (constant for this HWI)

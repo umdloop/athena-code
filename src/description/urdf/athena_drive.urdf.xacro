@@ -78,7 +78,7 @@
     <xacro:rmd_ros2_control name="rmd"/>
 
     <!-- LED status indicator (GPIO-based) -->
-    <xacro:led_ros2_control name="status_led" can_interface="can0"/>
+    <xacro:led_ros2_control name="drive_led" can_interface="can0"/>
 
     <!-- PowerModule (CAN-based) -->
     <xacro:power_module_ros2_control name="drive_power_module" can_interface="can0"/>

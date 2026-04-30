@@ -42,7 +42,7 @@ controller_manager:
     #   type: drive_controllers/SwerveDriveController
 
     # LED GPIO Controller
-    led_gpio_controller:
+    drive_led_gpio_controller:
       type: gpio_controllers/GpioCommandController
 
     # PowerModule GPIO Controller
@@ -112,20 +112,19 @@ drive_position_controller:
     interface_name: position
 
 # LED GPIO Controller Configuration
-led_gpio_controller:
+drive_led_gpio_controller:
   ros__parameters:
     gpios:
-      - status_led
+      - drive_led
     command_interfaces:
-      status_led:
+      drive_led:
         interfaces:
           - red
           - green
           - blue
-          - intensity
           - status_request
     state_interfaces:
-      status_led:
+      drive_led:
         interfaces:
           - status
 
