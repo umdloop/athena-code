@@ -1,9 +1,26 @@
+// Copyright (c) 2024 UMD Loop
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 #include "stepper_ros2_control/stepper_hardware_interface.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
+#include <limits>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "pluginlib/class_list_macros.hpp"
@@ -110,6 +127,53 @@ bool STEPPERHardwareInterface::format_maintenance_command(
     default:
       return false;
   }
+void STEPPERHardwareInterface::logger_function()
+{
+  // Prevents breaking the logger
+  if (num_joints == 0) return;
+
+  // Building Message
+  std::string log_msg = "\033[2J\033[H \nSTEPPER Logger";
+  std::ostringstream oss;
+  std::string status;
+
+  // HWI Specific
+  oss << "\n--- HWI Specific ---\n"
+      << "CAN Interface: " << can_interface
+      << " | Command CAN ID: 0x" << std::hex << std::uppercase << can_command_id
+      << " | Response CAN ID: 0x" << std::hex << std::uppercase << can_response_id
+      << " | HWI Update Rate: " << update_rate
+      << " | Logger Update Rate: " << logger_rate << "\n"
+      << "Elapsed Time since first update: " << elapsed_time << "\n"
+      << "\n--- Joint Specific ---";
+
+  for (int i = 0; i < num_joints; i++) {
+    switch (device_status[i]) {
+      case 0x00: status = "IDLE (ready)";      break;
+      case 0x01: status = "ACTIVE (busy)";     break;
+      case 0x02: status = "DOES NOT EXIST";    break;
+      case 0x03: status = "ERROR";             break;
+      default:   status = "UNDEFINED";         break;
+    }
+
+    oss << "\nJOINT: " << info_.joints[i].name << "\n"
+        << "Parameters: Node ID: 0x" << std::hex << std::uppercase << joint_node_ids[i]
+        << " | Gear Ratio: " << joint_gear_ratios[i]
+        << " | Device Status: " << std::hex << std::uppercase << device_status[i]
+        << " - " << status << "\n"
+        << "-- Commands --\n"
+        << "Control Mode: " << static_cast<int>(control_level_[i]) << "\n"
+        << "Motor Position: " << motor_position[i]
+        << " | Joint Command Position: " << joint_command_position_[i] << "\n"
+        << "Motor Velocity: " << motor_velocity[i]
+        << " | Joint Command Velocity: " << joint_command_velocity_[i] << "\n"
+        << "-- State --\n"
+        << "Joint Position: " << joint_state_position_[i]
+        << " | Joint Velocity: " << joint_state_velocity_[i] << "\n";
+  }
+
+  log_msg += oss.str();
+  RCLCPP_INFO(rclcpp::get_logger("STEPPERHardwareInterface"), log_msg.c_str());
 }
 
 hardware_interface::CallbackReturn STEPPERHardwareInterface::on_init(
@@ -249,92 +313,247 @@ std::vector<hardware_interface::CommandInterface> STEPPERHardwareInterface::expo
 hardware_interface::CallbackReturn STEPPERHardwareInterface::on_configure(
   const rclcpp_lifecycle::State &)
 {
-  node_ = rclcpp::Node::make_shared("stepper_hardware_node");
-  science_can_publisher_ = node_->create_publisher<msgs::msg::CANA>("can_tx", rclcpp::QoS(10));
-  science_can_subscriber_ = node_->create_subscription<msgs::msg::CANA>(
-    "can_rx", rclcpp::QoS(50).reliable(),
-    [this](const msgs::msg::CANA::SharedPtr message) {
-      received_joint_data_ = *message;
-    });
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPERHardwareInterface"),
+    "Configuring stepper hardware...");
+
+  if (!canBus_.open(can_interface,
+      std::bind(&STEPPERHardwareInterface::onCanMessage, this, std::placeholders::_1)))
+  {
+    RCLCPP_WARN(
+      rclcpp::get_logger("STEPPERHardwareInterface"),
+      "Failed to open CAN interface %s - running in SIMULATION mode",
+      can_interface.c_str());
+    can_connected_ = false;
+  } else {
+    can_connected_ = true;
+    RCLCPP_INFO(
+      rclcpp::get_logger("STEPPERHardwareInterface"),
+      "Successfully opened CAN interface %s", can_interface.c_str());
+  }
+
+  is_connected_ = can_connected_ ? 1.0 : 0.0;
+
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPERHardwareInterface"),
+    "Stepper hardware configured (%s)", can_connected_ ? "CAN MODE" : "SIMULATION");
+
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-hardware_interface::CallbackReturn STEPPERHardwareInterface::on_cleanup(
-  const rclcpp_lifecycle::State &)
+// Per protocol spec, response decoding uses 16-bit values (not 24-bit).
+// All responses return: data[1-2] = position (int16, deg), data[3-4] = velocity (int16, deg/s).
+void STEPPERHardwareInterface::onCanMessage(const CANLib::CanFrame& frame)
 {
-  for (const auto & joint : STEPPERJoints_) {
-    msgs::msg::CANA frame;
-    if (format_maintenance_command(
-        frame, joint.node_id,
-        DecodedCommand{static_cast<uint8_t>(MaintenanceCommands::MOTOR_SHUTDOWN_CMD), {}, {}, {}}))
-    {
-      science_can_publisher_->publish(frame);
-    }
-    if (format_maintenance_command(
-        frame, joint.node_id,
-        DecodedCommand{static_cast<uint8_t>(MaintenanceCommands::BRAKE_LOCK_CMD), {}, {}, {}}))
-    {
-      science_can_publisher_->publish(frame);
-    }
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPER"),
+    "RX id=0x%X dlc=%d b0=0x%02X",
+    frame.id, frame.dlc, frame.data[0]);
+
+  can_rx_frame_ = frame;
+
+  if (can_rx_frame_.id != can_response_id) {
+    return;
   }
 
-  science_can_publisher_.reset();
-  science_can_subscriber_.reset();
-  node_.reset();
-  return hardware_interface::CallbackReturn::SUCCESS;
+  uint8_t command_nibble  = (can_rx_frame_.data[0] >> 4) & 0x0F;
+  uint8_t device_id_nibble = can_rx_frame_.data[0] & 0x0F;
+
+  for (int i = 0; i < num_joints; i++) {
+    if (device_id_nibble != static_cast<uint8_t>(joint_node_ids[i] & 0x0F)) {
+      continue;
+    }
+
+    if (command_nibble == MOTOR_STATE_CMD) {
+      // Per protocol spec, position and velocity are 16-bit signed (deg, deg/s), little endian
+      int16_t raw_position = static_cast<int16_t>(
+          can_rx_frame_.data[1] | (can_rx_frame_.data[2] << 8));
+      int16_t raw_velocity = static_cast<int16_t>(
+          can_rx_frame_.data[3] | (can_rx_frame_.data[4] << 8));
+
+      // Convert deg -> rad and apply gear ratio
+      motor_position[i] = (static_cast<double>(raw_position) * M_PI / 180.0) / joint_gear_ratios[i];
+      motor_velocity[i] = (static_cast<double>(raw_velocity) * M_PI / 180.0) / joint_gear_ratios[i];
+
+    } else if (command_nibble == MOTOR_STATUS_CMD) {
+      device_status[i] = can_rx_frame_.data[1];
+    }
+
+    break;  // Matched joint, no need to keep iterating
+  }
 }
 
 hardware_interface::CallbackReturn STEPPERHardwareInterface::on_activate(
   const rclcpp_lifecycle::State &)
 {
-  for (auto & joint : STEPPERJoints_) {
-    msgs::msg::CANA frame;
-    if (format_maintenance_command(
-        frame, joint.node_id,
-        DecodedCommand{static_cast<uint8_t>(MaintenanceCommands::BRAKE_RELEASE_CMD), {}, {}, {}}))
-    {
-      science_can_publisher_->publish(frame);
-    }
-    joint.joint_command_position = joint.initial_position;
-    joint.joint_command_velocity = 0.0;
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPERHardwareInterface"),
+    "Activating ...please wait...");
+
+  joint_command_position_ = joint_state_position_;
+
+  for (size_t i = 0; i < joint_command_position_.size(); ++i) {
+    RCLCPP_INFO(
+      rclcpp::get_logger("STEPPERHardwareInterface"),
+      "Joint %zu command position initialized to: %f", i, joint_command_position_[i]);
   }
+
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPERHardwareInterface"),
+    "Stepper hardware activated");
+
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::CallbackReturn STEPPERHardwareInterface::on_deactivate(
   const rclcpp_lifecycle::State &)
 {
-  for (const auto & joint : STEPPERJoints_) {
-    msgs::msg::CANA frame;
-    if (format_maintenance_command(
-        frame, joint.node_id,
-        DecodedCommand{static_cast<uint8_t>(MaintenanceCommands::MOTOR_STOP_CMD), {}, {}, {}}))
-    {
-      science_can_publisher_->publish(frame);
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPERHardwareInterface"),
+    "Deactivating stepper hardware...");
+
+  if (can_connected_) {
+    for (int i = 0; i < num_joints; i++) {
+      can_tx_frame_     = CANLib::CanFrame();
+      can_tx_frame_.id  = can_command_id;
+      can_tx_frame_.dlc = 2;
+
+      // (MAINTENANCE_CMD << 4) | port_id = 0x60 | port_id, maintenance cmd 1 = Stop stepper
+      uint8_t device_id_nibble = joint_node_ids[i] & 0x0F;
+      can_tx_frame_.data[0] = static_cast<uint8_t>((MAINTENANCE_CMD << 4) | device_id_nibble);
+      can_tx_frame_.data[1] = 1;  // Maintenance cmd 1 = Stop stepper
+      canBus_.send(can_tx_frame_);
     }
   }
+
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPERHardwareInterface"),
+    "Stepper hardware deactivated%s", can_connected_ ? "" : " (simulated)");
+
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
+
+// can_connected_ and is_connected_ are always reset regardless of whether CAN was open.
+hardware_interface::CallbackReturn STEPPERHardwareInterface::on_cleanup(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPERHardwareInterface"),
+    "Cleaning up stepper hardware...");
+
+  if (can_connected_) {
+    for (int i = 0; i < num_joints; i++) {
+      can_tx_frame_     = CANLib::CanFrame();
+      can_tx_frame_.id  = can_command_id;
+      can_tx_frame_.dlc = 2;
+
+      // FIX #4: Assign device_id_nibble (was previously using uninitialized variable)
+      uint8_t device_id_nibble = joint_node_ids[i] & 0x0F;
+      can_tx_frame_.data[0] = static_cast<uint8_t>((MAINTENANCE_CMD << 4) | device_id_nibble);
+      can_tx_frame_.data[1] = 2;  // Maintenance cmd 2 = Shutdown stepper
+      canBus_.send(can_tx_frame_);
+    }
+
+    canBus_.close();
+  }
+
+  // Always reset connection state
+  can_connected_ = false;
+  is_connected_  = 0.0;
+
+  RCLCPP_INFO(
+    rclcpp::get_logger("STEPPERHardwareInterface"),
+    "Stepper hardware cleanup complete");
+
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::return_type STEPPERHardwareInterface::read(
   const rclcpp::Time &, const rclcpp::Duration &)
 {
-  if (!node_) {
-    return hardware_interface::return_type::ERROR;
+  if (can_connected_) {
+    current_joint_ = (current_joint_ + 1) % num_joints;
+
+    can_tx_frame_     = CANLib::CanFrame();
+    can_tx_frame_.id  = can_command_id;
+    can_tx_frame_.dlc = 2;
+
+    // MOTOR_STATE_CMD = 0x4 → (0x4 << 4) | port_id = 0x40 | port_id
+    uint8_t port_id = joint_node_ids[current_joint_] & 0x0F;
+    can_tx_frame_.data[0] = static_cast<uint8_t>((MOTOR_STATE_CMD << 4) | port_id);
+    can_tx_frame_.data[1] = 0x01;  // Validate the request
+    canBus_.send(can_tx_frame_);
   }
 
-  if (rclcpp::ok()) {
-    rclcpp::spin_some(node_);
+  // Copy motor state (updated asynchronously by onCanMessage) into joint state
+  for (int i = 0; i < num_joints; i++) {
+    joint_state_position_[i] = motor_position[i];
+    joint_state_velocity_[i] = motor_velocity[i];
+
+    // Return error on any fault status
+    if (device_status[i] != 0x00 && device_status[i] != 0x01 && device_status[i] != -1) {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("STEPPERHardwareInterface"),
+        "Joint %s has fault device_status=0x%02X", info_.joints[i].name.c_str(), device_status[i]);
+      return hardware_interface::return_type::ERROR;
+    }
   }
 
-  if (received_joint_data_.data.size() < 8) {
+  return hardware_interface::return_type::OK;
+}
+
+hardware_interface::return_type STEPPERHardwareInterface::write(
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
+{
+  elapsed_update_time += period.seconds();
+  double update_period = 1.0 / update_rate;
+
+  // Rate-limit CAN messages to configured update rate
+  if (elapsed_update_time < update_period) {
     return hardware_interface::return_type::OK;
   }
 
-  for (auto & joint : STEPPERJoints_) {
-    if (received_joint_data_.id != joint.node_id) {
-      continue;
+  elapsed_update_time = 0.0;
+  elapsed_time += period.seconds();
+
+  for (int i = 0; i < num_joints; i++) {
+    if (control_level_[i] == integration_level_t::VELOCITY &&
+        std::isfinite(joint_command_velocity_[i]))
+    {
+      // Stepper only accepts three discrete speeds: +900, -900, or 0 (deg/s).
+      // Map the signed velocity command to the nearest valid value.
+      int16_t speed_dps;
+      if (joint_command_velocity_[i] > 0.0) {
+        speed_dps = 900;
+      } else if (joint_command_velocity_[i] < 0.0) {
+        speed_dps = -900;
+      } else {
+        speed_dps = 0;
+      }
+
+      if (can_connected_) {
+        can_tx_frame_     = CANLib::CanFrame();
+        can_tx_frame_.id  = can_command_id;
+        can_tx_frame_.dlc = 3;  // 3 bytes per spec
+
+        // VELOCITY_CONTROL_CMD = 0x3 → (0x3 << 4) | port_id = 0x30 | port_id
+        uint8_t port_id = joint_node_ids[i] & 0x0F;
+        can_tx_frame_.data[0] = static_cast<uint8_t>((VELOCITY_CONTROL_CMD << 4) | port_id);
+        can_tx_frame_.data[1] = static_cast<uint8_t>(speed_dps & 0xFF);         // low byte
+        can_tx_frame_.data[2] = static_cast<uint8_t>((speed_dps >> 8) & 0xFF);  // high byte
+
+        canBus_.send(can_tx_frame_);
+      }
     }
+    else if (control_level_[i] == integration_level_t::POSITION &&
+             std::isfinite(joint_command_position_[i]))
+    {
+      // Convert rad -> deg, apply gear ratio, clamp to int16 range
+      int16_t position_deg = static_cast<int16_t>(std::clamp(
+        joint_command_position_[i] * (180.0 / M_PI) * joint_gear_ratios[i],
+        static_cast<double>(std::numeric_limits<int16_t>::min()),
+        static_cast<double>(std::numeric_limits<int16_t>::max())
+      ));
 
     if (received_joint_data_.data[0] == static_cast<uint8_t>(StatusCommands::MOTOR_STATUS_2_CMD)) {
       joint.encoder_position = static_cast<double>(
