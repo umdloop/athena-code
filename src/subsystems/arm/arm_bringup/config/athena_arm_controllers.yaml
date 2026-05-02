@@ -31,6 +31,15 @@ controller_manager:
 
     motor_status_controller:
       type: general_controllers/MotorStatusController
+
+    cam_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+    rotary_encoder_state_request_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    limit_switch_gpio_controller:
+      type: gpio_controllers/GpioCommandController
     
 
 twodof_joint_trajectory_controller:
@@ -131,6 +140,62 @@ arm_velocity_controller:
       - gripper_claw
       - actuator
     interface_name: velocity
+
+cam_position_controller:
+  ros__parameters:
+    joints:
+      - cam_0
+      - cam_1
+    interface_name: position
+
+rotary_encoder_state_request_controller:
+  ros__parameters:
+    joints:
+      - base_yaw_encoder
+      - elbow_pitch_encoder
+      - shoulder_pitch_encoder
+    interface_name: state_request
+
+limit_switch_gpio_controller:
+  ros__parameters:
+    gpios:
+      - limit_switch_0
+      - limit_switch_1
+      - limit_switch_2
+      - limit_switch_3
+      - limit_switch_4
+    command_interfaces:
+      limit_switch_0:
+        interfaces:
+          - status_request
+      limit_switch_1:
+        interfaces:
+          - status_request
+      limit_switch_2:
+        interfaces:
+          - status_request
+      limit_switch_3:
+        interfaces:
+          - status_request
+      limit_switch_4:
+        interfaces:
+          - status_request
+    state_interfaces:
+      limit_switch_0:
+        interfaces:
+          - status
+      limit_switch_1:
+        interfaces:
+          - status
+      limit_switch_2:
+        interfaces:
+          - status
+      limit_switch_3:
+        interfaces:
+          - status
+      limit_switch_4:
+        interfaces:
+          - status
 
 manual_arm_cylindrical_controller:
   ros__parameters:

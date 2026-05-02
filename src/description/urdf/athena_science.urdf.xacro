@@ -10,6 +10,8 @@
   <xacro:include filename="$(find description)/ros2_control/science/science.servo.ros2_control.xacro" />
   <xacro:include filename="$(find description)/ros2_control/science/science.talon.ros2_control.xacro"/>
   <xacro:include filename="$(find description)/ros2_control/science/science.laser.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/ros2_control/science/science.led.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/ros2_control/science/science.limit_switch.ros2_control.xacro"/>
   
   <!-- create link fixed to the "world" -->
   <link name="world"/>
@@ -35,6 +37,10 @@
 
     <!-- Import laser ros2_control description (CAN-based) -->
     <xacro:laser_ros2_control name="spectrometry_laser"/>
+
+    <!-- Import LED and limit switch ros2_control descriptions -->
+    <xacro:science_led_ros2_control name="fluoro_led_hwi"/>
+    <xacro:science_limit_switch_ros2_control name="science_limit_switch_hwi"/>
   </xacro:unless>
 
 </robot>

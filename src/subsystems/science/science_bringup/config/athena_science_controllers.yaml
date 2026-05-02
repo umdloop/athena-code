@@ -19,6 +19,12 @@ controller_manager:
     laser_gpio_controller:
       type: gpio_controllers/GpioCommandController
 
+    fluoro_led_gpio_controller:
+      type: gpio_controllers/GpioCommandController
+
+    science_limit_switch_gpio_controller:
+      type: gpio_controllers/GpioCommandController
+
     motor_status_controller:
       type: general_controllers/MotorStatusController
 
@@ -92,6 +98,35 @@ laser_gpio_controller:
           - laser_state
           - temperature
           - is_connected
+
+fluoro_led_gpio_controller:
+  ros__parameters:
+    gpios:
+      - fluoro_led
+    command_interfaces:
+      fluoro_led:
+        interfaces:
+          - red
+          - green
+          - blue
+          - status_request
+    state_interfaces:
+      fluoro_led:
+        interfaces:
+          - status
+
+science_limit_switch_gpio_controller:
+  ros__parameters:
+    gpios:
+      - science_limit_switch
+    command_interfaces:
+      science_limit_switch:
+        interfaces:
+          - status_request
+    state_interfaces:
+      science_limit_switch:
+        interfaces:
+          - status
 
 motor_status_controller:
   ros__parameters:
