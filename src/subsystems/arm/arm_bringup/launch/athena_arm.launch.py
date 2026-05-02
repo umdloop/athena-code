@@ -312,7 +312,20 @@ def launch_setup(context, *args, **kwargs):
                 arguments=[controller, "-c", "/controller_manager", "--inactive"],
             )
         ]
-
+        
+    active_robot_controller_names = [
+        "limit_switch_gpio_controller",
+        "rotary_encoder_state_request_controller",
+        "cam_position_controller",
+    ]
+    for controller in active_robot_controller_names:
+        robot_controller_spawners += [
+            Node(
+                package="controller_manager",
+                executable="spawner",
+                arguments=[controller, "-c", "/controller_manager"],
+            )
+        ]
     controller_switcher_node = RegisterEventHandler(
         event_handler=OnProcessExit(
             target_action=inactive_robot_controller_spawners[-1],

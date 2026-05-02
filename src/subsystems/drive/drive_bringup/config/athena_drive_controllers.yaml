@@ -77,8 +77,8 @@ front_ackermann_controller:
       - propulsion_bl_joint
       - propulsion_br_joint
     steer_joints:
-      - "steer_fl_joint"
-      - "steer_fr_joint"
+      - steer_fl_joint
+      - steer_fr_joint
     wheelbase: 0.8382
     track_width: 0.6604
     wheel_radius: 0.125
@@ -149,6 +149,17 @@ power_module_gpio_controller:
           - kill_main_sent
           - kill_by_voltage_sent
 
+# Default command interfaces: 
+# - status_request
+# - maintenance_request
+# - maintenance_frame_high
+# - maintenance_frame_low
+# - maintenance_data_count
+
+# Default state interfaces:
+# - motor_temperature
+# - torque_current
+# - status
 motor_status_controller:
   ros__parameters:
     joints:
@@ -156,17 +167,14 @@ motor_status_controller:
       - propulsion_fr_joint
       - propulsion_bl_joint
       - propulsion_br_joint
-    interfaces:
-      - motor_temperature
-      - torque_current
     publish_rate: 10.0
 
 
 rear_ackermann_controller:
   ros__parameters:
     steer_joints:
-      - "steer_bl_joint"
-      - "steer_br_joint"
+      - steer_bl_joint
+      - steer_br_joint
     drive_joints:
       - propulsion_fl_joint
       - propulsion_fr_joint

@@ -34,51 +34,51 @@ void MotorStatusController::logger_function()
   // HWI Specific
   std::ostringstream oss;
 
-  for(const auto & joint : params_.joints) {
-    if (available_state_interfaces.empty()) {
-      RCLCPP_INFO(
-        get_node()->get_logger(),
-        "Joint '%s' has no motor status state interfaces available.",
-        joint.c_str());
-      continue;
-    }
+  // for(const auto & joint : params_.joints) {
+  //   if (available_state_interfaces.empty()) {
+  //     RCLCPP_INFO(
+  //       get_node()->get_logger(),
+  //       "Joint '%s' has no motor status state interfaces available.",
+  //       joint.c_str());
+  //     continue;
+  //   }
 
-    std::ostringstream interfaces_stream;
-    for (size_t i = 0; i < available_state_interfaces.size(); ++i) {
-      if (i > 0) {
-        interfaces_stream << ", ";
-      }
-      interfaces_stream << available_state_interfaces[i];
-    }
+  //   std::ostringstream interfaces_stream;
+  //   for (size_t i = 0; i < available_state_interfaces.size(); ++i) {
+  //     if (i > 0) {
+  //       interfaces_stream << ", ";
+  //     }
+  //     interfaces_stream << available_state_interfaces[i];
+  //   }
 
-    RCLCPP_INFO(
-      get_node()->get_logger(),
-      "Joint '%s' will publish available motor status interfaces: %s",
-      joint.c_str(),
-      interfaces_stream.str().c_str());
+  //   RCLCPP_INFO(
+  //     get_node()->get_logger(),
+  //     "Joint '%s' will publish available motor status interfaces: %s",
+  //     joint.c_str(),
+  //     interfaces_stream.str().c_str());
 
-    if (available_command_interfaces.empty()) {
-      RCLCPP_INFO(
-        get_node()->get_logger(),
-        "Joint '%s' has no motor status command interfaces available.",
-        joint.c_str());
-      continue;
-    }
+  //   if (available_command_interfaces.empty()) {
+  //     RCLCPP_INFO(
+  //       get_node()->get_logger(),
+  //       "Joint '%s' has no motor status command interfaces available.",
+  //       joint.c_str());
+  //     continue;
+  //   }
 
-    interfaces_stream.str("");
-    for (size_t i = 0; i < available_command_interfaces.size(); ++i) {
-      if (i > 0) {
-        interfaces_stream << ", ";
-      }
-      interfaces_stream << available_command_interfaces[i];
-    }
+  //   interfaces_stream.str("");
+  //   for (size_t i = 0; i < available_command_interfaces.size(); ++i) {
+  //     if (i > 0) {
+  //       interfaces_stream << ", ";
+  //     }
+  //     interfaces_stream << available_command_interfaces[i];
+  //   }
 
-    RCLCPP_INFO(
-      get_node()->get_logger(),
-      "Joint '%s' will use available motor status command interfaces: %s",
-      joint.c_str(),
-      interfaces_stream.str().c_str());
-  }
+  //   RCLCPP_INFO(
+  //     get_node()->get_logger(),
+  //     "Joint '%s' will use available motor status command interfaces: %s",
+  //     joint.c_str(),
+  //     interfaces_stream.str().c_str());
+  // }
   
   log_msg += oss.str();
   RCLCPP_INFO(get_node()->get_logger(), log_msg.c_str());
@@ -109,14 +109,12 @@ MotorStatusController::command_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration command_interfaces_config;
   command_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-
-  command_interfaces_config.names.reserve(params_.joints.size() * params_.command_interfaces.size());
-  for (const auto & joint : params_.joints)
-  {
-    for (const auto & iface : params_.command_interfaces) {
-      command_interfaces_config.names.push_back(joint + "/" + iface);
+  for (const auto & [joint_name, joint_cfg] : params_.command_interfaces.joints_map){
+    for(const auto & interface_name : joint_cfg.interfaces){
+      command_interfaces_config.names.push_back(joint_name + "/" + interface_name);
     }
   }
+
   return command_interfaces_config;
 }
 
@@ -124,10 +122,12 @@ controller_interface::InterfaceConfiguration
 MotorStatusController::state_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration state_interfaces_config;
-
-  // Request every available state interface
-  state_interfaces_config.type =
-    controller_interface::interface_configuration_type::ALL;
+  state_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+  for (const auto & [joint_name, joint_cfg] : params_.state_interfaces.joints_map){
+    for(const auto & interface_name : joint_cfg.interfaces){
+      state_interfaces_config.names.push_back(joint_name + "/" + interface_name);
+    }
+  }
 
   return state_interfaces_config;
 }
@@ -142,10 +142,10 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
     return controller_interface::CallbackReturn::ERROR;
   }
 
-  if (params_.state_interfaces.empty()) {
-    RCLCPP_ERROR(get_node()->get_logger(), "No interfaces specified for motor_status_controller.");
-    return controller_interface::CallbackReturn::ERROR;
-  }
+  // if (params_.state_interfaces.joints_map.empty()) {
+  //   RCLCPP_ERROR(get_node()->get_logger(), "No interfaces specified for motor_status_controller.");
+  //   return controller_interface::CallbackReturn::ERROR;
+  // }
 
   // Set up publish rate
   if (params_.publish_rate > 0.0) {
@@ -237,8 +237,8 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
 
   RCLCPP_INFO(
     get_node()->get_logger(),
-    "Configured motor_status_controller for %zu joints, %zu state interfaces each, publish rate: %.1f Hz",
-    params_.joints.size(), params_.state_interfaces.size(), params_.publish_rate);
+    "Configured motor_status_controller for %zu joints at publish rate: %.1f Hz",
+    params_.joints.size(), params_.publish_rate);
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -253,14 +253,14 @@ controller_interface::CallbackReturn MotorStatusController::on_activate(
                          state_interfaces_[i].get_interface_name()] = i;
   }
 
-  for (const auto & joint : params_.joints) {
-    for (const auto & iface : params_.state_interfaces) {
-      const std::string key = joint + "/" + iface;
-      if (state_interface_map_.find(key) != state_interface_map_.end()) {
-        available_state_interfaces.push_back(iface);
-      }
-    }
-  }
+  // for (const auto & joint : params_.joints) {
+  //   for (const auto & iface : params_.state_interfaces) {
+  //     const std::string key = joint + "/" + iface;
+  //     if (state_interface_map_.find(key) != state_interface_map_.end()) {
+  //       available_state_interfaces.push_back(iface);
+  //     }
+  //   }
+  // }
 
   // Build lookup map from "joint/interface" -> command_interfaces_ index
   command_interface_map_.clear();
@@ -269,14 +269,14 @@ controller_interface::CallbackReturn MotorStatusController::on_activate(
                           command_interfaces_[i].get_interface_name()] = i;
   }
 
-  for (const auto & joint : params_.joints) {
-    for (const auto & iface : params_.command_interfaces) {
-      const std::string key = joint + "/" + iface;
-      if (command_interface_map_.find(key) != command_interface_map_.end()) {
-        available_command_interfaces.push_back(iface);
-      }
-    }
-  }
+  // for (const auto & joint : params_.joints) {
+  //   for (const auto & iface : params_.command_interfaces) {
+  //     const std::string key = joint + "/" + iface;
+  //     if (command_interface_map_.find(key) != command_interface_map_.end()) {
+  //       available_command_interfaces.push_back(iface);
+  //     }
+  //   }
+  // }
 
   last_publish_time_ = get_node()->now();
 
@@ -306,26 +306,25 @@ controller_interface::return_type MotorStatusController::update(
   msgs::msg::SystemInfo system_info_msg;
   system_info_msg.header.stamp = time;
 
-  for (const auto & joint : params_.joints) {
-
-    // Command Interfaces
-    for (const auto & iface : params_.command_interfaces) {
-      std::string key = joint + "/" + iface;
+  // Command Interfaces
+  for (const auto & [joint_name, joint_cfg] : params_.command_interfaces.joints_map){
+    for(const auto & interface_name : joint_cfg.interfaces){
+      std::string key = joint_name + "/" + interface_name;
       auto it = command_interface_map_.find(key);
       if (it != command_interface_map_.end()) {
-        if (iface == "maintenance_frame_high" && joint == maintenance_req_joint_name) {
+        if (interface_name == "maintenance_frame_high" && joint_name == maintenance_req_joint_name) {
           command_interfaces_[it->second].set_value(maintenance_frame_high);
         }
 
-        if (iface == "maintenance_frame_low" && joint == maintenance_req_joint_name) {
+        if (interface_name == "maintenance_frame_low" && joint_name == maintenance_req_joint_name) {
           command_interfaces_[it->second].set_value(maintenance_frame_low);
         }
 
-        if(iface == "maintenance_data_count" && joint == maintenance_req_joint_name) {
+        if(interface_name == "maintenance_data_count" && joint_name == maintenance_req_joint_name) {
           command_interfaces_[it->second].set_value(maintenance_data_count);
         }
 
-        if (iface == "status_request" && joint == status_req_joint_name) {
+        if (interface_name == "status_request" && joint_name == status_req_joint_name) {
           // Controller must turn status request back to 0 if it's a one-shot request
           if (status_request_rate < 0 && status_one_shot_sent == false) {
             command_interfaces_[it->second].set_value(status_request_rate);
@@ -344,7 +343,7 @@ controller_interface::return_type MotorStatusController::update(
           }
         }
 
-        if (iface == "maintenance_request" && joint == maintenance_req_joint_name) {
+        if (interface_name == "maintenance_request" && joint_name == maintenance_req_joint_name) {
           // Controller must turn maintenance request back to 0 if it's a one-shot request
           if (maintenance_request_rate < 0 && maintenance_one_shot_sent == false) {
             command_interfaces_[it->second].set_value(maintenance_request_rate);
@@ -364,28 +363,29 @@ controller_interface::return_type MotorStatusController::update(
         }
       }
     }
+  }
     
     // State Interfaces
     msgs::msg::JointStatus status;
-    status.joint_name = joint;
 
     // Initializing values in case state interfaces don't exist for them
     status.temperature   = std::numeric_limits<int8_t>::quiet_NaN();
     status.torque_current       = std::numeric_limits<double>::quiet_NaN();
     status.motor_status  = std::numeric_limits<int8_t>::quiet_NaN();
-    
-    for (const auto & iface : params_.state_interfaces) {
-      std::string key = joint + "/" + iface;
+  for (const auto & [joint_name, joint_cfg] : params_.state_interfaces.joints_map){
+    for(const auto & interface_name : joint_cfg.interfaces){
+      status.joint_name = joint_name;
+      std::string key = joint_name + "/" + interface_name;
       auto it = state_interface_map_.find(key);
 
       if (it != state_interface_map_.end()) {
         double value = state_interfaces_[it->second].get_value();
 
-        if (iface == "motor_temperature") {
+        if (interface_name == "motor_temperature") {
           status.temperature = static_cast<int8_t>(value);
-        } else if (iface == "torque_current") {
+        } else if (interface_name == "torque_current") {
           status.torque_current = value;
-        } else if (iface == "status") {
+        } else if (interface_name == "status") {
           status.motor_status = static_cast<int8_t>(value);
           if (value > sizeof(MotorStatus)){
             RCLCPP_WARN(get_node()->get_logger(), "Invalid motor status value");

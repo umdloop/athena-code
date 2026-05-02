@@ -261,6 +261,17 @@ manual_end_effector_gripper_claw_controller:
     joint_max_positions:
       - 0.03        # Actuator max displacement
 
+# Default command interfaces: 
+# - status_request
+# - maintenance_request
+# - maintenance_frame_high
+# - maintenance_frame_low
+# - maintenance_data_count
+
+# Default state interfaces:
+# - motor_temperature
+# - torque_current
+# - status
 motor_status_controller:
   ros__parameters:
     joints:
@@ -270,8 +281,16 @@ motor_status_controller:
       - wrist_pitch
       - wrist_roll
       - actuator
+      - cam_0
+      - cam_1
     state_interfaces:
-      - motor_temperature
-      - torque_current
-      - status
+      actuator:
+        interfaces:
+          - status
+      cam_0:
+        interfaces:
+          - status
+      cam_1:
+        interfaces:
+          - status
     publish_rate: 10.0

@@ -4,16 +4,26 @@ motor_status_controller:
     default_value: [],
     description: "Names of the joints to monitor for motor telemetry."
   }
-  command_interfaces: {
-    type: string_array,
-    default_value: ["status_request", "maintenance_request", "maintenance_frame_high", "maintenance_frame_low", "maintenance_data_count"],
-    description: "Command interface names to read from each joint. Leave empty if no command interfaces are needed."
-  }
-  state_interfaces: {
-    type: string_array,
-    default_value: ["motor_temperature", "torque_current", "status"],
-    description: "State interface names to read from each joint."
-  }
+  command_interfaces: 
+    __map_joints:
+      interfaces: {
+        type: string_array,
+        default_value: ["status_request", "maintenance_request", "maintenance_frame_high", "maintenance_frame_low", "maintenance_data_count"],
+        description: "Command interface names to read from each joint. Leave empty if no command interfaces are needed.",
+        validation: {
+          unique<>: null
+        }
+      }
+  state_interfaces: 
+    __map_joints:
+      interfaces: {
+        type: string_array,
+        default_value: ["motor_temperature", "torque_current", "status"],
+        description: "State interface names to read from each joint.",
+        validation: {
+          unique<>: null
+        }
+      }
   publish_rate: {
     type: double,
     default_value: 10.0,
