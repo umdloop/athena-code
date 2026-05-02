@@ -261,7 +261,15 @@ def launch_setup(context, *args, **kwargs):
     motor_status_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["motor_status_controller", "-c", "/controller_manager"],
+        arguments=[
+            PythonExpression([
+                '"three_dof_motor_status_controller" if "',
+                use_3dof,
+                '" == "true" else "two_dof_motor_status_controller"'
+            ]),
+            "-c",
+            "/controller_manager",
+        ],
     )
 
     
@@ -312,7 +320,7 @@ def launch_setup(context, *args, **kwargs):
                 arguments=[controller, "-c", "/controller_manager", "--inactive"],
             )
         ]
-        
+
     active_robot_controller_names = [
         "limit_switch_gpio_controller",
         "rotary_encoder_state_request_controller",

@@ -29,7 +29,10 @@ controller_manager:
     manual_end_effector_gripper_claw_controller:
       type: arm_controllers/ManualEndEffectorGripperClawController
 
-    motor_status_controller:
+    two_dof_motor_status_controller:
+      type: general_controllers/MotorStatusController
+
+    three_dof_motor_status_controller:
       type: general_controllers/MotorStatusController
 
     cam_position_controller:
@@ -272,7 +275,7 @@ manual_end_effector_gripper_claw_controller:
 # - motor_temperature
 # - torque_current
 # - status
-motor_status_controller:
+two_dof_motor_status_controller:
   ros__parameters:
     joints:
       - base_yaw
@@ -281,8 +284,51 @@ motor_status_controller:
       - wrist_pitch
       - wrist_roll
       - actuator
+      - gripper_claw
       - cam_0
       - cam_1
+    command_interfaces:
+      gripper_claw:
+        interfaces:
+          - status_request
+    state_interfaces:
+      actuator:
+        interfaces:
+          - status
+      cam_0:
+        interfaces:
+          - status
+      cam_1:
+        interfaces:
+          - status
+    publish_rate: 10.0
+
+three_dof_motor_status_controller:
+  ros__parameters:
+    joints:
+      - base_yaw
+      - shoulder_pitch
+      - elbow_pitch
+      - wrist_motor_a
+      - wrist_motor_b
+      - wrist_motor_c
+      - actuator
+      - gripper_claw
+      - cam_0
+      - cam_1
+    command_interfaces:
+      gripper_claw:
+        interfaces:
+          - status_request
+      wrist_motor_a:
+        interfaces:
+          - status_request
+      wrist_motor_b:
+        interfaces:
+          - status_request
+      wrist_motor_c:
+        interfaces:
+          - status_request
     state_interfaces:
       actuator:
         interfaces:
