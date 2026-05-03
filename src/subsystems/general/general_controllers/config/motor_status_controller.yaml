@@ -4,6 +4,11 @@ motor_status_controller:
     default_value: [],
     description: "Names of the joints to monitor for motor telemetry."
   }
+  gpios: {
+    type: string_array,
+    default_value: [],
+    description: "Names of the GPIOs to monitor for status telemetry."
+  }
   command_interfaces: 
     __map_joints:
       interfaces: {
@@ -14,12 +19,30 @@ motor_status_controller:
           unique<>: null
         }
       }
+    __map_gpios:
+      interfaces: {
+        type: string_array,
+        default_value: ["status_request"],
+        description: "Command interface names to read from each GPIO. Leave empty if no command interfaces are needed.",
+        validation: {
+          unique<>: null
+        }
+      }
   state_interfaces: 
     __map_joints:
       interfaces: {
         type: string_array,
         default_value: ["motor_temperature", "torque_current", "status"],
         description: "State interface names to read from each joint.",
+        validation: {
+          unique<>: null
+        }
+      }
+    __map_gpios:
+      interfaces: {
+        type: string_array,
+        default_value: ["status"],
+        description: "State interface names to read from each GPIO.",
         validation: {
           unique<>: null
         }

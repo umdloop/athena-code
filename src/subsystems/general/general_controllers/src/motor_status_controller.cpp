@@ -14,6 +14,7 @@
 
 #include "general_controllers/motor_status_controller.hpp"
 
+#include <iomanip>
 #include <limits>
 #include <sstream>
 #include <string>
@@ -95,11 +96,12 @@ controller_interface::CallbackReturn MotorStatusController::on_init()
     return controller_interface::CallbackReturn::ERROR;
   }
 
-  status_req_joint_name = "";
+  status_req_resource_name = "";
   status_request_rate = 0;
   maintenance_req_joint_name = "";
   maintenance_request_rate = 0;
   status_one_shot_sent = false;
+  maintenance_one_shot_sent = false;
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -112,6 +114,11 @@ MotorStatusController::command_interface_configuration() const
   for (const auto & [joint_name, joint_cfg] : params_.command_interfaces.joints_map){
     for(const auto & interface_name : joint_cfg.interfaces){
       command_interfaces_config.names.push_back(joint_name + "/" + interface_name);
+    }
+  }
+  for (const auto & [gpio_name, gpio_cfg] : params_.command_interfaces.gpios_map){
+    for(const auto & interface_name : gpio_cfg.interfaces){
+      command_interfaces_config.names.push_back(gpio_name + "/" + interface_name);
     }
   }
 
@@ -128,6 +135,11 @@ MotorStatusController::state_interface_configuration() const
       state_interfaces_config.names.push_back(joint_name + "/" + interface_name);
     }
   }
+  for (const auto & [gpio_name, gpio_cfg] : params_.state_interfaces.gpios_map){
+    for(const auto & interface_name : gpio_cfg.interfaces){
+      state_interfaces_config.names.push_back(gpio_name + "/" + interface_name);
+    }
+  }
 
   return state_interfaces_config;
 }
@@ -137,8 +149,8 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
 {
   params_ = param_listener_->get_params();
 
-  if (params_.joints.empty()) {
-    RCLCPP_ERROR(get_node()->get_logger(), "No joints specified for motor_status_controller.");
+  if (params_.joints.empty() && params_.gpios.empty()) {
+    RCLCPP_ERROR(get_node()->get_logger(), "No joints or gpios specified for motor_status_controller.");
     return controller_interface::CallbackReturn::ERROR;
   }
 
@@ -165,15 +177,17 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
     {
       if (request->joint_name.empty()) {
         response->success = false;
-        response->message = "Joint name cannot be empty";
+        response->message = "Joint/GPIO name cannot be empty";
         RCLCPP_WARN(get_node()->get_logger(), "%s", response->message.c_str());
         return;
       }
 
-      status_req_joint_name = request->joint_name;
+      status_req_resource_name = request->joint_name;
       status_request_rate = request->request_rate;
 
-      std::string msg = "Received status_request for joint " + status_req_joint_name + " at request_rate: " + std::to_string(status_request_rate);
+      std::string msg =
+        "Received status_request for resource " + status_req_resource_name +
+        " at request_rate: " + std::to_string(status_request_rate);
       response->success = true;
       response->message = msg;
       RCLCPP_INFO(get_node()->get_logger(), "%s", msg.c_str());
@@ -237,8 +251,8 @@ controller_interface::CallbackReturn MotorStatusController::on_configure(
 
   RCLCPP_INFO(
     get_node()->get_logger(),
-    "Configured motor_status_controller for %zu joints at publish rate: %.1f Hz",
-    params_.joints.size(), params_.publish_rate);
+    "Configured motor_status_controller for %zu joints and %zu gpios at publish rate: %.1f Hz",
+    params_.joints.size(), params_.gpios.size(), params_.publish_rate);
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -307,95 +321,121 @@ controller_interface::return_type MotorStatusController::update(
   system_info_msg.header.stamp = time;
 
   // Command Interfaces
-  for (const auto & [joint_name, joint_cfg] : params_.command_interfaces.joints_map){
-    for(const auto & interface_name : joint_cfg.interfaces){
-      std::string key = joint_name + "/" + interface_name;
-      auto it = command_interface_map_.find(key);
-      if (it != command_interface_map_.end()) {
-        if (interface_name == "maintenance_frame_high" && joint_name == maintenance_req_joint_name) {
-          command_interfaces_[it->second].set_value(maintenance_frame_high);
-        }
-
-        if (interface_name == "maintenance_frame_low" && joint_name == maintenance_req_joint_name) {
-          command_interfaces_[it->second].set_value(maintenance_frame_low);
-        }
-
-        if(interface_name == "maintenance_data_count" && joint_name == maintenance_req_joint_name) {
-          command_interfaces_[it->second].set_value(maintenance_data_count);
-        }
-
-        if (interface_name == "status_request" && joint_name == status_req_joint_name) {
-          // Controller must turn status request back to 0 if it's a one-shot request
-          if (status_request_rate < 0 && status_one_shot_sent == false) {
-            command_interfaces_[it->second].set_value(status_request_rate);
-            RCLCPP_WARN(get_node()->get_logger(), "Status one shot sent: ");
-            status_one_shot_sent = true;
-            status_one_shot_time = time;
+  auto update_command_interfaces =
+    [this, &time](const auto & interface_map, const bool allow_maintenance)
+    {
+      for (const auto & [resource_name, resource_cfg] : interface_map) {
+        for (const auto & interface_name : resource_cfg.interfaces) {
+          std::string key = resource_name + "/" + interface_name;
+          auto it = command_interface_map_.find(key);
+          if (it == command_interface_map_.end()) {
+            continue;
           }
-          else if (status_request_rate < 0 && status_one_shot_sent == true && (time - status_one_shot_time) >= one_shot_delay) {
-            status_request_rate = 0;
-            command_interfaces_[it->second].set_value(status_request_rate);
-            status_one_shot_sent = false;
-            RCLCPP_WARN(get_node()->get_logger(), "Status one shot reset.");
-          }
-          else if (status_request_rate >= 0) {
-            command_interfaces_[it->second].set_value(status_request_rate);
-          }
-        }
 
-        if (interface_name == "maintenance_request" && joint_name == maintenance_req_joint_name) {
-          // Controller must turn maintenance request back to 0 if it's a one-shot request
-          if (maintenance_request_rate < 0 && maintenance_one_shot_sent == false) {
-            command_interfaces_[it->second].set_value(maintenance_request_rate);
-            RCLCPP_WARN(get_node()->get_logger(), "Maintenance one shot sent: ");
-            maintenance_one_shot_sent = true;
-            maintenance_one_shot_time = time;
+          if (allow_maintenance && interface_name == "maintenance_frame_high" &&
+            resource_name == maintenance_req_joint_name)
+          {
+            command_interfaces_[it->second].set_value(maintenance_frame_high);
           }
-          else if (maintenance_request_rate < 0 && maintenance_one_shot_sent == true && (time - maintenance_one_shot_time) >= one_shot_delay) {
-            maintenance_request_rate = 0;
-            command_interfaces_[it->second].set_value(maintenance_request_rate);
-            maintenance_one_shot_sent = false;
-            RCLCPP_WARN(get_node()->get_logger(), "Maintenance one shot reset.");
+
+          if (allow_maintenance && interface_name == "maintenance_frame_low" &&
+            resource_name == maintenance_req_joint_name)
+          {
+            command_interfaces_[it->second].set_value(maintenance_frame_low);
           }
-          else if (maintenance_request_rate >= 0) {
-            command_interfaces_[it->second].set_value(maintenance_request_rate);
+
+          if (allow_maintenance && interface_name == "maintenance_data_count" &&
+            resource_name == maintenance_req_joint_name)
+          {
+            command_interfaces_[it->second].set_value(maintenance_data_count);
           }
-        }
-      }
-    }
-  }
-    
-    // State Interfaces
-    msgs::msg::JointStatus status;
 
-    // Initializing values in case state interfaces don't exist for them
-    status.temperature   = std::numeric_limits<int8_t>::quiet_NaN();
-    status.torque_current       = std::numeric_limits<double>::quiet_NaN();
-    status.motor_status  = std::numeric_limits<int8_t>::quiet_NaN();
-  for (const auto & [joint_name, joint_cfg] : params_.state_interfaces.joints_map){
-    for(const auto & interface_name : joint_cfg.interfaces){
-      status.joint_name = joint_name;
-      std::string key = joint_name + "/" + interface_name;
-      auto it = state_interface_map_.find(key);
+          if (interface_name == "status_request" && resource_name == status_req_resource_name) {
+            if (status_request_rate < 0 && status_one_shot_sent == false) {
+              command_interfaces_[it->second].set_value(status_request_rate);
+              RCLCPP_WARN(get_node()->get_logger(), "Status one shot sent: ");
+              status_one_shot_sent = true;
+              status_one_shot_time = time;
+            }
+            else if (status_request_rate < 0 && status_one_shot_sent == true &&
+              (time - status_one_shot_time) >= one_shot_delay)
+            {
+              status_request_rate = 0;
+              command_interfaces_[it->second].set_value(status_request_rate);
+              status_one_shot_sent = false;
+              RCLCPP_WARN(get_node()->get_logger(), "Status one shot reset.");
+            }
+            else if (status_request_rate >= 0) {
+              command_interfaces_[it->second].set_value(status_request_rate);
+            }
+          }
 
-      if (it != state_interface_map_.end()) {
-        double value = state_interfaces_[it->second].get_value();
-
-        if (interface_name == "motor_temperature") {
-          status.temperature = static_cast<int8_t>(value);
-        } else if (interface_name == "torque_current") {
-          status.torque_current = value;
-        } else if (interface_name == "status") {
-          status.motor_status = static_cast<int8_t>(value);
-          if (value > sizeof(MotorStatus)){
-            RCLCPP_WARN(get_node()->get_logger(), "Invalid motor status value");
+          if (allow_maintenance && interface_name == "maintenance_request" &&
+            resource_name == maintenance_req_joint_name)
+          {
+            if (maintenance_request_rate < 0 && maintenance_one_shot_sent == false) {
+              command_interfaces_[it->second].set_value(maintenance_request_rate);
+              RCLCPP_WARN(get_node()->get_logger(), "Maintenance one shot sent: ");
+              maintenance_one_shot_sent = true;
+              maintenance_one_shot_time = time;
+            }
+            else if (maintenance_request_rate < 0 && maintenance_one_shot_sent == true &&
+              (time - maintenance_one_shot_time) >= one_shot_delay)
+            {
+              maintenance_request_rate = 0;
+              command_interfaces_[it->second].set_value(maintenance_request_rate);
+              maintenance_one_shot_sent = false;
+              RCLCPP_WARN(get_node()->get_logger(), "Maintenance one shot reset.");
+            }
+            else if (maintenance_request_rate >= 0) {
+              command_interfaces_[it->second].set_value(maintenance_request_rate);
+            }
           }
         }
       }
-    }
+    };
 
-    system_info_msg.joints.push_back(status);
-  }
+  update_command_interfaces(params_.command_interfaces.joints_map, true);
+  update_command_interfaces(params_.command_interfaces.gpios_map, false);
+
+  auto append_state_status =
+    [this, &system_info_msg](const auto & interface_map)
+    {
+      for (const auto & [resource_name, resource_cfg] : interface_map) {
+        msgs::msg::JointStatus status;
+        status.joint_name = resource_name;
+        status.temperature = std::numeric_limits<int8_t>::quiet_NaN();
+        status.torque_current = std::numeric_limits<double>::quiet_NaN();
+        status.motor_status = std::numeric_limits<int8_t>::quiet_NaN();
+
+        for (const auto & interface_name : resource_cfg.interfaces) {
+          std::string key = resource_name + "/" + interface_name;
+          auto it = state_interface_map_.find(key);
+
+          if (it == state_interface_map_.end()) {
+            continue;
+          }
+
+          double value = state_interfaces_[it->second].get_value();
+
+          if (interface_name == "motor_temperature") {
+            status.temperature = static_cast<int8_t>(value);
+          } else if (interface_name == "torque_current") {
+            status.torque_current = value;
+          } else if (interface_name == "status") {
+            status.motor_status = static_cast<int8_t>(value);
+            if (value > sizeof(MotorStatus)) {
+              RCLCPP_WARN(get_node()->get_logger(), "Invalid motor status value");
+            }
+          }
+        }
+
+        system_info_msg.joints.push_back(status);
+      }
+    };
+
+  append_state_status(params_.state_interfaces.joints_map);
+  append_state_status(params_.state_interfaces.gpios_map);
 
   motor_status_publisher_->publish(system_info_msg);
 

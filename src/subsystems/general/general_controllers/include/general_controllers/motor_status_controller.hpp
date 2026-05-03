@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "controller_interface/controller_interface.hpp"
+#include "msgs/msg/joint_status.hpp"
 #include "msgs/msg/system_info.hpp"
 #include "msgs/srv/maintenance_req.hpp"
 #include "msgs/srv/status_req.hpp"
@@ -76,7 +77,7 @@ protected:
   // Services for command interfaces
   rclcpp::Service<msgs::srv::StatusReq>::SharedPtr status_request_service_;
   rclcpp::Service<msgs::srv::MaintenanceReq>::SharedPtr maintenance_request_service_;
-  std::string status_req_joint_name;
+  std::string status_req_resource_name;
   int status_request_rate;
   std::string maintenance_req_joint_name;
   int maintenance_request_rate;

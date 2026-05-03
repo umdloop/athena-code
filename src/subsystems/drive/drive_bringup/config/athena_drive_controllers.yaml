@@ -122,11 +122,6 @@ drive_led_gpio_controller:
           - red
           - green
           - blue
-          - status_request
-    state_interfaces:
-      drive_led:
-        interfaces:
-          - status
 
 # PowerModule GPIO Controller Configuration
 power_module_gpio_controller:
@@ -140,7 +135,6 @@ power_module_gpio_controller:
           - kill_jetson
           - kill_main
           - kill_by_voltage
-          - status_request
     state_interfaces:
       drive_power_module:
         interfaces:
@@ -167,6 +161,23 @@ motor_status_controller:
       - propulsion_fr_joint
       - propulsion_bl_joint
       - propulsion_br_joint
+    gpios:
+      - drive_led
+      - drive_power_module
+    command_interfaces:
+      drive_led:
+        interfaces:
+          - status_request
+      drive_power_module:
+        interfaces:
+          - status_request
+    state_interfaces:
+      drive_led:
+        interfaces:
+          - status
+      drive_power_module:
+        interfaces:
+          - status
     publish_rate: 10.0
 
 

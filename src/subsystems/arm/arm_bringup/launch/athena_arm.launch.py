@@ -322,7 +322,6 @@ def launch_setup(context, *args, **kwargs):
         ]
 
     active_robot_controller_names = [
-        "limit_switch_gpio_controller",
         "rotary_encoder_state_request_controller",
         "cam_position_controller",
     ]
