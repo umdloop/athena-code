@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 import os
 import time
-import pprint
 import pygame
 import numpy as np
+
+import yaml
+from ament_index_python.packages import get_package_share_directory
+
 
 import rclpy
 from rclpy.node import Node
@@ -15,31 +18,37 @@ class JoystickPublisher(Node):
     def __init__(self):
    
         super().__init__('joystick')
-        self.publisher_ = self.create_publisher(Joy, 'controller_input', 10)
         timer_period = 0.1  # seconds
-        self.timer = self.create_timer(timer_period, self.controller_inputs)       
+        self.timer = self.create_timer(timer_period, self.controller_inputs)
 
 
         # Parameters
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('joystick_type', rclpy.Parameter.Type.INTEGER),
-                ('joystick_index', rclpy.Parameter.Type.INTEGER),
+                ('joystick_type', rclpy.Parameter.Type.STRING),
+                ('subsystem' , rclpy.Parameter.Type.STRING),
             ]
         )
-
-        self.possible_joysticks = [
-            "sony computer entertainment wireless controller",
-            "thrustmaster t.16000m",
-            "xbox one s controller",
-            "8bitdo ultimate wireless controller",
-        ]
-
-        # 0: PS4 1: Thrustmaster 2: Xbox One 3: 8BitDo Ultimate
         self.joystick_type = self.get_parameter('joystick_type').value
-        self.requested_joystick_index = self.get_parameter('joystick_index').value
+        self.subsystem = self.get_parameter('subsystem').value
+        self.publisher_ = self.create_publisher(Joy, f'controller_input/{self.joystick_type}', 10)
+
         self.get_logger().info(f"Joystick type: {self.joystick_type}")
+        self.get_logger().info(f"Subsystem: {self.subsystem}")
+
+        joy_yaml_path = os.path.join(get_package_share_directory('teleop'), 'config', 'joy.yaml')
+        with open(joy_yaml_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+
+        axes_list = config['/**']['ros__parameters']['controllers'][self.joystick_type]['axes']
+
+        self._axes_config = {e['name']: e for e in axes_list}
+        slots = config['/**']['ros__parameters']['subsystems'][self.subsystem]['output_slots']
+        self._slot_params = [self._axes_config[name] for name in slots]
+
+        
 
         # Detect Jetson platform
         self.is_jetson = False
@@ -58,30 +67,27 @@ class JoystickPublisher(Node):
         self.button_data = None
         self.hat_data = None
         self.activation = 0.08
+        JOYSTICK_NAMES = {s
+            "thrustmaster": "thrustmaster t.16000m",
+            "xbox": "xbox 360 controller",
+            "airbus": "thrustmaster t.a320 copilot"
+        }
+        target_name = JOYSTICK_NAMES[self.joystick_type]
+
         self.joystick_index = None
 
         # Pygame Controller
         pygame.init()
-        pygame.joystick.init()            
+        pygame.joystick.init()
         joysticks = pygame.joystick.get_count()
         self.get_logger().info(f"Number of joysticks found: {joysticks}")
 
-        if 0 <= self.requested_joystick_index < joysticks:
-            self.joystick_index = self.requested_joystick_index
-            self.get_logger().info(f"Using configured joystick index: {self.joystick_index}")
-        else:
-            for i in range(joysticks):
-                js = pygame.joystick.Joystick(i)
-                name = js.get_name().lower()
-                self.get_logger().info(f"Joystick {i}: {name}")
-                expected_name = self.possible_joysticks[self.joystick_type]
-                if(
-                    name == expected_name or
-                    (self.joystick_type == 2 and "xbox" in name) or
-                    (self.joystick_type == 3 and ("8bitdo" in name or "ultimate" in name))
-                ):
-                    self.joystick_index = i
-                    break
+        for i in range(joysticks):
+            js = pygame.joystick.Joystick(i)
+            name = js.get_name().lower()
+            if(name == target_name):
+                self.joystick_index = i
+                break
 
         # Only begin once a joystick is connected
         while(joysticks == 0):
@@ -118,8 +124,20 @@ class JoystickPublisher(Node):
             for i in range(self.controller.get_numhats()):
                 self.hat_data[i] = (0, 0)
 
-        self.previous_axes = np.zeros(6)
-        self.previous_buttons = np.zeros(13)        
+        self.previous_axes = np.zeros(len(self._slot_params))
+        self.previous_buttons = np.zeros(len(self.button_data))
+
+    def _normalize(self, raw, invert, trigger, range_inverted=False):
+        if abs(raw) < self.activation:
+            val = 0.0
+        else:
+            val = (abs(raw) - self.activation) / (1.0 - self.activation)
+            val = val if raw > 0 else -val
+        if trigger:
+            val = (1.0 - val) / 2.0 if range_inverted else (val + 1.0) / 2.0
+        if invert:
+            val = -val
+        return val
 
     def controller_inputs(self):
        
@@ -135,239 +153,19 @@ class JoystickPublisher(Node):
             elif event.type == pygame.JOYHATMOTION:
                 self.hat_data[event.hat] = event.value
 
-        if(self.joystick_type == 0):
+            
+            #axes normalization
+            for i, slot in enumerate(self._slot_params):
+                joystick_vels[i] = self._normalize(
+                    self.axis_data.get(slot['axis'], 0.0),
+                    slot['invert'],
+                    slot['trigger'],
+                    slot.get('range_inverted', False)
+                )
 
-                """
-                PS4 Controller:
-                Joystick Velocities
-                [0] = l/r left joystick
-                [1] = u/d left joystick
-                [2] = l/r right joystick
-                [3] = u/d right joystick
-                [4] = left trigger
-                [5] = right trigger
-
-                Button Activations
-                [0] = x
-                [1] = circle
-                [2] = triangle
-                [3] = square
-                [4] = left bumper
-                [5] = right bumper
-                [6] = left trigger
-                [7] = right trigger
-                [8] = share
-                [9] = options
-                [10] = playstation button
-                [11] = left joystick button
-                [12] = right joystick button
-                [13] = up arrow
-                [14] = down arrow
-                [15] = left arrow
-                [16] = right arrow
-                """
-
-                # Left stick: left and right
-                if(self.axis_data.get(0) < -self.activation):
-                    joystick_vels[0] = ((self.axis_data[0] + self.activation) / (1 - self.activation))  # normalizes the 0.25 to 1 range to a 0 - 1 range and then mult by max vel
-                elif(self.axis_data.get(0) > self.activation):
-                    joystick_vels[0] = ((self.axis_data[0] - self.activation) / (1 - self.activation))
-                else:
-                    joystick_vels[0] = 0
-
-                # Left stick: up and down
-                axis_1_multiplier = 1 if self.is_jetson else -1
-                if(self.axis_data.get(1) < -self.activation):
-                    joystick_vels[1] = axis_1_multiplier * ((self.axis_data[1] + self.activation) / (1 -self.activation))  # normalizes the 0.25 to 1 range to a 0 - 1 range and then mult by max vel
-                elif(self.axis_data.get(1) >self.activation):
-                    joystick_vels[1] = axis_1_multiplier * ((self.axis_data[1] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[1] = 0
-
-                # Right stick: left and right
-                if(self.axis_data.get(3) < -self.activation):
-                    joystick_vels[2] = ((self.axis_data[3] + self.activation) / (1 -self.activation))  # normalizes the 0.25 to 1 range to a 0 - 1 range and then mult by max vel
-                elif(self.axis_data.get(3) >self.activation):
-                    joystick_vels[2] = ((self.axis_data[3] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[2] = 0
-
-                # Right stick: up and down
-                axis_index = 5 if self.is_jetson else 4
-                if(self.axis_data.get(axis_index) < -self.activation):
-                    joystick_vels[3] = -((self.axis_data[axis_index] + self.activation) / (1 -self.activation))  # normalizes the 0.25 to 1 range to a 0 - 1 range and then mult by max vel
-                elif(self.axis_data.get(axis_index) > self.activation):
-                    joystick_vels[3] = -((self.axis_data[axis_index] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[3] = 0
-
-                # Left Trigger
-                if(self.axis_data.get(2) > 0):
-                    joystick_vels[4] = self.axis_data[2] 
-                else:
-                    joystick_vels[4] = 0
-
-                # Right Trigger
-                if(self.axis_data.get(5) > 0):
-                    joystick_vels[5] = self.axis_data[5]
-                else:
-                    joystick_vels[5] = 0
-                
-                # Buttons
-                for i in range(13):
-                    button_activations[i] = self.button_data[i]
-
-        elif(self.joystick_type == 1):    
-
-                """
-                Thrustmaster:
-                Joystick Velocities
-                [0] = rotate
-                [1] = forward/backwards 
-                [2] = left/right
-                [3] = slider
-                [4] = empty
-                [5] = empty
-
-                Button Activations
-                [0] = trigger
-                [1] = bottom on stick
-                [2] = left on stick
-                [3] = right on stick
-                [4] = left side - top left
-                [5] = left side - top middle
-                [6] = left side - top right
-                [7] = left side - bottom right
-                [8] = left side - bottom middle
-                [9] = left side - bottom left
-                [10] = right side - top right
-                [11] = right side - top middle
-                [12] = right side - top left
-                [13] = right side - bottom left
-                [14] = right side - bottom middle
-                [15] = right side - bottom right
-                [16] = empty
-                """ 
-                # self.get_logger().info(str(self.joystick_type))
-                # print(self.axis_data.get(2))
-
-                # Rotate 
-
-                joystick_vels[0] = self.axis_data.get(2)
-
-                # if(self.axis_data.get(2) < -self.activation):
-                #     #joystick_vels[0] = ((self.axis_data[0] + self.activation) / (1 - self.activation))  # normalizes the 0.25 to 1 range to a 0 - 1 range and then mult by max vel
-                #     joystick_vels[0] = -self.axis_data[0]
-                # elif(self.axis_data.get(2) > self.activation):
-                #     #joystick_vels[0] = ((self.axis_data[0] - self.activation) / (1 - self.activation))
-                #     joystick_vels[0] = self.axis_data[0]
-                
-                # else:
-                #     joystick_vels[0] = 0
-
-                # Up and Down
-                if(self.axis_data.get(1) < -self.activation):
-                    joystick_vels[1] = -((self.axis_data[1] + self.activation) / (1 -self.activation))  # normalizes the 0.25 to 1 range to a 0 - 1 range and then mult by max vel
-                elif(self.axis_data.get(1) >self.activation):
-                    joystick_vels[1] = -((self.axis_data[1] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[1] = 0
-
-                # Left/Right
-                if(self.axis_data.get(0) < -self.activation):
-                    joystick_vels[2] = ((self.axis_data[3] + self.activation) / (1 -self.activation))  # normalizes the 0.25 to 1 range to a 0 - 1 range and then mult by max vel
-                elif(self.axis_data.get(0) >self.activation):
-                    joystick_vels[2] = ((self.axis_data[3] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[2] = 0
-
-                # Slider
-                if(self.axis_data.get(3) < -self.activation):
-                    joystick_vels[3] = -((self.axis_data[4] + self.activation) / (1 -self.activation))  # normalizes the 0.25 to 1 range to a 0 - 1 range and then mult by max vel
-                elif(self.axis_data.get(3) > self.activation):
-                    joystick_vels[3] = -((self.axis_data[4] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[3] = 0
-                
-                # Buttons
-                for i in range(13):
-                    button_activations[i] = self.button_data[i]
-        elif(self.joystick_type == 2 or self.joystick_type == 3):
-
-                """
-                Xbox One / 8BitDo Ultimate Controller:
-                Joystick Velocities
-                [0] = l/r left joystick
-                [1] = u/d left joystick
-                [2] = l/r right joystick
-                [3] = u/d right joystick
-                [4] = left trigger
-                [5] = right trigger
-
-                Button Activations
-                [0] = A
-                [1] = B
-                [2] = X
-                [3] = Y
-                [4] = left bumper
-                [5] = right bumper
-                [6] = TV
-                [7] = Menu
-                [8] = left joystick button
-                [9] = right joystick button
-                """
-
-                # Left stick: left and right
-                if(self.axis_data.get(0) < -self.activation):
-                    joystick_vels[0] = ((self.axis_data[0] + self.activation) / (1 - self.activation))
-                elif(self.axis_data.get(0) > self.activation):
-                    joystick_vels[0] = ((self.axis_data[0] - self.activation) / (1 - self.activation))
-                else:
-                    joystick_vels[0] = 0
-
-                # Left stick: up and down
-                axis_1_multiplier = 1 if self.is_jetson else -1
-                if(self.axis_data.get(1) < -self.activation):
-                    joystick_vels[1] = axis_1_multiplier * ((self.axis_data[1] + self.activation) / (1 -self.activation))
-                elif(self.axis_data.get(1) >self.activation):
-                    joystick_vels[1] = axis_1_multiplier * ((self.axis_data[1] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[1] = 0
-
-                # Right stick: left and right
-                if(self.axis_data.get(3) < -self.activation):
-                    joystick_vels[2] = ((self.axis_data[3] + self.activation) / (1 -self.activation))
-                elif(self.axis_data.get(3) >self.activation):
-                    joystick_vels[2] = ((self.axis_data[3] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[2] = 0
-
-                # Right stick: up and down
-                axis_index = 5 if self.is_jetson else 4
-                if(self.axis_data.get(axis_index) < -self.activation):
-                    joystick_vels[3] = -((self.axis_data[axis_index] + self.activation) / (1 -self.activation))
-                elif(self.axis_data.get(axis_index) > self.activation):
-                    joystick_vels[3] = -((self.axis_data[axis_index] - self.activation) / (1 -self.activation)) 
-                else:
-                    joystick_vels[3] = 0
-
-                # Left Trigger
-                if(self.axis_data.get(2) > 0):
-                    joystick_vels[4] = self.axis_data[2] 
-                else:
-                    joystick_vels[4] = 0
-
-                # Right Trigger
-                if(self.axis_data.get(5) > 0):
-                    joystick_vels[5] = self.axis_data[5]
-                else:
-                    joystick_vels[5] = 0
-                
-                # Buttons
-                for i in range(min(10, len(button_activations))):
-                    button_activations[i] = self.button_data.get(i, False)
-        else:
-            print('calibrate:', pprint.pprint(self.axis_data))
+            # Buttons
+            for i in self.button_data:
+                button_activations[i] = self.button_data[i]
 
         # Save current numpy array for joystick and buttons
         self.previous_axes = joystick_vels

@@ -1,8 +1,6 @@
 /**:
   ros__parameters:
-    # 0: PS4    1: Thrustmaster    2: Xbox One    3: 8BitDo Ultimate
-    joystick_type: 2
-    joystick_index: -1
+    joystick_type: "airbus"
 
     # can ids
     base_yaw_id: 5

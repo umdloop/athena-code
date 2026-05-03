@@ -2,6 +2,14 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # ...
 science_manual:
+  joystick_topic:
+    type: string
+    default_value: "controller_input/xbox"
+    description: "Topic name for joystick input (sensor_msgs/Joy)."
+    read_only: true
+    validation:
+      not_empty<>: null
+
   state_joints:
     type: string_array
     default_value: []

@@ -110,7 +110,7 @@ controller_interface::CallbackReturn ManualArmCylindricalController::on_configur
 
   // Reference Subscriber
   ref_subscriber_ = get_node()->create_subscription<ControllerReferenceMsg>(
-    "controller_input", subscribers_qos,
+    params_.joystick_topic, subscribers_qos,
     std::bind(&ManualArmCylindricalController::reference_callback, this, std::placeholders::_1));
   
   // Create, populate with NaN, and write message to input_ref_ to be used in reference callback
@@ -244,9 +244,9 @@ controller_interface::return_type ManualArmCylindricalController::update(
   if (!std::isnan((*current_ref)->axes[0]))
   {
     //TODO: Get rid of the hardcoded rigamarole (translates to max vel of 1.5 inches/s)
-    command_velocities_[0] = (*current_ref)->axes[2]*0.174533; // l/r right joystick -> yaw 10 dps
+    command_velocities_[0] = (*current_ref)->axes[2]*0.174533; // joystick_y -> yaw 10 dps
     command_velocities_[1] = (*current_ref)->axes[1]*6*0.00635; // u/d left joystick -> vy
-    command_velocities_[2] = (*current_ref)->axes[3]*6*0.00635; // u/d right joystick -> vz
+    command_velocities_[2] = (*current_ref)->axes[3]*6*0.00635; // joystick_x -> vz
     command_velocities_[3] = (*current_ref)->axes[1] * static_cast<float>((*current_ref)->buttons[1]);  // u/d left joystick & circle -> thetadot
     command_velocities_[4] = 0.0; // (*current_ref)->axes[0]; // l/r left joystick -> wrist roll
     command_velocities_[5] = (*current_ref)->axes[4]; // left trigger -> open claw

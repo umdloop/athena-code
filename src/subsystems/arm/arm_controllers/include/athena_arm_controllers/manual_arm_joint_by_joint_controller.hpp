@@ -31,7 +31,7 @@ static constexpr size_t CMD_MY_ITFS = 0;
 static constexpr int joystick_axes = 6;
 
 // amount of joystick buttons
-static constexpr int joystick_buttons = 13;
+static constexpr int joystick_buttons = 17;
 
 // TODO(anyone: example setup for control mode (usually you will use some enums defined in messages)
 enum class control_mode_type : std::uint8_t

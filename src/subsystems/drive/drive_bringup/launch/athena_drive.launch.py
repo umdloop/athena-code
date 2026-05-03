@@ -1,3 +1,5 @@
+import yaml
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler, TimerAction
 from launch.conditions import IfCondition
@@ -172,16 +174,16 @@ def launch_setup(context, *args, **kwargs):
 
     robot_description = {"robot_description": robot_description_content}
 
+    with open(joystick_config.perform(context), 'r') as f:
+        joy_cfg = yaml.safe_load(f)
+    joystick_type = joy_cfg['/**']['ros__parameters']['joystick_type']
+
     joystick_publisher = Node(
         package='teleop',
         executable='joystick',
         name='joystick',
         output='screen',
-        parameters=[joystick_config],
-        remappings=[
-            ('controller_input', 'joy'),
-            ('/controller_input', '/joy'),
-        ],
+        parameters=[joystick_config, {'subsystem': 'drive'}],
     )
 
     teleop_twist_joy = Node(
@@ -191,6 +193,7 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[teleop_twist_config],
         remappings=[
+            ('joy', f'controller_input/{joystick_type}'),
             ('/cmd_vel', '/rear_ackermann_controller/reference'),
         ],
     )

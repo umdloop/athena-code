@@ -178,6 +178,10 @@ cython_debug/
 # Prerequisites
 *.d
 
+# AI
+.kiro
+.claude
+
 # Compiled Object files
 *.slo
 *.lo
