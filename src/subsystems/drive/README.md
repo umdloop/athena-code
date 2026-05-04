@@ -74,6 +74,6 @@ ros2 launch drive_bringup athena_drive.launch.py mode:=base_station
 **Open another terminal, source the workspace, and call the service to set controllers:**
 ```bash
 source install/setup.bash
-ros2 service call /set_controller athena_drive_msgs/srv/SetController "{controller_names: [INCLUDE CONTROLLER(S) YOU WANT WITHIN BRACKETS]}"
+ros2 service call /set_controller msgs/srv/SetController "{controller_names: [INCLUDE CONTROLLER(S) YOU WANT WITHIN BRACKETS]}"
 ```
-Example: `ros2 service call /set_controller athena_drive_msgs/srv/SetController "{controller_names: [drive_velocity_controller]}"`
+Example: `ros2 service call /set_controller msgs/srv/SetController "{controller_names: [drive_velocity_controller]}"`

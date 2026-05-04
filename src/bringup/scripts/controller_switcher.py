@@ -40,7 +40,7 @@ class ControllerSwitcher(Node):
         self.client_cb_group = MutuallyExclusiveCallbackGroup()
         
         # Controllers to always keep active or ignore
-        self.always_active = ["joint_state_broadcaster", "motor_status_broadcaster"]
+        self.always_active = ["joint_state_broadcaster", "motor_status_broadcaster", "led_gpio_controller", "killswitch_gpio_controller", "laser_gpio_controller"]
         self.ignore_controllers = []
         
         # Lock to prevent concurrent service processing
@@ -117,10 +117,13 @@ class ControllerSwitcher(Node):
             # Extract controller names and their states
             all_controllers = []
             active_controllers = []
+            valid_always_active = []
             for c in list_result.controller:
                 all_controllers.append(c.name)
                 if c.state == 'active':
                     active_controllers.append(c.name)
+            
+            valid_always_active = [c for c in self.always_active if c in all_controllers]
             
             self.get_logger().info(f"Available controllers: {all_controllers}")
             self.get_logger().info(f"Currently active: {active_controllers}")
@@ -282,10 +285,10 @@ class ControllerSwitcher(Node):
             if switch_result and switch_result.ok:
                 response.success = True
                 if requested_controllers:
-                    active_list = requested_controllers + self.always_active
+                    active_list = requested_controllers + valid_always_active
                     response.message = f"Successfully activated controllers: {requested_controllers}. Active: {active_list}"
                 else:
-                    response.message = f"Successfully deactivated all controllers except: {self.always_active + self.ignore_controllers}"
+                    response.message = f"Successfully deactivated all controllers except: {valid_always_active + self.ignore_controllers}"
                 self.get_logger().info(f"Success! {response.message}")
             else:
                 response.success = False

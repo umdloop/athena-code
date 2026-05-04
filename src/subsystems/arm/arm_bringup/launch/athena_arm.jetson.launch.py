@@ -90,7 +90,7 @@ def generate_launch_description():
     )
 
     controller_switcher_config = PathJoinSubstitution(
-        [FindPackageShare("bringup"), "config", "controller_switcher.yaml"]
+        [FindPackageShare(runtime_config_package), "config", "controller_switcher.yaml"]
     )
 
     # -- Additional Configuration Setup --

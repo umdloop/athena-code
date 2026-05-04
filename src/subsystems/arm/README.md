@@ -8,7 +8,7 @@
   <li><b>athena_arm_controllers</b>: contains athena arm manual controller</li>
   <li><b>athena_arm_description</b>: contains the full urdf file for the arm including ros2_control urdfs</li>
   <li><b>athena_arm_moveit</b>: contains athena arm moveit setup</li>
-  <li><b>athena_arm_msgs</b>: contains messages used for athena mainly for logging</li>
+  <li><b>msgs</b>: contains messages used for athena mainly for logging</li>
   <li><b>manual_control</b>: testing setup to control each motor on the arm with a PS4 controller. We now have a controller in the ros2_control setup that does the same thing</li>
   <li><b>ros_odrive</b>: contains node and ros2_control hardware interface for ODrives.</li>
   <li><b>smc_ros2_control</b>: contains ros2_control hardware interface for SMC motors</li>
