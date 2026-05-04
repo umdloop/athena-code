@@ -193,7 +193,7 @@ controller_interface::return_type ManualArmJointByJointController::update(
     joint_velocities_[1] = ((*current_ref)->buttons[1] == 1) ? 0.0 : -(*current_ref)->axes[1] * max_velocities_[1];
     
     // Elbow Pitch: U/D Right Stick
-    joint_velocities_[2] = (*current_ref)->axes[3] * max_velocities_[2];
+    joint_velocities_[2] = -(*current_ref)->axes[3] * max_velocities_[2];
   }
   else{
     // RCLCPP_INFO(get_node()->get_logger(), "Returning NaN");
