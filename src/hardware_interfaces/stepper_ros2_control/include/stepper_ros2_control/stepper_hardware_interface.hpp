@@ -16,6 +16,11 @@
 #ifndef STEPPER_HARDWARE_INTERFACE_HPP_
 #define STEPPER_HARDWARE_INTERFACE_HPP_
 
+#include <netinet/in.h>
+
+#include <array>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -26,22 +31,17 @@
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
-#include "msgs/msg/cana.hpp"
 #include "rclcpp/macros.hpp"
-#include "rclcpp/node.hpp"
-#include "rclcpp/publisher.hpp"
-#include "rclcpp/subscription.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
-// Real-time CAN communication library
-#include <array>
-#include <rclcpp/node.hpp>
-#include <rclcpp/publisher.hpp>
-#include <rclcpp/subscription.hpp>
-
-#include "umdloop_can_library/SocketCanBus.hpp"
 #include "umdloop_can_library/CanFrame.hpp"
+#include "umdloop_can_library/SocketCanBus.hpp"
+
+namespace CANLib
+{
+struct CanFrame;
+}
 
 namespace stepper_ros2_control
 {
@@ -82,32 +82,22 @@ public:
     POSITION = 1,
     VELOCITY = 2,
   };
-  
-  // CAN Commands
-  static constexpr uint8_t PCB_HEARTBEAT_CMD = 0X10;
-  static constexpr uint8_t LED_STATUS_CMD = 0x11;
-  static constexpr uint8_t ABSOLUTE_POS_CONTROL_CMD = 0x20;
-  static constexpr uint8_t VELOCITY_CONTROL_CMD = 0x30;
-  static constexpr uint8_t MOTOR_STATE_CMD = 0x40;
-  static constexpr uint8_t MOTOR_STATUS_CMD = 0x50;
-  static constexpr uint8_t MAINTENANCE_CMD = 0x60;
-  static constexpr uint8_t SERVO_SPECS_CMD = 0x70;
 
   struct StepperJoint
   {
     std::string name;
-    uint16_t node_id;
+    uint8_t node_id;
     int gear_ratio;
     int orientation;
-    double initial_position;
     integration_level_t control_level;
 
     double joint_state_position;
     double joint_state_velocity;
+    double motor_position;
+    double motor_velocity;
+    double motor_status;
     double motor_temperature;
     double motor_torque_current;
-    double motor_status;
-    double acceleration;
 
     double joint_command_position;
     double joint_command_velocity;
@@ -123,9 +113,6 @@ public:
     double prev_maintenance_req;
     double elapsed_status_request_time;
     double elapsed_maintenance_request_time;
-    double motor_position;
-    double motor_velocity;
-    double encoder_position;
     double prev_joint_command_position;
     double prev_joint_command_velocity;
 
@@ -142,50 +129,92 @@ public:
     std::vector<int32_t> i32_data;
   };
 
+  void on_can_message(const CANLib::CanFrame & frame);
+  void logger_function();
+
   double calculate_joint_position_from_motor_position(double motor_position, int gear_ratio);
   double calculate_joint_velocity_from_motor_velocity(double motor_velocity, int gear_ratio);
-  int32_t calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio);
-  int32_t calculate_motor_velocity_from_desired_joint_velocity(double joint_velocity, int gear_ratio);
+  int16_t calculate_motor_position_from_desired_joint_position(double joint_position, int gear_ratio);
+  int16_t calculate_motor_velocity_from_desired_joint_velocity(double joint_velocity, int gear_ratio);
 
-  void format_control_command(msgs::msg::CANA & frame, StepperJoint & joint);
-  bool format_status_command(msgs::msg::CANA & frame, uint8_t command_id, uint16_t node_id);
+  void format_control_command(CANLib::CanFrame & frame, StepperJoint & joint);
+  bool format_status_command(CANLib::CanFrame & frame, uint8_t command_id, uint8_t node_id);
   bool format_maintenance_command(
-    msgs::msg::CANA & frame, uint16_t node_id, const DecodedCommand & decoded_cmd);
+    CANLib::CanFrame & frame, uint8_t node_id, const DecodedCommand & decoded_cmd);
 
 private:
+  int update_rate;
+  double elapsed_update_time;
+  double elapsed_time;
+  double elapsed_logger_time;
+  int logger_rate;
+  int logger_state;
+  int write_count;
   int num_joints;
-  uint16_t current_iteration;
 
-  rclcpp::Publisher<msgs::msg::CANA>::SharedPtr science_can_publisher_;
-  rclcpp::Subscription<msgs::msg::CANA>::SharedPtr science_can_subscriber_;
-  rclcpp::Node::SharedPtr node_;
-  msgs::msg::CANA received_joint_data_;
+  int can_command_id;
+  uint32_t can_response_id;
+  CANLib::SocketCanBus canBus;
+  CANLib::CanFrame can_tx_frame_;
+  CANLib::CanFrame can_rx_frame_;
+  std::string can_interface;
 
   std::vector<StepperJoint> STEPPERJoints_;
 
-  enum class MaintenanceCommands : uint8_t
-  {
-    BRAKE_RELEASE_CMD = 0x77,
-    BRAKE_LOCK_CMD = 0x78,
-    MOTOR_SHUTDOWN_CMD = 0x80,
-    MOTOR_STOP_CMD = 0x81,
-  };
-
   enum class ControlCommands : uint8_t
   {
-    SPEED_CONTROL_CMD = 0xA2,
-    ABSOLUTE_POS_CONTROL_CMD = 0xA4,
+    RELATIVE_POS_CONTROL_CMD = 0x20,
+    VELOCITY_CONTROL_CMD = 0x30,
+  };
+
+  enum class MaintenanceCommands : uint8_t
+  {
+    PCB_HEARTBEAT_CMD = 0x10,
+    MAINTENANCE_CMD = 0x60,
+    STEPPER_SPECS_CMD = 0x70,
+  };
+
+  enum class MaintenanceCommandOptions : uint8_t
+  {
+    SET_CURRENT_MULTI_TURN_POS_ZERO_TO_ROM_CMD = 0x00,
+    MOTOR_STOP_CMD = 0x01,
+    MOTOR_SHUTDOWN_CMD = 0x02,
+    CLEAR_ERRORS_CMD = 0x03,
   };
 
   enum class StatusCommands : uint8_t
   {
-    READ_MULTI_TURN_ANGLE_CMD = 0x92,
-    MOTOR_STATUS_2_CMD = 0x9C,
+    MOTOR_STATE = 0x40,
+    MOTOR_STATUS = 0x50,
+  };
+
+  enum class MotorStatus : uint8_t
+  {
+    UNDEFINED                = 0,
+    IDLE                     = 1,
+    STARTUP_SEQUENCE         = 2,
+
+    ERROR_INVALID_REQUEST    = 3,
+    ERROR_STEPPER_DISARMED   = 4,
+    ERROR_STEPPER_FAILED     = 5,
+    ERROR_CONTROLLER_FAILED  = 6,
+    ERROR_ESTOP_REQUESTED    = 7,
+    ERROR_UNKNOWN_POSITION   = 8,
+
+    POSITION_CONTROL         = 9,
+    VELOCITY_CONTROL         = 10,
+    STEPPER_STOPPED          = 11
+  };
+
+  enum class ValidateRequest : uint8_t
+  {
+    INVALID = 0,
+    VALID = 1,
   };
 
   static constexpr std::array<StatusCommands, 2> kStatusCommands = {
-    StatusCommands::READ_MULTI_TURN_ANGLE_CMD,
-    StatusCommands::MOTOR_STATUS_2_CMD,
+    StatusCommands::MOTOR_STATE,
+    StatusCommands::MOTOR_STATUS,
   };
 
   inline DecodedCommand unpack_command_full(int32_t counts_in, int64_t payload_in)
@@ -200,7 +229,8 @@ private:
     int bit_offset = 64;
     auto pop_bits = [&](int bits) -> uint64_t {
       bit_offset -= bits;
-      const uint64_t mask = (bits == 64) ? std::numeric_limits<uint64_t>::max() : ((1ULL << bits) - 1ULL);
+      const uint64_t mask = (bits == 64) ? std::numeric_limits<uint64_t>::max() :
+        ((1ULL << bits) - 1ULL);
       return (payload >> bit_offset) & mask;
     };
 

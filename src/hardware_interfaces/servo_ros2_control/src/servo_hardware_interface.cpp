@@ -116,6 +116,7 @@ void SERVOHardwareInterface::format_control_command(CANLib::CanFrame & frame, Se
     std::isfinite(joint.joint_command_position) &&
     joint.joint_command_position != joint.prev_joint_command_position)
   {
+    joint.prev_joint_command_position = joint.joint_command_position;
     joint.joint_command_position = std::clamp(joint.joint_command_position, 0.0, joint.rated_max);
     int16_t joint_angle = 0;
     if (joint.joint_type == joint_type_t::REVOLUTE) {
@@ -127,19 +128,19 @@ void SERVOHardwareInterface::format_control_command(CANLib::CanFrame & frame, Se
     }
 
     frame.dlc = 3;
-    frame.data[0] = static_cast<uint8_t>(ABSOLUTE_POS_CONTROL_CMD + joint.node_id);
+    frame.data[0] = static_cast<uint8_t>(
+      static_cast<uint8_t>(ControlCommands::ABSOLUTE_POS_CONTROL_CMD) + joint.node_id);
     frame.data[1] = static_cast<uint8_t>(joint_angle & 0xFF);
     frame.data[2] = static_cast<uint8_t>((joint_angle >> 8) & 0xFF);
-    joint.prev_joint_command_position = joint.joint_command_position;
     return;
   }
-
-  if (
+  else if (
     joint.control_level == integration_level_t::VELOCITY &&
     joint.servo_type == servo_type_t::CONTINUOUS &&
     std::isfinite(joint.joint_command_velocity) &&
     joint.joint_command_velocity != joint.prev_joint_command_velocity)
   {
+    joint.prev_joint_command_velocity = joint.joint_command_velocity;
     joint.joint_command_velocity = std::clamp(
       joint.joint_command_velocity, -joint.rated_max, joint.rated_max);
     int16_t joint_velocity = 0;
@@ -152,31 +153,33 @@ void SERVOHardwareInterface::format_control_command(CANLib::CanFrame & frame, Se
     }
 
     frame.dlc = 3;
-    frame.data[0] = static_cast<uint8_t>(VELOCITY_CONTROL_CMD + joint.node_id);
+    frame.data[0] = static_cast<uint8_t>(
+      static_cast<uint8_t>(ControlCommands::VELOCITY_CONTROL_CMD) + joint.node_id);
     frame.data[1] = static_cast<uint8_t>(joint_velocity & 0xFF);
     frame.data[2] = static_cast<uint8_t>((joint_velocity >> 8) & 0xFF);
-    joint.prev_joint_command_velocity = joint.joint_command_velocity;
     return;
   }
-
-  frame.dlc = 1;
-  frame.data[0] = static_cast<uint8_t>(MOTOR_STATE_CMD + joint.node_id);
+  else {
+    frame.dlc = 2;
+    frame.data[0] = static_cast<uint8_t>(
+      static_cast<uint8_t>(StatusCommands::MOTOR_STATE) + joint.node_id);
+    frame.data[1] = static_cast<uint8_t>(ValidateRequest::VALID);
+  }
 }
 
 bool SERVOHardwareInterface::format_status_command(
   CANLib::CanFrame & frame, uint8_t command_id, uint8_t node_id)
 {
   std::fill(std::begin(frame.data), std::end(frame.data), 0x00);
-  frame.dlc = 1;
+  frame.dlc = 2;
   switch (static_cast<StatusCommands>(command_id)) {
     case StatusCommands::MOTOR_STATE:
-      frame.data[0] = static_cast<uint8_t>(MOTOR_STATE_CMD + node_id);
+      frame.data[0] = static_cast<uint8_t>(static_cast<uint8_t>(StatusCommands::MOTOR_STATE) + node_id);
+      frame.data[1] = static_cast<uint8_t>(ValidateRequest::VALID);
       return true;
     case StatusCommands::MOTOR_STATUS:
-      frame.data[0] = static_cast<uint8_t>(MOTOR_STATUS_CMD + node_id);
-      return true;
-    case StatusCommands::SERVO_SPECS:
-      frame.data[0] = static_cast<uint8_t>(SERVO_SPECS_CMD + node_id);
+      frame.data[0] = static_cast<uint8_t>(static_cast<uint8_t>(StatusCommands::MOTOR_STATUS) + node_id);
+      frame.data[1] = static_cast<uint8_t>(ValidateRequest::VALID);
       return true;
     default:
       return false;
@@ -188,13 +191,38 @@ bool SERVOHardwareInterface::format_maintenance_command(
 {
   std::fill(std::begin(frame.data), std::end(frame.data), 0x00);
   frame.dlc = 2;
-  frame.data[0] = static_cast<uint8_t>(MAINTENANCE_CMD + node_id);
+  frame.data[0] = static_cast<uint8_t>(
+    static_cast<uint8_t>(MaintenanceCommands::MAINTENANCE_CMD) + node_id);
   frame.data[1] = decoded_cmd.command_id;
 
   switch (static_cast<MaintenanceCommands>(decoded_cmd.command_id)) {
-    case MaintenanceCommands::MOTOR_STOP_CMD:
-    case MaintenanceCommands::MOTOR_SHUTDOWN_CMD:
-      return true;
+    case MaintenanceCommands::PCB_HEARTBEAT_CMD:
+      if(decoded_cmd.u8_data.size() != 1 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else {
+        frame.data[0] = static_cast<uint8_t>(static_cast<uint8_t>(MaintenanceCommands::PCB_HEARTBEAT_CMD));
+        frame.data[1] = decoded_cmd.u8_data[0]; // Heartbeat value
+        return true;
+      }
+    case MaintenanceCommands::MAINTENANCE_CMD:
+      if(decoded_cmd.u8_data.size() != 1 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else {
+        frame.data[0] = static_cast<uint8_t>(static_cast<uint8_t>(MaintenanceCommands::MAINTENANCE_CMD) + node_id);
+        frame.data[1] = decoded_cmd.u8_data[0]; // Maintenance Command Value
+        return true;
+      }
+    case MaintenanceCommands::SERVO_SPECS_CMD:
+      if(decoded_cmd.u8_data.size() != 1 || decoded_cmd.i16_data.size() != 0 || decoded_cmd.i32_data.size() != 0){
+        return false; // Invalid data format for this command
+      }
+      else {
+        frame.data[0] = static_cast<uint8_t>(static_cast<uint8_t>(MaintenanceCommands::SERVO_SPECS_CMD) + node_id);
+        frame.data[1] = static_cast<uint8_t>(ValidateRequest::VALID); // Invalid data format for this command
+        return true;
+      }
     default:
       return false;
   }
@@ -394,7 +422,9 @@ void SERVOHardwareInterface::on_can_message(const CANLib::CanFrame & frame)
       continue;
     }
 
-    if (command_nibble == (MOTOR_STATE_CMD >> 4)) {
+    if (command_nibble == (static_cast<uint8_t>(StatusCommands::MOTOR_STATE) >> 4) ||
+        command_nibble == (static_cast<uint8_t>(ControlCommands::ABSOLUTE_POS_CONTROL_CMD) >> 4) ||
+        command_nibble == (static_cast<uint8_t>(ControlCommands::VELOCITY_CONTROL_CMD) >> 4)) {
       const double raw_position = static_cast<double>(
         static_cast<int16_t>((frame.data[2] << 8) | frame.data[1]));
       const double raw_velocity = static_cast<double>(
@@ -414,8 +444,41 @@ void SERVOHardwareInterface::on_can_message(const CANLib::CanFrame & frame)
       return;
     }
 
-    if (command_nibble == (MOTOR_STATUS_CMD >> 4)) {
+    if (command_nibble == (static_cast<uint8_t>(StatusCommands::MOTOR_STATUS) >> 4)) {
       joint.motor_status = static_cast<double>(frame.data[1]);
+      return;
+    }
+
+    if (command_nibble == (static_cast<uint8_t>(MaintenanceCommands::MAINTENANCE_CMD) >> 4) && frame.data[0] == 1) {
+      RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "Successfully sent maintenance command");
+      return;
+    }
+
+    if (command_nibble == (static_cast<uint8_t>(MaintenanceCommands::SERVO_SPECS_CMD) >> 4)) {
+      const uint8_t command_id = frame.data[0];
+      const uint8_t servo_type = frame.data[1];
+
+      const uint16_t max_servo_position =
+        static_cast<uint16_t>(frame.data[2]) |
+        (static_cast<uint16_t>(frame.data[3]) << 8);
+
+      const uint16_t max_servo_velocity =
+        static_cast<uint16_t>(frame.data[4]) |
+        (static_cast<uint16_t>(frame.data[5]) << 8);
+
+      RCLCPP_INFO(
+        rclcpp::get_logger("SERVOHardwareInterface"),
+        "Servo Config Reply | "
+        "command_id: 0x%02X (%u) | "
+        "servo_type: %u | "
+        "max_servo_position: %u | "
+        "max_servo_velocity: %u",
+        command_id,
+        command_id,
+        servo_type,
+        max_servo_position,
+        max_servo_velocity
+      );
       return;
     }
   }
@@ -429,7 +492,14 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_cleanup(
     frame.id = can_command_id;
     if (format_maintenance_command(
         frame, joint.node_id,
-        DecodedCommand{static_cast<uint8_t>(MaintenanceCommands::MOTOR_SHUTDOWN_CMD), {}, {}, {}}))
+        DecodedCommand{
+          static_cast<uint8_t>(MaintenanceCommands::MAINTENANCE_CMD), 
+          {static_cast<uint8_t>(MaintenanceCommandOptions::MOTOR_SHUTDOWN_CMD)}, 
+          {}, 
+          {}
+        }
+      )
+    )
     {
       canBus.send(frame);
     }
@@ -455,7 +525,14 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_deactivate(
     frame.id = can_command_id;
     if (format_maintenance_command(
         frame, joint.node_id,
-        DecodedCommand{static_cast<uint8_t>(MaintenanceCommands::MOTOR_STOP_CMD), {}, {}, {}}))
+        DecodedCommand{
+          static_cast<uint8_t>(MaintenanceCommands::MAINTENANCE_CMD), 
+          {static_cast<uint8_t>(MaintenanceCommandOptions::MOTOR_STOP_CMD)}, 
+          {}, 
+          {}
+        }
+      )
+    )
     {
       canBus.send(frame);
     }

@@ -168,31 +168,60 @@ private:
 
   std::vector<ServoJoint> SERVOJoints_;
 
-  static constexpr uint8_t PCB_HEARTBEAT_CMD = 0x10;
-  static constexpr uint8_t ABSOLUTE_POS_CONTROL_CMD = 0x20;
-  static constexpr uint8_t VELOCITY_CONTROL_CMD = 0x30;
-  static constexpr uint8_t MOTOR_STATE_CMD = 0x40;
-  static constexpr uint8_t MOTOR_STATUS_CMD = 0x50;
-  static constexpr uint8_t MAINTENANCE_CMD = 0x60;
-  static constexpr uint8_t SERVO_SPECS_CMD = 0x70;
+  enum class ControlCommands : uint8_t
+  {
+    ABSOLUTE_POS_CONTROL_CMD = 0x20,
+    VELOCITY_CONTROL_CMD = 0x30,
+  };
 
   enum class MaintenanceCommands : uint8_t
   {
+    PCB_HEARTBEAT_CMD = 0x10,
+    MAINTENANCE_CMD = 0x60,
+    SERVO_SPECS_CMD = 0x70,
+  };
+
+  enum class MaintenanceCommandOptions : uint8_t
+  {
+    SET_CURRENT_MULTI_TURN_POS_ZERO_TO_ROM_CMD = 0x00,
     MOTOR_STOP_CMD = 0x01,
     MOTOR_SHUTDOWN_CMD = 0x02,
+    CLEAR_ERRORS_CMD = 0x03,
   };
 
   enum class StatusCommands : uint8_t
   {
-    MOTOR_STATE = 0x01,
-    MOTOR_STATUS = 0x02,
-    SERVO_SPECS = 0x03,
+    MOTOR_STATE = 0x40,
+    MOTOR_STATUS = 0x50,
   };
 
-  static constexpr std::array<StatusCommands, 3> kStatusCommands = {
+  enum class MotorStatus : uint8_t
+  {
+    UNDEFINED                = 0,
+    IDLE                     = 1,
+    STARTUP_SEQUENCE         = 2,
+
+    ERROR_INVALID_REQUEST    = 3,
+    ERROR_SERVO_DISARMED     = 4,
+    ERROR_SERVO_FAILED       = 5,
+    ERROR_CONTROLLER_FAILED  = 6,
+    ERROR_ESTOP_REQUESTED    = 7,
+    ERROR_UNKNOWN_POSITION   = 8,
+
+    POSITION_CONTROL         = 9,
+    VELOCITY_CONTROL         = 10,
+    SERVO_STOPPED            = 11
+  };
+
+  enum class ValidateRequest : uint8_t
+  {
+    INVALID = 0,
+    VALID = 1,
+  };
+
+  static constexpr std::array<StatusCommands, 2> kStatusCommands = {
     StatusCommands::MOTOR_STATE,
     StatusCommands::MOTOR_STATUS,
-    StatusCommands::SERVO_SPECS,
   };
 
   inline DecodedCommand unpack_command_full(int32_t counts_in, int64_t payload_in)

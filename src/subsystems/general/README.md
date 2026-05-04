@@ -1,5 +1,27 @@
 ros2 service call /motor_status_controller/status_request msgs/srv/StatusReq "{joint_name: propulsion_fl_joint, request_rate: 0}"
 
+ros2 service call /motor_status_controller/status_request msgs/srv/StatusReq "{joint_name: stepper_motor_a, request_rate: -1}"
+
+ros2 service call /motor_status_controller/status_request msgs/srv/StatusReq "{joint_name: dc_auger, request_rate: -1}"
+
+ros2 service call /motor_status_controller/maintenance_request msgs/srv/MaintenanceReq "{
+  joint_name: stepper_motor_a,
+  request_rate: 1,
+  command_id: 0x60,
+  i32_data: [],
+  i16_data: [],
+  u8_data: [1]
+}"
+
+ros2 service call /motor_status_controller/maintenance_request msgs/srv/MaintenanceReq "{
+  joint_name: dc_auger,
+  request_rate: 1,
+  command_id: 0x10,
+  i32_data: [],
+  i16_data: [],
+  u8_data: [2]
+}"
+
 ros2 service call /motor_status_controller/maintenance_request msgs/srv/MaintenanceReq "{
   joint_name: propulsion_fl_joint,
   request_rate: -1,
