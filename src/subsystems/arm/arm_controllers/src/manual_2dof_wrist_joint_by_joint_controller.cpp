@@ -205,7 +205,7 @@ controller_interface::return_type Manual2DOFWristJointByJointController::update(
     joint_velocities_[0] = (*current_ref)->axes[1] * static_cast<float>((*current_ref)->buttons[1]) * max_velocities_[0];
     
     // Wrist Roll: L/R on Left Joystick AND O button
-    joint_velocities_[1] = -(*current_ref)->axes[0] * static_cast<float>((*current_ref)->buttons[1]) * max_velocities_[1];
+    joint_velocities_[1] = (*current_ref)->axes[0] * static_cast<float>((*current_ref)->buttons[1]) * max_velocities_[1];
 
     if(DEBUG_MODE == 1){
       logger_function();
