@@ -7,7 +7,7 @@
 
       <hardware>
         <plugin>dc_ros2_control/DCHardwareInterface</plugin>
-        <param name="update_rate">5</param> <!-- Hz -->
+        <param name="update_rate">20</param> <!-- Hz -->
         <param name="logger_rate">5</param> <!-- Hz -->
         <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
         <param name="can_interface">can0</param>
@@ -35,7 +35,7 @@
       </joint>
 
       <joint name="dc_scoop">
-        <param name="node_id">2</param>
+        <param name="node_id">1</param>
         <param name="joint_type">revolute</param>
 
         <param name="gear_ratio">50.9</param>

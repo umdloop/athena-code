@@ -120,13 +120,6 @@ motor_status_controller:
     joints:
       - stepper_motor_a
       - stepper_motor_b
-<<<<<<< HEAD
-      - dc_lift
-      - dc_scoop
-    interfaces:
-      - motor_temperature
-      - torque_current
-=======
       - servo_rack_and_pinion_l
       - servo_rack_and_pinion_r
       - servo_scoop_a
@@ -204,5 +197,4 @@ motor_status_controller:
       science_limit_switch:
         interfaces:
           - status
->>>>>>> 48331df (implemented and tested in virtual can servo, stepper, and dc HWIs)
     publish_rate: 10.0

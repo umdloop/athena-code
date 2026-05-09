@@ -1,18 +1,3 @@
-// Copyright (c) 2024 UMD Loop
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-
 #include "stepper_ros2_control/stepper_hardware_interface.hpp"
 
 #include <algorithm>
@@ -471,11 +456,6 @@ hardware_interface::CallbackReturn STEPPERHardwareInterface::on_activate(
     joint.joint_command_position = joint.joint_state_position;
     joint.joint_command_velocity = 0.0;
   }
-
-  RCLCPP_INFO(
-    rclcpp::get_logger("STEPPERHardwareInterface"),
-    "Stepper hardware activated");
-
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -496,46 +476,6 @@ hardware_interface::CallbackReturn STEPPERHardwareInterface::on_deactivate(
       canBus.send(frame);
     }
   }
-
-  RCLCPP_INFO(
-    rclcpp::get_logger("STEPPERHardwareInterface"),
-    "Stepper hardware deactivated%s", can_connected_ ? "" : " (simulated)");
-
-  return hardware_interface::CallbackReturn::SUCCESS;
-}
-
-// can_connected_ and is_connected_ are always reset regardless of whether CAN was open.
-hardware_interface::CallbackReturn STEPPERHardwareInterface::on_cleanup(
-  const rclcpp_lifecycle::State & /*previous_state*/)
-{
-  RCLCPP_INFO(
-    rclcpp::get_logger("STEPPERHardwareInterface"),
-    "Cleaning up stepper hardware...");
-
-  if (can_connected_) {
-    for (int i = 0; i < num_joints; i++) {
-      can_tx_frame_     = CANLib::CanFrame();
-      can_tx_frame_.id  = can_command_id;
-      can_tx_frame_.dlc = 2;
-
-      // FIX #4: Assign device_id_nibble (was previously using uninitialized variable)
-      uint8_t device_id_nibble = joint_node_ids[i] & 0x0F;
-      can_tx_frame_.data[0] = static_cast<uint8_t>((MAINTENANCE_CMD << 4) | device_id_nibble);
-      can_tx_frame_.data[1] = 2;  // Maintenance cmd 2 = Shutdown stepper
-      canBus_.send(can_tx_frame_);
-    }
-
-    canBus_.close();
-  }
-
-  // Always reset connection state
-  can_connected_ = false;
-  is_connected_  = 0.0;
-
-  RCLCPP_INFO(
-    rclcpp::get_logger("STEPPERHardwareInterface"),
-    "Stepper hardware cleanup complete");
-
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 

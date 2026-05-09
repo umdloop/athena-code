@@ -38,7 +38,7 @@
     <xacro:dc_ros2_control name="dc"/>
 
     <!-- Import talon ros2_control description -->
-    <xacro:talon_ros2_control name="talon" deactivate_talon="$(arg deactivate_talon)"/>
+    <!-- <xacro:talon_ros2_control name="talon" deactivate_talon="$(arg deactivate_talon)"/> -->
 
     <!-- Import laser ros2_control description (CAN-based) -->
     <xacro:laser_ros2_control name="spectrometry_laser"/>
