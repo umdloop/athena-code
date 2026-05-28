@@ -6,7 +6,7 @@
         <plugin>rotary_encoder_ros2_control/RotaryEncoderHardwareInterface</plugin>
         <param name="can_interface">${can_interface}</param>
         <param name="can_id">0x130</param>
-        <param name="update_rate">10</param>
+        <param name="update_rate">2</param>
         <param name="logger_rate">5</param>
         <param name="logger_state">0</param>
       </hardware>
