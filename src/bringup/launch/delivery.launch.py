@@ -63,6 +63,7 @@ def launch_setup(context, *args, **kwargs):
     description_share = get_package_share_directory('description')
     athena_gps_share = get_package_share_directory('athena_gps')
     mag_heading_share = get_package_share_directory('mag_heading')
+    arm_2dof_wrist_py_share = get_package_share_directory('arm_2dof_wrist_py')
 
     # ------------------------------------------------------------------
     # Drive: unmodified subsystem launch, root namespace.
@@ -116,15 +117,18 @@ def launch_setup(context, *args, **kwargs):
 
     active_controllers = [
         'manual_arm_joint_by_joint_controller',
-        wrist_active,
         'manual_end_effector_gripper_claw_controller',
     ]
+    if use_3dof_bool:
+        active_controllers.insert(1, wrist_active)
     inactive_controllers = [
         wrist_inactive,
         'manual_arm_cylindrical_controller',
         jt_controller,
         'arm_velocity_controller',
     ]
+    if not use_3dof_bool:
+        inactive_controllers.append('manual_2dof_wrist_joint_by_joint_controller')
 
     arm_cm = Node(
         package='controller_manager',
@@ -181,9 +185,20 @@ def launch_setup(context, *args, **kwargs):
         parameters=[arm_joystick_yaml],
     )
 
+    arm_2dof_wrist_py_node = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(arm_2dof_wrist_py_share, 'launch', 'manual_2dof_wrist.launch.py')
+        ),
+    )
+
     if mode == 'jetson':
-        return [drive, arm_hardware, gps, heading]
+        actions = [drive, arm_hardware, gps, heading]
     elif mode == 'base_station':
-        return [drive, arm_joystick]
+        actions = [drive, arm_joystick]
     else:  # standalone
-        return [drive, arm_hardware, arm_joystick, gps, heading]
+        actions = [drive, arm_hardware, arm_joystick, gps, heading]
+
+    if not use_3dof_bool and mode in ('jetson', 'standalone'):
+        actions.append(arm_2dof_wrist_py_node)
+
+    return actions

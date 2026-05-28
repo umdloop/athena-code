@@ -1,0 +1,29 @@
+manual_2dof_wrist_node:
+  ros__parameters:
+    # CAN
+    can_interface: "can1"
+    can_bitrate: 1000000
+
+    # Joint config (order: pitch, roll). Mirrors arm.smc_2dof.ros2_control.xacro.
+    joint_names: ["wrist_pitch", "wrist_roll"]
+    node_ids: [0x147, 0x145]
+    gear_ratios: [40, 40]
+    joint_orientations: [1, 1]
+
+    # Max joint velocities in rad/s. Mirrors manual_2dof_wrist_joint_by_joint_controller.yaml.
+    joint_max_velocities: [0.785398, 0.785398]
+
+    # Joystick mapping (sensor_msgs/Joy). Mirrors the C++ controller:
+    # pitch <- axes[1] * buttons[1], roll <- axes[0] * buttons[1].
+    pitch_axis_index: 1
+    roll_axis_index: 0
+    gate_button_index: 1
+
+    # Slow mode divisor (used when set_slow_control_mode service is true).
+    slow_factor: 2.0
+
+    # If no Joy message arrives within this many seconds, command zero velocity.
+    joy_timeout_sec: 0.5
+
+    # Rate at which the node sends CAN frames to the motors.
+    publish_rate_hz: 50.0
