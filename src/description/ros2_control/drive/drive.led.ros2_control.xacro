@@ -14,14 +14,14 @@
       </hardware>
 
       <gpio name="${name}">
-        <param name="is_rgb">true</param>
         <param name="node_id">0</param>
-        <state_interface name="status"/>
+        <param name="mode">1</param> <!-- 0: intensity (0x20), 1: rgb (0x30), 2: toggle (0x40) -->
         <command_interface name="red"/>
         <command_interface name="green"/>
         <command_interface name="blue"/>
         <!-- <command_interface name="intensity"/> -->
         <command_interface name="status_request"/>
+        <state_interface name="status"/>
       </gpio>
 
     </ros2_control>

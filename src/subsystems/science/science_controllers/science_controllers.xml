@@ -18,11 +18,31 @@ Source of this file are templates in
 [RosTeamWorkspace](https://github.com/StoglRobotics/ros_team_workspace) repository.
 -->
 
-<library path="libscience_manual">
+<library path="science_manual">
   <class name="science_controllers/ScienceManual"
          type="science_controllers::ScienceManual" base_class_type="controller_interface::ControllerInterface">
   <description>
     ScienceManual ros2_control controller.
   </description>
+  </class>
+</library>
+
+<library path="ccd_snapshot_controller">
+  <class
+    name="science_controllers/CCDSnapshotController"
+    type="science_controllers::CCDSnapshotController" base_class_type="controller_interface::ControllerInterface">
+    <description>
+      CCD snapshot controller for spectrometry acquisition.
+    </description>
+  </class>
+</library>
+
+<library path="conveyor_belt_cls_controller">
+  <class
+    name="science_controllers/ConveyorBeltCLSController"
+    type="science_controllers::ConveyorBeltCLSController" base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Conveyor belt closed-loop servo controller using a rotary encoder and magnetic limit switch state.
+    </description>
   </class>
 </library>

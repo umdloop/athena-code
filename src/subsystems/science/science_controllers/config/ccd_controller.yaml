@@ -1,0 +1,117 @@
+ccd_controller:
+  ccd_name:
+    type: string
+    default_value: "spectrometry_ccd"
+    description: >
+      Name of the CCD hardware interface GPIO.
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  command_interfaces:
+    type: string_array
+    default_value: ["capture_byte"]
+    description: "Command interface names used by the CCD controller."
+    read_only: true
+    validation:
+      unique<>: null
+
+  state_interfaces:
+    type: string_array
+    default_value: ["is_connected", "command_success", "acquisition_in_progress", "data_ready", "frames_received", "last_frame_id"]
+    description: "State interface names used by the CCD controller."
+    read_only: true
+    validation:
+      unique<>: null
+
+  snapshot_service_name:
+    type: string
+    default_value: "~/request_snapshot"
+    description: "Name of the snapshot service"
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  status_publish_topic:
+    type: string
+    default_value: "~/status"
+    description: "Topic used to publish CCD status."
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  snapshot_publish_topic:
+    type: string
+    default_value: "~/snapshot"
+    description: "Topic used to publish completed CCD snapshots."
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  publish_rate:
+    type: double
+    default_value: 10.0
+    description: "Rate in Hz at which to publish CCD status."
+    read_only: true
+    validation:
+      gt_eq<>: [0.0]
+
+  acquisition_timeout_sec:
+    type: double
+    default_value: 5.0
+    description: "Maximum time in seconds to wait for snapshot acquisition."
+    read_only: true
+    validation:
+      gt<>: [0.0]
+
+  expected_total_frames:
+    type: int
+    default_value: 609
+    description: "Expected number of CCD frames for one acquisition."
+    read_only: true
+    validation:
+      gt<>: [0]
+
+  spectrometer_id:
+    type: string
+    default_value: "pda_spectrometer"
+    description: "Identifier written into published Raman spectrum messages."
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  integration_time_ms:
+    type: double
+    default_value: 100.0
+    description: "CCD integration time in milliseconds."
+    read_only: true
+    validation:
+      gt_eq<>: [0.0]
+
+  laser_wavelength_nm:
+    type: double
+    default_value: 785.0
+    description: "Laser wavelength in nanometers."
+    read_only: true
+    validation:
+      gt<>: [0.0]
+
+  num_photodiodes:
+    type: int
+    default_value: 3648
+    description: "Number of CCD photodiodes."
+    read_only: true
+    validation:
+      gt<>: [0]
+
+  wavenumber_min:
+    type: double
+    default_value: 200.0
+    description: "Minimum wavenumber for generated spectra."
+    read_only: true
+
+  wavenumber_max:
+    type: double
+    default_value: 3500.0
+    description: "Maximum wavenumber for generated spectra."
+    read_only: true

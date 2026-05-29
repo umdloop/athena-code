@@ -16,6 +16,12 @@
         <state_interface name="status"/>
         <command_interface name="status_request"/>
       </gpio>
+
+      <gpio name="science_magnetic_limit_switch">
+        <param name="node_id">1</param>
+        <state_interface name="status"/>
+        <command_interface name="status_request"/>
+      </gpio>
     </ros2_control>
   </xacro:macro>
 </robot>

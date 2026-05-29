@@ -24,6 +24,8 @@
   <depend>realtime_tools</depend>
   <depend>std_srvs</depend>
   <depend>tf2_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>position_controllers</depend>
   
   <export>
     <build_type>ament_cmake</build_type>

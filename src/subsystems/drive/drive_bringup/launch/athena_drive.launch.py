@@ -256,6 +256,12 @@ def launch_setup(context, *args, **kwargs):
         arguments=["motor_status_controller", "-c", "/controller_manager"],
     )
 
+    zed_servo_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["zed_servo_controller", "-c", "/controller_manager"],
+    )
+
     robot_controller_names = [robot_controller]
     robot_controller_spawners = []
     for controller in robot_controller_names:
@@ -303,7 +309,6 @@ def launch_setup(context, *args, **kwargs):
                 )
             )
         ]
-
     controller_switcher_node = RegisterEventHandler(
         event_handler=OnProcessExit(
             target_action=inactive_robot_controller_spawners[-1],
@@ -378,6 +383,7 @@ def launch_setup(context, *args, **kwargs):
 
     jetson_actions = [
         control_node,
+        zed_servo_spawner,
         robot_state_pub_node,
         delay_joint_state_broadcaster_spawner_after_ros2_control_node,
         delay_motor_status_controller_after_joint_state_broadcaster,
@@ -391,7 +397,6 @@ def launch_setup(context, *args, **kwargs):
         joystick_publisher,
         teleop_twist_joy,
     ]
-
     if mode == "jetson":
         return jetson_actions
     elif mode == "base_station":

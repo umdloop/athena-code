@@ -62,10 +62,12 @@ private:
   struct LEDGPIO
   {
     std::string name;
-    bool is_rgb;
+    uint8_t mode;
     uint32_t node_id;
+    double is_connected;
     double status;
     double intensity;
+    double toggle_command;
     double red_command;
     double green_command;
     double blue_command;
@@ -73,6 +75,7 @@ private:
     double prev_status_request;
     double elapsed_status_request_time;
     double prev_intensity;
+    double prev_toggle_command;
     double prev_red_command;
     double prev_green_command;
     double prev_blue_command;
@@ -85,6 +88,7 @@ private:
   std::string can_interface_;
   CANLib::SocketCanBus canBus;
   CANLib::CanFrame can_tx_frame_;
+  bool can_connected_;
 
   // CAN bus ID (constant for this HWI)
   uint32_t can_id_ = 0;
@@ -99,6 +103,7 @@ private:
   // Multiplexor byte
   static constexpr uint8_t CMD_INTENSITY = 0x20;
   static constexpr uint8_t CMD_RGB = 0x30;
+  static constexpr uint8_t CMD_TOGGLE = 0x40;
 
   // Parameter to confirm whether to send command or not via CAN
   static constexpr uint8_t DECLINE_SEND = 0;

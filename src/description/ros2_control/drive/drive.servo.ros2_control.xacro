@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="servo_ros2_control" params="name can_interface:=can0">
+        <ros2_control name="${name}" type="system">
+            <hardware>
+                <plugin>servo_ros2_control/SERVOHardwareInterface</plugin>
+                <param name="update_rate">20</param> <!-- Hz -->
+                <param name="logger_rate">5</param> <!-- Hz -->
+                <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
+                <param name="can_interface">${can_interface}</param>
+                <param name="can_id">0x140</param>
+            </hardware>
+
+            <joint name="zed_servo_joint">
+                <param name="node_id">0x1</param>
+                <param name="gear_ratio">1</param>
+                <param name="max_pos">270</param> <!-- degrees -->
+                <param name ="meters_per_deg">0.00016666666</param> <!-- (TODO) convert motor position in degrees to displacement in meters -->
+                <param name="servo_type">standard</param> <!-- standard or continuous -->
+                <param name="joint_type">revolute</param> <!-- revolute or prismatic -->
+                <command_interface name="position"/>
+                <command_interface name="velocity"/>
+                <state_interface name="position"/>
+                <state_interface name="velocity"/>
+            </joint>
+        </ros2_control>
+    </xacro:macro>
+</robot>

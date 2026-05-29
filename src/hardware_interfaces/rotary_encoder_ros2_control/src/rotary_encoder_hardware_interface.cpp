@@ -25,7 +25,7 @@ void RotaryEncoderHardwareInterface::send_state_request(const RotaryEncoderJoint
 {
   CANLib::CanFrame frame;
   frame.id = can_write_id_;
-  frame.dlc = 8;
+  frame.dlc = 2;
   frame.data.fill(0x00);
   frame.data[0] = static_cast<uint8_t>(
     ROTARY_ENCODER_STATE_CMD + static_cast<uint8_t>(joint.node_id & 0xFF));

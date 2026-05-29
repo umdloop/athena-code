@@ -9,23 +9,22 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>rosidl_default_generators</build_depend>
   <build_depend>builtin_interfaces</build_depend>
 
-  <exec_depend>rosidl_default_runtime</exec_depend>
   <exec_depend>builtin_interfaces</exec_depend>
-
-  <member_of_group>rosidl_interface_packages</member_of_group>
 
   <exec_depend>controller_manager</exec_depend>
 
   <exec_depend>controller_manager_msgs</exec_depend>
+
+  <depend>msgs</depend>
 
   <exec_depend>forward_command_controller</exec_depend>
   <exec_depend>gpio_controllers</exec_depend>
 
   <exec_depend>joint_state_broadcaster</exec_depend>
   <exec_depend>general_controllers</exec_depend>
+  <exec_depend>gpio_controllers</exec_depend>
 
   <exec_depend>joint_trajectory_controller</exec_depend>
 

@@ -15,14 +15,31 @@
     science_controller:
       type: science_controllers/ScienceManual
 
+    # CCD Controller (CAN-based)
+    ccd_controller:
+      type: science_controllers/CCDSnapshotController
+
+    conveyor_belt_cls_controller:
+      type: science_controllers/ConveyorBeltCLSController
+
+    # Laser GPIO Controller (CAN-based)
     laser_gpio_controller:
       type: gpio_controllers/GpioCommandController
+
+    photodiode_gpio_controller:
+      type: gpio_controllers/GpioCommandController
+
+    motor_status_broadcaster:
+      type: general_controllers/MotorStatusBroadcaster
 
     fluoro_led_gpio_controller:
       type: gpio_controllers/GpioCommandController
 
     motor_status_controller:
       type: general_controllers/MotorStatusController
+
+    conveyor_belt_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
 
 /**/joint_group_position_controller:
   ros__parameters:
@@ -97,6 +114,39 @@
     position_range_auger_lift: [5.0, 360.0]
     velocity_limits_conveyor_belt: [200.0, 0.0, 0.0, 0.6]
 
+/**/ccd_controller:
+  ros__parameters:
+    ccd_name: "spectrometry_ccd"
+    command_interfaces: ["capture_byte"]
+    state_interfaces:
+      - is_connected
+      - command_success
+      - acquisition_in_progress
+      - data_ready
+      - frames_received
+      - last_frame_id
+      
+    snapshot_service_name: "~/request_snapshot"
+    status_publish_topic: "~/status"
+    snapshot_publish_topic: "/raman/raw_spectrum"
+
+    publish_rate: 10.0
+    acquisition_timeout_sec: 5.0
+    expected_total_frames: 609
+
+/**/conveyor_belt_cls_controller:
+  ros__parameters:
+    conveyor_belt_joint: "servo_conveyor_belt"
+    rotary_encoder_joint: "conveyor_belt_encoder"
+    magnetic_limit_switch_name: "science_magnetic_limit_switch"
+    reference_topic: "~/reference"
+    operating_velocity: 1.0
+    encoder_state_request_rate: 20.0
+    position_tolerance: 0.02
+    kP: 1.0
+    kI: 0.0
+    kD: 0.0
+
 # Laser GPIO Controller Configuration
 /**/laser_gpio_controller:
   ros__parameters:
@@ -110,17 +160,44 @@
       spectrometry_laser:
         interfaces:
           - laser_state
-          - temperature
           - is_connected
 
-/**/fluoro_led_gpio_controller:
+# Photodiode Controller Configuration
+photodiode_gpio_controller:
+  ros__parameters:
+    gpios:
+      - photodiode
+    command_interfaces:
+      photodiode:
+        interfaces:
+          - request_measurement_rate
+    state_interfaces:
+      photodiode:
+        interfaces:
+          - wavelength_intensity
+          - command_success
+          - is_connected
+          - status
+
+fluoro_led_gpio_controller:
   ros__parameters:
     gpios:
       - fluoro_led
     command_interfaces:
       fluoro_led:
         interfaces:
-          - intensity
+          - toggle
+    state_interfaces:
+      fluoro_led:
+        interfaces:
+          - is_connected
+          - status
+
+/**/conveyor_belt_velocity_controller:
+  ros__parameters:
+    joints:
+      - servo_conveyor_belt
+    interface_name: velocity
 
 # Default command interfaces: 
 # - status_request
@@ -150,16 +227,24 @@
       - dc_auger
     gpios:
       - spectrometry_laser
+      - photodiode
       - fluoro_led
       - science_limit_switch
+      - science_magnetic_limit_switch
     command_interfaces:
       spectrometry_laser:
+        interfaces:
+          - status_request
+      photodiode:
         interfaces:
           - status_request
       fluoro_led:
         interfaces:
           - status_request
       science_limit_switch:
+        interfaces:
+          - status_request
+      science_magnetic_limit_switch:
         interfaces:
           - status_request
       dc_scoop:
@@ -213,10 +298,19 @@
       servo_auger_lift:
         interfaces:
           - status
+      photodiode:
+        interfaces:
+          - status
       fluoro_led:
         interfaces:
           - status
       science_limit_switch:
+        interfaces:
+          - status
+      science_magnetic_limit_switch:
+        interfaces:
+          - status
+      spectrometry_laser:
         interfaces:
           - status
     publish_rate: 10.0

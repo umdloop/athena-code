@@ -1,20 +1,21 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-    <xacro:macro name="laser_ros2_control" params="name can_interface:=can0">
+    <xacro:macro name="laser_ros2_control" params="name can_interface:=can0 port_id:=0">
 
         <ros2_control name="${name}" type="system">
 
             <hardware>
                 <plugin>laser_ros2_control/LaserHardwareInterface</plugin>
                 <param name="can_interface">${can_interface}</param>
-                <param name="can_id">0x130</param>
+                <param name="can_id">0x100</param>
                 <param name="update_rate">10</param> <!-- Hz -->
                 <param name="logger_rate">5</param> <!-- Hz -->
                 <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
             </hardware>
 
             <gpio name="${name}">
+                <param name="node_id">1</param>
                 <state_interface name="laser_state"/>
                 <state_interface name="temperature"/>
                 <state_interface name="is_connected"/>

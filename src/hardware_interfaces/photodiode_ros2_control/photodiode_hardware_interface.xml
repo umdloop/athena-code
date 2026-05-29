@@ -1,0 +1,9 @@
+<library path="photodiode_ros2_control">
+    <class name="photodiode_ros2_control/PhotodiodeHardwareInterface"
+      type="photodiode_ros2_control::PhotodiodeHardwareInterface"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Hardware interface for spectrometry photodiode control via ros2_control.
+    </description>
+  </class>
+</library>

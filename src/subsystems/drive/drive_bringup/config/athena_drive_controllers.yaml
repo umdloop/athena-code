@@ -54,6 +54,9 @@ controller_manager:
     
     rear_ackermann_controller:
       type: athena_drive_controllers/RearAckermannController
+        
+    zed_servo_controller:
+      type: position_controllers/JointGroupPositionController
 
 ackermann_steering_controller:
   # unsure why but ackermann controller only goes about half of scale_linear.x in teleop_twist
@@ -196,3 +199,9 @@ rear_ackermann_controller:
     wheel_radius: 0.125
     max_speed: 0.59
     max_steer_angle: 0.785398
+
+#Added this controller
+zed_servo_controller:
+  ros__parameters:
+    joints: 
+    - zed_servo_joint

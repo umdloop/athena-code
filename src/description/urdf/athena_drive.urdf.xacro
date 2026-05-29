@@ -13,6 +13,7 @@
 
   <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.xacro"/>
   <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.ros2_control.xacro"/>
+
   <xacro:include filename="imu.xacro"/>
   <xacro:include filename="gps.xacro"/>
   <xacro:include filename="ground_truth_odom.xacro"/>
@@ -42,6 +43,9 @@
 
   <!-- Import power_module ros2_control description -->
   <xacro:include filename="$(find description)/ros2_control/drive/drive.power_module.ros2_control.xacro" />
+  
+  <!-- Added servo_drive here -->
+  <xacro:include filename="$(find description)/ros2_control/drive/drive.servo.ros2_control.xacro"/>
 
   <!-- Contains description of drive -->
   <xacro:description/>
@@ -83,6 +87,9 @@
 
     <!-- PowerModule (CAN-based) -->
     <xacro:power_module_ros2_control name="drive_power_module" can_interface="$(arg can_interface)"/>
+
+    <!-- Servo control for Zed camera -->
+    <xacro:servo_ros2_control name="zed_servo_control" can_interface="$(arg can_interface)"/>
   </xacro:unless>
 
   

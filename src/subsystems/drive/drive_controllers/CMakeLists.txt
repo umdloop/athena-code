@@ -13,11 +13,13 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   hardware_interface
   nav_msgs
   pluginlib
+  position_controllers
   rclcpp
   rclcpp_lifecycle
   realtime_tools
   std_srvs
   tf2_msgs
+  std_msgs
 )
 
 find_package(ament_cmake REQUIRED)
@@ -55,6 +57,12 @@ generate_parameter_library(front_ackermann_controller_parameters
 generate_parameter_library(rear_ackermann_controller_parameters
   config/rear_ackermann_controller.yaml
 )
+##.yaml or .hpp? Added the hpp if needed
+##included controller_parameters
+# generate_parameter_library(zed_servo_controller_parameters
+#   config/zed_servo_controller.yaml
+#   include/athena_drive_controllers/validate_drive_controller_parameters.hpp
+# ) taken out for testing since we dont need to generate a library for this
 
 add_library(
   drive_controllers
@@ -63,10 +71,12 @@ add_library(
   src/double_ackermann_controller.cpp
   src/front_ackermann_controller.cpp
   src/rear_ackermann_controller.cpp
+#  src/zed_servo_controller.cpp
 )
 target_include_directories(drive_controllers PUBLIC
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
+#zed_servo_controller_parameters
 target_link_libraries(drive_controllers swerve_drive_controller_parameters double_ackermann_controller_parameters crab_steering_controller_parameters front_ackermann_controller_parameters rear_ackermann_controller_parameters umdloop_can_library::umdloop_can_library)
 ament_target_dependencies(drive_controllers ${THIS_PACKAGE_INCLUDE_DEPENDS})
 target_compile_definitions(drive_controllers PRIVATE "SWERVE_DRIVE_CONTROLLER_BUILDING_DLL")

@@ -13,8 +13,11 @@
   <xacro:include filename="$(find description)/ros2_control/science/science.dc.ros2_control.xacro"/>
   <xacro:include filename="$(find description)/ros2_control/science/science.talon.ros2_control.xacro"/>
   <xacro:include filename="$(find description)/ros2_control/science/science.laser.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/ros2_control/science/science.ccd.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/ros2_control/science/science.photodiode.ros2_control.xacro"/>
   <xacro:include filename="$(find description)/ros2_control/science/science.led.ros2_control.xacro"/>
   <xacro:include filename="$(find description)/ros2_control/science/science.limit_switch.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/ros2_control/science/science.rotary_encoder.ros2_control.xacro"/>
   
   <!-- create link fixed to the "world" -->
   <link name="world"/>
@@ -44,9 +47,16 @@
     <!-- Import laser ros2_control description (CAN-based) -->
     <xacro:laser_ros2_control name="spectrometry_laser" can_interface="$(arg can_interface)"/>
 
-    <!-- Import LED and limit switch ros2_control descriptions -->
+    <!-- Import CCD ros2_control description (CAN-based) -->
+    <xacro:ccd_ros2_control name="spectrometry_ccd" can_interface="$(arg can_interface)"/>
+
+    <!-- Import photodiode ros2_control description (CAN-based) -->
+    <xacro:photodiode_ros2_control name="photodiode" can_interface="$(arg can_interface)"/>
+
+    <!-- Import LED, limit switch, and rotary encoder ros2_control descriptions -->
     <xacro:science_led_ros2_control name="fluoro_led_hwi" can_interface="$(arg can_interface)"/>
     <xacro:science_limit_switch_ros2_control name="science_limit_switch_hwi" can_interface="$(arg can_interface)"/>
+    <xacro:science_rotary_encoder_ros2_control name="science_rotary_encoder_hwi" can_interface="$(arg can_interface)"/>
   </xacro:unless>
 
 </robot>

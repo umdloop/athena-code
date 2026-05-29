@@ -1,0 +1,74 @@
+conveyor_belt_cls_controller:
+  conveyor_belt_joint:
+    type: string
+    default_value: "servo_conveyor_belt"
+    description: "Joint name for the conveyor belt servo velocity command interface."
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  rotary_encoder_joint:
+    type: string
+    default_value: "conveyor_belt_encoder"
+    description: "Joint name for the conveyor belt rotary encoder."
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  magnetic_limit_switch_name:
+    type: string
+    default_value: "science_magnetic_limit_switch"
+    description: "GPIO name for the magnetic limit switch."
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  reference_topic:
+    type: string
+    default_value: "~/reference"
+    description: "Topic for desired conveyor belt position references."
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  operating_velocity:
+    type: double
+    default_value: 1.0
+    description: "Open-loop operating velocity in rad/s."
+    read_only: true
+    validation:
+      gt<>: [0.0]
+
+  encoder_state_request_rate:
+    type: double
+    default_value: 20.0
+    description: "Continuous rotary encoder state request rate in Hz."
+    read_only: true
+    validation:
+      gt_eq<>: [0.0]
+
+  position_tolerance:
+    type: double
+    default_value: 0.02
+    description: "Position tolerance in radians for stopping the conveyor belt."
+    read_only: true
+    validation:
+      gt_eq<>: [0.0]
+
+  kP:
+    type: double
+    default_value: 1.0
+    description: "PID proportional gain."
+    read_only: true
+
+  kI:
+    type: double
+    default_value: 0.0
+    description: "PID integral gain."
+    read_only: true
+
+  kD:
+    type: double
+    default_value: 0.0
+    description: "PID derivative gain."
+    read_only: true

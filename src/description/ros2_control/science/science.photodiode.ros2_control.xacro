@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:macro name="photodiode_ros2_control" params="name can_interface:=can0">
+
+        <ros2_control name="${name}" type="system">
+
+            <hardware>
+                <plugin>photodiode_ros2_control/PhotodiodeHardwareInterface</plugin>
+                <param name="can_interface">${can_interface}</param>
+                <param name="can_id">0x110</param>
+                <param name="update_rate">10</param> <!-- Hz -->
+                <param name="logger_rate">5</param>  <!-- Hz -->
+                <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
+            </hardware>
+
+            <gpio name="${name}">
+                <param name="node_id">0</param>
+                <command_interface name="request_measurement_rate"/>
+                <command_interface name="status_request"/>
+                <command_interface name="maintenance_request"/>
+                <command_interface name="maintenance_frame_high"/>
+                <command_interface name="maintenance_frame_low"/>
+                <command_interface name="maintenance_data_count"/>
+
+                <state_interface name="wavelength_intensity"/>
+                <state_interface name="command_success"/>
+                <state_interface name="is_connected"/>
+                <state_interface name="status"/>
+            </gpio>
+
+        </ros2_control>
+
+    </xacro:macro>
+
+</robot>

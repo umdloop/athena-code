@@ -2,8 +2,11 @@
 #define LASER_ROS2_CONTROL__LASER_HARDWARE_INTERFACE_HPP_
 
 #include <memory>
+#include <limits>
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include <cstdint>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
@@ -25,59 +28,73 @@ public:
 
   hardware_interface::CallbackReturn on_init(
     const hardware_interface::HardwareInfo & info) override;
+
   hardware_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override;
 
   std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
+
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
   hardware_interface::CallbackReturn on_activate(
     const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_deactivate(
     const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_cleanup(
     const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_shutdown(
     const rclcpp_lifecycle::State & previous_state) override;
 
   hardware_interface::return_type read(
-    const rclcpp::Time & time, const rclcpp::Duration & period) override;
+    const rclcpp::Time & time,
+    const rclcpp::Duration & period) override;
+
   hardware_interface::return_type write(
-    const rclcpp::Time & time, const rclcpp::Duration & period) override;
+    const rclcpp::Time & time,
+    const rclcpp::Duration & period) override;
 
   void logger_function();
 
 private:
-  struct LaserJoint
+  struct LASERGPIO
   {
     std::string name;
     uint32_t can_id;
+    uint8_t node_id;
     double laser_state;
     double temperature;
     double is_connected;
     double status;
     double laser_command;
+    double prev_laser_command;
     double status_request;
     double prev_status_request;
     double elapsed_status_request_time;
+    std::vector<std::string> state_interface_names;
+    std::vector<std::string> command_interface_names;
+    std::unordered_map<std::string, std::string> parameters;
   };
 
-  void onCanMessage(const CANLib::CanFrame & frame);
-
+  void on_can_message(const CANLib::CanFrame & frame);
   std::string can_interface_;
+  uint32_t can_id_;         
+
   CANLib::SocketCanBus canBus_;
   CANLib::CanFrame can_tx_frame_;
   bool can_connected_;
-  std::vector<LaserJoint> LASERJoints_;
+  std::vector<LASERGPIO> LASERGPIOs_;
   int update_rate_;
   int logger_rate_;
   int logger_state_;
   double elapsed_time_;
   double elapsed_logger_time_;
 
-  static constexpr uint8_t CMD_LASER_ON = 0x60;
-  static constexpr uint8_t CMD_LASER_OFF = 0x80;
-  static constexpr uint8_t CMD_READ_TEMP = 0x85;
+  // CAN command bytes
+  static constexpr uint8_t CMD_LASER_CONTROL = 0x20;  
+  static constexpr uint8_t CMD_LASER_STATUS  = 0x30; 
 };
 
 }  // namespace laser_ros2_control

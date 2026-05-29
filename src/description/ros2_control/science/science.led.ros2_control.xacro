@@ -12,11 +12,12 @@
       </hardware>
 
       <gpio name="fluoro_led">
-        <param name="is_rgb">false</param>
-        <param name="node_id">0</param>
-        <state_interface name="status"/>
-        <command_interface name="intensity"/>
+        <param name="node_id">1</param>
+        <param name="mode">2</param>
+        <command_interface name="toggle"/>
         <command_interface name="status_request"/>
+        <state_interface name="is_connected"/>
+        <state_interface name="status"/>
       </gpio>
     </ros2_control>
   </xacro:macro>
