@@ -26,4 +26,4 @@ manual_2dof_wrist_node:
     joy_timeout_sec: 0.5
 
     # Rate at which the node sends CAN frames to the motors.
-    publish_rate_hz: 50.0
+    publish_rate_hz: 5.0

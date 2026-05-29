@@ -40,7 +40,7 @@ class Manual2DOFWristNode(Node):
         super().__init__('manual_2dof_wrist_node')
 
         # -- Parameters -- #
-        self.declare_parameter('can_interface', 'can0')
+        self.declare_parameter('can_interface', 'can1')
         self.declare_parameter('can_bitrate', 1000000)
         self.declare_parameter('joint_names', ['wrist_pitch', 'wrist_roll'])
         self.declare_parameter('node_ids', [0x147, 0x145])
@@ -103,7 +103,7 @@ class Manual2DOFWristNode(Node):
         self._send_simple_to_all(MOTOR_RUNNING_CMD)
 
         # -- ROS interfaces -- #
-        self.create_subscription(Joy, 'joy', self._joy_callback, 10)
+        self.create_subscription(Joy, '/arm/controller_input', self._joy_callback, 10)
         self.create_service(
             SetBool, '~/set_slow_control_mode', self._set_slow_mode_callback)
 
@@ -116,7 +116,7 @@ class Manual2DOFWristNode(Node):
         with self._lock:
             self._latest_joy = msg
             self._latest_joy_stamp = self.get_clock().now().nanoseconds * 1e-9
-
+            self.get_logger().info("got a new joystick")
     def _set_slow_mode_callback(
             self, request: SetBool.Request,
             response: SetBool.Response) -> SetBool.Response:
@@ -129,6 +129,7 @@ class Manual2DOFWristNode(Node):
         return response
 
     def _timer_callback(self) -> None:
+        self.get_logger().info("timer ticked")
         with self._lock:
             joy = self._latest_joy
             stamp = self._latest_joy_stamp
@@ -172,10 +173,9 @@ class Manual2DOFWristNode(Node):
         counts = (self.orientations[joint_idx]
                   * joint_velocity_to_motor_counts(
                       joint_velocity, self.gear_ratios[joint_idx]))
-
+       
         # Skip resending an unchanged command, mirroring the HWI's prev-vs-new check.
-        if self._last_sent_counts[joint_idx] == counts:
-            return
+        
         self._last_sent_counts[joint_idx] = counts
 
         data = bytearray(8)
@@ -185,7 +185,7 @@ class Manual2DOFWristNode(Node):
         data[5] = (counts >> 8) & 0xFF
         data[6] = (counts >> 16) & 0xFF
         data[7] = (counts >> 24) & 0xFF
-
+        self.get_logger().info("Sending frame!")
         self._send_frame(self.node_ids[joint_idx], bytes(data))
 
     def _send_simple_to_all(self, cmd_id: int) -> None:
