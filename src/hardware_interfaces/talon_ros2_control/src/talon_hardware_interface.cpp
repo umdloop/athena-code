@@ -12,6 +12,23 @@
 namespace talon_ros2_control
 {
 
+namespace
+{
+
+int clamp_status_frame_period_ms(double request_rate_hz)
+{
+  if (!std::isfinite(request_rate_hz) || request_rate_hz <= 0.0) {
+    return -1;
+  }
+
+  return std::clamp(
+    static_cast<int>(std::lround(1000.0 / request_rate_hz)),
+    1,
+    255);
+}
+
+}  // namespace
+
 TALONHardwareInterface::TALONHardwareInterface() = default;
 
 void TALONHardwareInterface::logger_function()
@@ -42,6 +59,7 @@ void TALONHardwareInterface::logger_function()
         << "Joint Command Position: " << joint.joint_command_position << "\n"
         << "Joint Command Velocity: " << joint.joint_command_velocity << "\n"
         << "Status Request: " << joint.motor_status_req << "\n"
+        << "Applied Status Request: " << joint.applied_status_request_rate << "\n"
         << "-- State --\n"
         << "Joint Position: " << joint.joint_state_position
         << " | Joint Velocity: " << joint.joint_state_velocity
@@ -113,6 +131,75 @@ hardware_interface::CallbackReturn TALONHardwareInterface::on_init(
     if (joint.parameters.count("config_timeout_ms")) {
       mc.config_timeout_ms = std::stoi(joint.parameters.at("config_timeout_ms"));
     }
+    if (joint.parameters.count("status_1_general_period_ms")) {
+      mc.status_1_general_period_ms = std::stoi(joint.parameters.at("status_1_general_period_ms"));
+    }
+    if (joint.parameters.count("status_2_feedback0_period_ms")) {
+      mc.status_2_feedback0_period_ms =
+        std::stoi(joint.parameters.at("status_2_feedback0_period_ms"));
+    }
+    if (joint.parameters.count("status_3_quadrature_period_ms")) {
+      mc.status_3_quadrature_period_ms =
+        std::stoi(joint.parameters.at("status_3_quadrature_period_ms"));
+    }
+    if (joint.parameters.count("status_4_aintempvbat_period_ms")) {
+      mc.status_4_aintempvbat_period_ms =
+        std::stoi(joint.parameters.at("status_4_aintempvbat_period_ms"));
+    }
+    if (joint.parameters.count("status_6_misc_period_ms")) {
+      mc.status_6_misc_period_ms = std::stoi(joint.parameters.at("status_6_misc_period_ms"));
+    }
+    if (joint.parameters.count("status_7_commstatus_period_ms")) {
+      mc.status_7_commstatus_period_ms =
+        std::stoi(joint.parameters.at("status_7_commstatus_period_ms"));
+    }
+    if (joint.parameters.count("status_8_pulsewidth_period_ms")) {
+      mc.status_8_pulsewidth_period_ms =
+        std::stoi(joint.parameters.at("status_8_pulsewidth_period_ms"));
+    }
+    if (joint.parameters.count("status_9_motprofbuffer_period_ms")) {
+      mc.status_9_motprofbuffer_period_ms =
+        std::stoi(joint.parameters.at("status_9_motprofbuffer_period_ms"));
+    }
+    if (joint.parameters.count("status_10_targets_period_ms")) {
+      mc.status_10_targets_period_ms =
+        std::stoi(joint.parameters.at("status_10_targets_period_ms"));
+    }
+    if (joint.parameters.count("status_12_feedback1_period_ms")) {
+      mc.status_12_feedback1_period_ms =
+        std::stoi(joint.parameters.at("status_12_feedback1_period_ms"));
+    }
+    if (joint.parameters.count("status_13_base_pidf0_period_ms")) {
+      mc.status_13_base_pidf0_period_ms =
+        std::stoi(joint.parameters.at("status_13_base_pidf0_period_ms"));
+    }
+    if (joint.parameters.count("status_14_turn_pidf1_period_ms")) {
+      mc.status_14_turn_pidf1_period_ms =
+        std::stoi(joint.parameters.at("status_14_turn_pidf1_period_ms"));
+    }
+    if (joint.parameters.count("status_15_firmwareapistatus_period_ms")) {
+      mc.status_15_firmwareapistatus_period_ms =
+        std::stoi(joint.parameters.at("status_15_firmwareapistatus_period_ms"));
+    }
+    if (joint.parameters.count("status_17_targets1_period_ms")) {
+      mc.status_17_targets1_period_ms =
+        std::stoi(joint.parameters.at("status_17_targets1_period_ms"));
+    }
+    if (joint.parameters.count("control_3_general_period_ms")) {
+      mc.control_3_general_period_ms =
+        std::stoi(joint.parameters.at("control_3_general_period_ms"));
+    }
+    if (joint.parameters.count("control_4_advanced_period_ms")) {
+      mc.control_4_advanced_period_ms =
+        std::stoi(joint.parameters.at("control_4_advanced_period_ms"));
+    }
+    if (joint.parameters.count("control_6_motprofaddtrajpoint_period_ms")) {
+      mc.control_6_motprofaddtrajpoint_period_ms =
+        std::stoi(joint.parameters.at("control_6_motprofaddtrajpoint_period_ms"));
+    }
+    if (joint.parameters.count("status_frame_timeout_ms")) {
+      mc.status_frame_timeout_ms = std::stoi(joint.parameters.at("status_frame_timeout_ms"));
+    }
 
     const joint_type_t joint_type = joint.parameters.at("joint_type") == "prismatic" ?
       joint_type_t::PRISMATIC : joint_type_t::REVOLUTE;
@@ -126,6 +213,7 @@ hardware_interface::CallbackReturn TALONHardwareInterface::on_init(
       mc,
       nullptr,
       integration_level_t::POSITION,
+      0.0,
       0.0,
       0.0,
       0.0,
@@ -298,6 +386,12 @@ hardware_interface::return_type TALONHardwareInterface::write(
   for (auto & joint : TALONJoints_) {
     const double curr_status_req = joint.motor_status_req;
     if (curr_status_req < 0.0 && joint.prev_status_req >= 0.0) {
+      RCLCPP_WARN(
+        rclcpp::get_logger("TALONHardwareInterface"),
+        "Joint '%s' received negative status_request=%f. Talon status frames are periodic, "
+        "so one-shot requests are not supported; keeping default frame periods.",
+        joint.name.c_str(),
+        curr_status_req);
       joint.motor_status = 1.0;
     } else if (curr_status_req > 0.0) {
       joint.elapsed_status_request_time += period.seconds();
@@ -306,6 +400,36 @@ hardware_interface::return_type TALONHardwareInterface::write(
         joint.motor_status = 1.0;
       }
     }
+
+    if (joint.motor != nullptr) {
+      if (curr_status_req > 0.0 &&
+        std::abs(curr_status_req - joint.applied_status_request_rate) >
+        std::numeric_limits<double>::epsilon())
+      {
+        const int requested_period_ms = clamp_status_frame_period_ms(curr_status_req);
+        auto requested_config = joint.motor_config;
+        requested_config.status_1_general_period_ms = requested_period_ms;
+        requested_config.status_2_feedback0_period_ms = requested_period_ms;
+        requested_config.status_3_quadrature_period_ms = requested_period_ms;
+        requested_config.status_4_aintempvbat_period_ms = requested_period_ms;
+        requested_config.status_6_misc_period_ms = requested_period_ms;
+        requested_config.status_7_commstatus_period_ms = requested_period_ms;
+        requested_config.status_8_pulsewidth_period_ms = requested_period_ms;
+        requested_config.status_9_motprofbuffer_period_ms = requested_period_ms;
+        requested_config.status_10_targets_period_ms = requested_period_ms;
+        requested_config.status_12_feedback1_period_ms = requested_period_ms;
+        requested_config.status_13_base_pidf0_period_ms = requested_period_ms;
+        requested_config.status_14_turn_pidf1_period_ms = requested_period_ms;
+        requested_config.status_15_firmwareapistatus_period_ms = requested_period_ms;
+        requested_config.status_17_targets1_period_ms = requested_period_ms;
+        applyStatusFramePeriods(joint.motor, requested_config);
+        joint.applied_status_request_rate = curr_status_req;
+      } else if (curr_status_req <= 0.0 && joint.applied_status_request_rate > 0.0) {
+        applyStatusFramePeriods(joint.motor, joint.motor_config);
+        joint.applied_status_request_rate = 0.0;
+      }
+    }
+
     joint.prev_status_req = curr_status_req;
   }
 

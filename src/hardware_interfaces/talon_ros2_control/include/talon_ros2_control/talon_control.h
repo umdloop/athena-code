@@ -23,10 +23,30 @@ struct MotorConfig {
   double kD                 = 0.0;     // Derivative gain (slot 0)
   double kF                 = 0.0;     // Feed-forward gain (slot 0)
   int    config_timeout_ms  = 100;     // Timeout for TalonSRX config calls
+  int    status_1_general_period_ms = 100;
+  int    status_2_feedback0_period_ms = 20;
+  int    status_3_quadrature_period_ms = 255;
+  int    status_4_aintempvbat_period_ms = 100;
+  int    status_6_misc_period_ms = 255;
+  int    status_7_commstatus_period_ms = 255;
+  int    status_8_pulsewidth_period_ms = 255;
+  int    status_9_motprofbuffer_period_ms = 255;
+  int    status_10_targets_period_ms = 255;
+  int    status_12_feedback1_period_ms = 255;
+  int    status_13_base_pidf0_period_ms = 255;
+  int    status_14_turn_pidf1_period_ms = 255;
+  int    status_15_firmwareapistatus_period_ms = 255;
+  int    status_17_targets1_period_ms = 255;
+  int    control_3_general_period_ms = 20;
+  int    control_4_advanced_period_ms = 255;
+  int    control_6_motprofaddtrajpoint_period_ms = 255;
+  int    status_frame_timeout_ms = 100;
 };
 
 // Motor initialization
 void initMotor(TalonSRX * motor, const MotorConfig & config, const std::string & can_interface);
+void applyStatusFramePeriods(TalonSRX * motor, const MotorConfig & config);
+void applyControlFramePeriods(TalonSRX * motor, const MotorConfig & config);
 
 // Conversions (config-aware)
 double convertRevtoTalonUnits(double rev, const MotorConfig & config);

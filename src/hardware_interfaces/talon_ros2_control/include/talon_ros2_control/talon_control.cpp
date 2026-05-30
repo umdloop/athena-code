@@ -13,6 +13,77 @@
 
 // ── Motor initialization ─────────────────────────────────────────────────────
 
+void applyStatusFramePeriods(TalonSRX * motor, const MotorConfig & config)
+{
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_1_General,
+    static_cast<uint8_t>(config.status_1_general_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_2_Feedback0,
+    static_cast<uint8_t>(config.status_2_feedback0_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_3_Quadrature,
+    static_cast<uint8_t>(config.status_3_quadrature_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_4_AinTempVbat,
+    static_cast<uint8_t>(config.status_4_aintempvbat_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_6_Misc,
+    static_cast<uint8_t>(config.status_6_misc_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_7_CommStatus,
+    static_cast<uint8_t>(config.status_7_commstatus_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_8_PulseWidth,
+    static_cast<uint8_t>(config.status_8_pulsewidth_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_9_MotProfBuffer,
+    static_cast<uint8_t>(config.status_9_motprofbuffer_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_10_Targets,
+    static_cast<uint8_t>(config.status_10_targets_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_12_Feedback1,
+    static_cast<uint8_t>(config.status_12_feedback1_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_13_Base_PIDF0,
+    static_cast<uint8_t>(config.status_13_base_pidf0_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_14_Turn_PIDF1,
+    static_cast<uint8_t>(config.status_14_turn_pidf1_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_15_FirmwareApiStatus,
+    static_cast<uint8_t>(config.status_15_firmwareapistatus_period_ms),
+    config.status_frame_timeout_ms);
+  motor->SetStatusFramePeriod(
+    ctre::phoenix::motorcontrol::StatusFrameEnhanced::Status_17_Targets1,
+    static_cast<uint8_t>(config.status_17_targets1_period_ms),
+    config.status_frame_timeout_ms);
+}
+
+void applyControlFramePeriods(TalonSRX * motor, const MotorConfig & config)
+{
+  motor->SetControlFramePeriod(
+    ctre::phoenix::motorcontrol::ControlFrame::Control_3_General,
+    config.control_3_general_period_ms);
+  motor->SetControlFramePeriod(
+    ctre::phoenix::motorcontrol::ControlFrame::Control_4_Advanced,
+    config.control_4_advanced_period_ms);
+  motor->ChangeMotionControlFramePeriod(config.control_6_motprofaddtrajpoint_period_ms);
+}
+
 void initMotor(TalonSRX * motor, const MotorConfig & config, const std::string & can_interface) {
   // Wake up the CAN bus (send a dummy frame so the kernel driver is active)
   std::string cmd = "cansend " + can_interface + " 123#00000000";
@@ -30,6 +101,8 @@ void initMotor(TalonSRX * motor, const MotorConfig & config, const std::string &
   motor->Config_kI(0, config.kI, config.config_timeout_ms);
   motor->Config_kD(0, config.kD, config.config_timeout_ms);
   motor->Config_kF(0, config.kF, config.config_timeout_ms);
+  applyStatusFramePeriods(motor, config);
+  applyControlFramePeriods(motor, config);
 }
 
 // ── Conversion helpers ───────────────────────────────────────────────────────

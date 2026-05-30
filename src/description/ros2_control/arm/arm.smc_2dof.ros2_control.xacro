@@ -29,11 +29,11 @@
         <state_interface name="status"/>
       </joint>
 
-      <joint name="wrist_pitch">
+      <!-- <joint name="wrist_pitch">
         <param name="node_id">0x147</param>
         <param name="gear_ratio">40</param>
         <param name="joint_orientation">1.0</param>
-        <param name="operating_velocity">1000</param> <!-- motor dps -->
+        <param name="operating_velocity">1000</param> <!- motor dps ->
         <command_interface name="position"/>
         <command_interface name="velocity"/>
         <command_interface name="status_request"/>
@@ -46,7 +46,7 @@
         <state_interface name="motor_temperature"/>
         <state_interface name="torque_current"/>
         <state_interface name="status"/>
-      </joint>
+      </joint> -->
 
       <joint name="wrist_roll">
         <param name="node_id">0x145</param>

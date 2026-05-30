@@ -192,7 +192,7 @@
       - wrist_roll
     # interface_name: velocity
     joint_max_velocities:
-      - 0.785398    # 45 dps
+      - 0.524    # 30 dps TUNE THIS FOR EQUIPMENT SERVICING
       - 0.785398
 
 /**/manual_3dof_wrist_joint_by_joint_controller:
@@ -250,6 +250,9 @@
       - limit_switch_3
       - limit_switch_4
     command_interfaces:
+      wrist_pitch:
+        interfaces:
+          - status_request
       gripper_claw:
         interfaces:
           - status_request

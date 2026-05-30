@@ -87,6 +87,7 @@ private:
     double joint_command_position;
     double joint_command_velocity;
     double motor_status_req;
+    double applied_status_request_rate;
     double prev_status_req;
     double elapsed_status_request_time;
 

@@ -16,6 +16,46 @@
         </xacro:unless>
       </hardware>
 
+      <joint name="wrist_pitch">
+        <param name="node_id">0</param>
+        <param name="joint_type">revolute</param>
+        <!-- Motor config (Pololu 37D defaults) -->
+        <param name="encoder_resolution">64.0</param>
+        <param name="gear_ratio">4002.08</param>
+        <param name="inverted">true</param>
+        <param name="sensor_phase">true</param>
+        <param name="kP">0.25</param>
+        <param name="kI">0.0</param>
+        <param name="kD">0.0</param>
+        <param name="kF">0.0</param>
+        <param name="status_1_general_period_ms">255</param>
+        <param name="status_2_feedback0_period_ms">255</param>
+        <param name="status_3_quadrature_period_ms">255</param>
+        <param name="status_4_aintempvbat_period_ms">255</param>
+        <param name="status_6_misc_period_ms">255</param>
+        <param name="status_7_commstatus_period_ms">255</param>
+        <param name="status_8_pulsewidth_period_ms">255</param>
+        <param name="status_9_motprofbuffer_period_ms">255</param>
+        <param name="status_10_targets_period_ms">255</param>
+        <param name="status_12_feedback1_period_ms">255</param>
+        <param name="status_13_base_pidf0_period_ms">255</param>
+        <param name="status_14_turn_pidf1_period_ms">255</param>
+        <param name="status_15_firmwareapistatus_period_ms">255</param>
+        <param name="status_17_targets1_period_ms">255</param>
+        <param name="control_3_general_period_ms">50</param>
+        <param name="control_4_advanced_period_ms">255</param>
+        <param name="control_6_motprofaddtrajpoint_period_ms">255</param>
+        <param name="status_frame_timeout_ms">255</param>
+        <command_interface name="position"/>
+        <command_interface name="velocity"/>
+        <command_interface name="status_request"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="motor_temperature"/>
+        <state_interface name="torque_current"/>
+        <state_interface name="status"/>
+      </joint>
+
       <joint name="gripper_claw">
         <param name="node_id">4</param>
         <param name="max_disp">0.06</param> <!-- meters -->
@@ -30,6 +70,24 @@
         <param name="kI">0.0</param>
         <param name="kD">0.0</param>
         <param name="kF">0.0</param>
+        <param name="status_1_general_period_ms">255</param>
+        <param name="status_2_feedback0_period_ms">255</param>
+        <param name="status_3_quadrature_period_ms">255</param>
+        <param name="status_4_aintempvbat_period_ms">255</param>
+        <param name="status_6_misc_period_ms">255</param>
+        <param name="status_7_commstatus_period_ms">255</param>
+        <param name="status_8_pulsewidth_period_ms">255</param>
+        <param name="status_9_motprofbuffer_period_ms">255</param>
+        <param name="status_10_targets_period_ms">255</param>
+        <param name="status_12_feedback1_period_ms">255</param>
+        <param name="status_13_base_pidf0_period_ms">255</param>
+        <param name="status_14_turn_pidf1_period_ms">255</param>
+        <param name="status_15_firmwareapistatus_period_ms">255</param>
+        <param name="status_17_targets1_period_ms">255</param>
+        <param name="control_3_general_period_ms">50</param>
+        <param name="control_4_advanced_period_ms">255</param>
+        <param name="control_6_motprofaddtrajpoint_period_ms">255</param>
+        <param name="status_frame_timeout_ms">255</param>
         <command_interface name="position"/>
         <command_interface name="velocity"/>
         <command_interface name="status_request"/>
