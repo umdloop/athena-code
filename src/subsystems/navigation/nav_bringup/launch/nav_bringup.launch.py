@@ -92,6 +92,12 @@ def generate_launch_description():
         }.items(),
     )
 
+    camera_relay_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            get_package_share_directory('usb_camera_relay'), 'launch', 'camera_relay.launch.py'
+        )),
+    )
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'sim',
@@ -146,5 +152,6 @@ def generate_launch_description():
         robot_state_publisher,
         mag_heading_launch,
         navigation_launch,
+        camera_relay_launch,
         config_gui,
     ])

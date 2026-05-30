@@ -8,7 +8,7 @@ import os
 
 def generate_launch_description():
     default_params = os.path.join(
-        get_package_share_directory('yolo_ros_bt'), 'config', 'yolo_params.yaml'
+        get_package_share_directory('usb_camera_relay'), 'config', 'camera_relay_params.yaml'
     )
 
     params_file = LaunchConfiguration('params_file')
@@ -17,12 +17,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'params_file',
             default_value=default_params,
-            description='Full path to the YOLO params YAML',
+            description='Full path to the camera relay params YAML',
         ),
         Node(
-            package='yolo_ros_bt',
-            executable='yolo_node',
-            name='yolo_node',
+            package='usb_camera_relay',
+            executable='camera_relay',
+            name='usb_camera_relay',
             output='screen',
             parameters=[params_file],
         ),

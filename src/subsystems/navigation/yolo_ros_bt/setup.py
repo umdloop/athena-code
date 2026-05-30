@@ -25,6 +25,10 @@ setup(
             os.path.join('share', package_name, 'models'),
             glob('models/*')
         ),
+        (
+            os.path.join('share', package_name, 'config'),
+            glob('config/*.yaml')
+        ),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

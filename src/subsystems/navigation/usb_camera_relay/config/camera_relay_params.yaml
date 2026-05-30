@@ -1,0 +1,13 @@
+usb_camera_relay:
+  ros__parameters:
+    # List specific device paths to avoid accidentally grabbing ZED nodes.
+    # Leave as [''] (single empty string) to auto-discover all /dev/video* devices.
+    devices:
+      - /dev/video0     # USB cam 0 (front)
+      # - /dev/video3   # USB cam 1 (left side)
+      # - /dev/video5   # USB cam 2 (right side)
+
+    fps: 10.0
+    width: 640
+    height: 480
+    topic_prefix: /cameras

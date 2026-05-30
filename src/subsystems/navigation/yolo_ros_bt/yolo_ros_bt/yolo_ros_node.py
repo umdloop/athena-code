@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Optional, List
+from typing import Optional, List, NamedTuple
 import os
 
 import cv2
@@ -22,6 +22,14 @@ except ImportError:
     YOLO = None
 
 
+class _CamPubs(NamedTuple):
+    detections: object
+    target_found: object
+    target_label: object
+    target_center: object
+    annotated_image: object
+
+
 class YoloRosNode(Node):
     def __init__(self) -> None:
         super().__init__('yolo_node')
@@ -31,13 +39,12 @@ class YoloRosNode(Node):
 
         self.declare_parameter('conf_thres', 0.5)
         self.declare_parameter('model_path', default_model_path)
-        self.declare_parameter('image_topic', '/camera/image_raw')
+        self.declare_parameter('image_topics', ['/camera/image_raw'])
         self.declare_parameter(
             'target_classes',
             ['Bottle', 'Mallet', 'Rock-Pick-Hammer']
         )
         self.declare_parameter('publish_annotated_image', True)
-        self.declare_parameter('annotated_image_topic', '/yolo/annotated_image')
         self.declare_parameter('queue_size', 5)
 
         self.conf_thres: float = float(
@@ -46,20 +53,10 @@ class YoloRosNode(Node):
         self.model_path: str = (
             self.get_parameter('model_path').get_parameter_value().string_value
         )
-        self.image_topic: str = (
-            self.get_parameter('image_topic').get_parameter_value().string_value
-        )
+        image_topics: List[str] = list(self.get_parameter('image_topics').value)
         self.target_classes = self.get_parameter('target_classes').value
-
         self.publish_annotated_image: bool = (
-            self.get_parameter('publish_annotated_image')
-            .get_parameter_value()
-            .bool_value
-        )
-        self.annotated_image_topic: str = (
-            self.get_parameter('annotated_image_topic')
-            .get_parameter_value()
-            .string_value
+            self.get_parameter('publish_annotated_image').get_parameter_value().bool_value
         )
         self.queue_size: int = int(
             self.get_parameter('queue_size').get_parameter_value().integer_value
@@ -81,50 +78,33 @@ class YoloRosNode(Node):
             self.get_logger().error(f'Failed to load YOLO model: {exc}')
             raise
 
-        self.image_sub = self.create_subscription(
-            Image,
-            self.image_topic,
-            self.image_callback,
-            self.queue_size
-        )
-
-        self.detections_pub = self.create_publisher(
-            Detection2DArray,
-            '/yolo/detections',
-            self.queue_size
-        )
-
-        self.target_found_pub = self.create_publisher(
-            Bool,
-            '/yolo/target_found',
-            self.queue_size
-        )
-
-        self.target_label_pub = self.create_publisher(
-            String,
-            '/yolo/target_label',
-            self.queue_size
-        )
-
-        self.target_center_pub = self.create_publisher(
-            PointStamped,
-            '/yolo/target_center',
-            self.queue_size
-        )
-
-        self.annotated_image_pub = self.create_publisher(
-            Image,
-            self.annotated_image_topic,
-            self.queue_size
-        )
+        for idx, topic in enumerate(image_topics):
+            ns = f'/yolo/cam{idx}'
+            pubs = _CamPubs(
+                detections=self.create_publisher(
+                    Detection2DArray, f'{ns}/detections', self.queue_size),
+                target_found=self.create_publisher(
+                    Bool, f'{ns}/target_found', self.queue_size),
+                target_label=self.create_publisher(
+                    String, f'{ns}/target_label', self.queue_size),
+                target_center=self.create_publisher(
+                    PointStamped, f'{ns}/target_center', self.queue_size),
+                annotated_image=self.create_publisher(
+                    Image, f'{ns}/annotated_image', self.queue_size),
+            )
+            self.create_subscription(
+                Image,
+                topic,
+                lambda msg, p=pubs: self._image_callback(msg, p),
+                self.queue_size,
+            )
+            self.get_logger().info(f'Camera {idx}: {topic} → {ns}/')
 
         self.get_logger().info('YOLO ROS node initialized')
-        self.get_logger().info(f'Subscribing to image topic: {self.image_topic}')
         self.get_logger().info(f'Target classes: {self.target_classes}')
         self.get_logger().info(f'Confidence threshold: {self.conf_thres:.2f}')
-        self.get_logger().info('Publishing detections to /yolo/detections')
 
-    def image_callback(self, msg: Image) -> None:
+    def _image_callback(self, msg: Image, pubs: _CamPubs) -> None:
         try:
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except Exception as exc:
@@ -139,16 +119,14 @@ class YoloRosNode(Node):
 
         detection_array = Detection2DArray()
         detection_array.header = msg.header
-
-        target_found = False
-        best_target_conf = -1.0
-        best_target_center = None
-        best_target_label = ''
-
         annotated_frame = frame.copy()
 
+        img_h, img_w = frame.shape[:2]
+        norm_w = float(img_w) if img_w else 1.0
+        norm_h = float(img_h) if img_h else 1.0
+
         if not results:
-            self.publish_empty_outputs(msg.header)
+            self._publish_empty(msg.header, pubs)
             return
 
         result = results[0]
@@ -156,16 +134,16 @@ class YoloRosNode(Node):
         names = getattr(result, 'names', {})
 
         if boxes is None or len(boxes) == 0:
-            self.detections_pub.publish(detection_array)
-            self.publish_target_outputs(
-                msg.header,
-                found=False,
-                target_center=None,
-                target_label=''
-            )
+            pubs.detections.publish(detection_array)
+            self._publish_target(msg.header, pubs, found=False, center=None, label='')
             if self.publish_annotated_image:
-                self.publish_annotated(annotated_frame, msg.header)
+                self._publish_annotated(annotated_frame, msg.header, pubs)
             return
+
+        target_found = False
+        best_conf = -1.0
+        best_center = None
+        best_label = ''
 
         for box in boxes:
             conf = float(box.conf[0].item())
@@ -179,15 +157,15 @@ class YoloRosNode(Node):
             x_min, y_min, x_max, y_max = box.xyxy[0].tolist()
             center_x = (x_min + x_max) / 2.0
             center_y = (y_min + y_max) / 2.0
-            width = x_max - x_min
-            height = y_max - y_min
 
+            # Publish bbox in normalized [0, 1] image coordinates so the GUI
+            # can overlay it on any WebRTC stream regardless of encode size.
             detection_msg = Detection2D()
             detection_msg.header = msg.header
-            detection_msg.bbox.center.position.x = center_x
-            detection_msg.bbox.center.position.y = center_y
-            detection_msg.bbox.size_x = width
-            detection_msg.bbox.size_y = height
+            detection_msg.bbox.center.position.x = center_x / norm_w
+            detection_msg.bbox.center.position.y = center_y / norm_h
+            detection_msg.bbox.size_x = (x_max - x_min) / norm_w
+            detection_msg.bbox.size_y = (y_max - y_min) / norm_h
 
             hypothesis = ObjectHypothesisWithPose()
             hypothesis.hypothesis.class_id = class_name
@@ -196,18 +174,18 @@ class YoloRosNode(Node):
 
             detection_array.detections.append(detection_msg)
 
-            if class_name in self.target_classes and conf > best_target_conf:
+            if class_name in self.target_classes and conf > best_conf:
                 target_found = True
-                best_target_conf = conf
-                best_target_center = (center_x, center_y)
-                best_target_label = class_name
+                best_conf = conf
+                best_center = (center_x / norm_w, center_y / norm_h)
+                best_label = class_name
 
             cv2.rectangle(
                 annotated_frame,
                 (int(x_min), int(y_min)),
                 (int(x_max), int(y_max)),
                 (0, 255, 0),
-                2
+                2,
             )
             cv2.putText(
                 annotated_frame,
@@ -216,61 +194,54 @@ class YoloRosNode(Node):
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
                 (0, 255, 0),
-                2
+                2,
             )
 
-        self.detections_pub.publish(detection_array)
-
-        self.publish_target_outputs(
-            msg.header,
+        pubs.detections.publish(detection_array)
+        self._publish_target(
+            msg.header, pubs,
             found=target_found,
-            target_center=best_target_center,
-            target_label=best_target_label if target_found else ''
+            center=best_center,
+            label=best_label if target_found else '',
         )
-
         if self.publish_annotated_image:
-            self.publish_annotated(annotated_frame, msg.header)
+            self._publish_annotated(annotated_frame, msg.header, pubs)
 
-    def publish_empty_outputs(self, header) -> None:
-        empty_array = Detection2DArray()
-        empty_array.header = header
-        self.detections_pub.publish(empty_array)
+    def _publish_empty(self, header, pubs: _CamPubs) -> None:
+        empty = Detection2DArray()
+        empty.header = header
+        pubs.detections.publish(empty)
+        self._publish_target(header, pubs, found=False, center=None, label='')
 
-        self.publish_target_outputs(
-            header,
-            found=False,
-            target_center=None,
-            target_label=''
-        )
-
-    def publish_target_outputs(
+    def _publish_target(
         self,
         header,
+        pubs: _CamPubs,
         found: bool,
-        target_center: Optional[tuple],
-        target_label: str
+        center: Optional[tuple],
+        label: str,
     ) -> None:
         found_msg = Bool()
         found_msg.data = found
-        self.target_found_pub.publish(found_msg)
+        pubs.target_found.publish(found_msg)
 
         label_msg = String()
-        label_msg.data = target_label
-        self.target_label_pub.publish(label_msg)
+        label_msg.data = label
+        pubs.target_label.publish(label_msg)
 
-        if found and target_center is not None:
+        if found and center is not None:
             point_msg = PointStamped()
             point_msg.header = header
-            point_msg.point.x = float(target_center[0])
-            point_msg.point.y = float(target_center[1])
+            point_msg.point.x = float(center[0])
+            point_msg.point.y = float(center[1])
             point_msg.point.z = 0.0
-            self.target_center_pub.publish(point_msg)
+            pubs.target_center.publish(point_msg)
 
-    def publish_annotated(self, frame, header) -> None:
+    def _publish_annotated(self, frame, header, pubs: _CamPubs) -> None:
         try:
             img_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
             img_msg.header = header
-            self.annotated_image_pub.publish(img_msg)
+            pubs.annotated_image.publish(img_msg)
         except Exception as exc:
             self.get_logger().warn(f'Failed to publish annotated image: {exc}')
 
