@@ -181,6 +181,32 @@ def generate_launch_description():
         output="both",
         parameters=[robot_description, robot_controllers],
     )
+    #controller in drive
+    #node in science 
+    #can launch drive
+    #package sciecne_bringup
+    zed_servo_node = RegisterEventHandler(
+        event_handler=OnProcessStart(
+            target_action=control_node,
+            on_start=[TimerAction(
+                period=8.0,  # enough time for everything to settle
+                actions=[
+                    Node(
+                        package="science_bringup",
+                        executable="zed_servo_node.py",
+                        name="zed_servo_node",
+                        output="screen"
+                    ),
+                    Node(
+                        package="science_bringup",
+                        executable="zed_arduino_node.py",
+                        name="zed_arduino_node",
+                        output="screen"
+                    )
+                ]
+            )]
+        )
+    )
     robot_state_pub_node = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
@@ -206,7 +232,6 @@ def generate_launch_description():
         executable="spawner",
         arguments=["motor_status_controller", "-c", "/controller_manager"],
     )
-
     # CONTROLLER MANAGERS
 
     '''robot_controller_spawner = Node(
@@ -359,6 +384,7 @@ def generate_launch_description():
             delay_joint_state_broadcaster_spawner_after_ros2_control_node,
             delay_motor_status_controller_after_joint_state_broadcaster,
             # umdloop_can_node,
+            zed_servo_node,
             controller_switcher_node,
             joystick_publisher,
         ]

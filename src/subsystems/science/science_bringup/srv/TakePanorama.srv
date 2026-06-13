@@ -1,0 +1,6 @@
+float32 max_angle #angle to rotate to
+int32 frames
+bool take_panorama
+---
+bool success
+string message
