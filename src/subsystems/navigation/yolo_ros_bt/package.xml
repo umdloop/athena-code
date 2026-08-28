@@ -6,8 +6,6 @@
   <maintainer email="abdumohma11@gmail.com">abdul</maintainer>
   <license>MIT</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>
-
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>

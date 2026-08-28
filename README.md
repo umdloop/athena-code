@@ -1,10 +1,49 @@
 # Athena Code
 
+![Alt text](docs/title_picture.JPG)
+
 This repository contains all the code for UMDLoop's 2025-26 rover, Athena.
 
 When cloning, be sure to use `git clone --recursive [URL to Git repository]` to pull in the submodules found in `src/third-party`. Alternatively, run `git submodule update --init --recursive` if you have already cloned.
 
 ## How To Use
+
+### Docker setup
+
+*Prior to building:*
+
+Plug in all necessary usb devices. If a new one is plugged in, rebuild the devcontainer.
+
+*devcontainer:*
+
+`Ctrl+Shift+P`
+
+Dev Containers: Rebuild and Reopen in Container
+
+Choose based on what computer this repository is running on. Developer is general use, the other two are for competition specific systems.
+
+*no vscode available:*
+
+1. Navigate to desired system directory (base_station, developer, or jetson)
+2. Build the docker
+
+```bash
+./build_docker.sh
+docker images
+```
+
+3. Run the docker
+
+```bash
+./run_docker.sh
+docker ps
+```
+
+*Quick hardware test (joystick controller):*
+
+```bash
+sudo evtest
+```
 
 ### Hardware Setup
 
@@ -14,33 +53,72 @@ When cloning, be sure to use `git clone --recursive [URL to Git repository]` to 
 ### CAN Setup
 
 _Hardware:_
+
 ```bash
-./src/athena-code/src/tools/scripts/can_setup.sh
+./src/tools/scripts/can_setup.sh
 ```
 
 _Virtual:_
+
 ```bash
-./src/athena-code/src/tools/scripts/virtual_can_setup.sh
+./src/tools/scripts/virtual_can_setup.sh
 ```
 
 Use `ip link` to verify that `can0` or `vcan0` is up.
 
+---
+
 ### Building
 
 1. Install required dependencies:
+
 ```bash
 rosdep install --from-paths src -y --ignore-src
 ```
 
 2. Build the workspace:
+
 ```bash
 colcon build --symlink-install
 ```
 
-3. Source the workspace:
+3. Source the workspace in every terminal you use files specific to this workspace:
+
 ```bash
 source install/setup.bash
 ```
+
+4. Launch your desired subsystem.
+
+---
+
+## Subsystems
+
+### Arm
+
+See the [Arm subsystem README](src/subsystems/arm/README.md).
+
+### Drive
+
+See the [Drive subsystem README](src/subsystems/drive/README.md).
+
+### Science
+
+See the [Science subsystem README](src/subsystems/science/README.md).
+
+### Navigation
+
+See the [Navigation subsystem README](src/subsystems/navigation/README.md).
+
+### General
+
+See the [General subsystem README](src/subsystems/general/README.md).
+
+---
+
+## Hardware Interfaces
+
+For a list of available hardware interfaces, see the [Hardware Interfaces README](src/hardware_interfaces/README.md)
 
 ---
 
@@ -57,101 +135,11 @@ Only one motion controller should be active at a time (alongside the `joint_stat
 
 ---
 
-## Testing
-
-### Arm
-
-#### Launch
-
-_Hardware:_
-```bash
-ros2 launch arm_bringup athena_arm.launch.py use_mock_hardware:=false
-```
-
-_Mock (no hardware):_
-```bash
-ros2 launch arm_bringup athena_arm.launch.py use_mock_hardware:=true
-```
-
-#### PS4 Controller
-
-- **Base Yaw**: Left/Right on Left Joystick (Axes 0)
-- **Shoulder Pitch**: Up/Down on Left Joystick (Axes 1)
-- **Elbow Pitch**: Up/Down on Right Joystick (Axes 3)
-- **Wrist Pitch**: Up/Down on Left Joystick AND O button (Axes 1)
-- **Wrist Roll**: Left/Right on Left Joystick AND O button (Axes 0)
-- **Open Claw (max speed)**: Left Bumper (Button 5)
-- **Close Claw (max speed)**: Right Bumper (Button 4)
-- **Open Claw (speed control)**: Left Trigger (Axes 5)
-- **Close Claw (speed control)**: Right Trigger (Axes 4)
-
-#### Velocity Testing
-
-1. Switch to velocity controller using the controller switching service
-2. In a new terminal:
-```bash
-ros2 topic pub /velocity_controller/commands std_msgs/msg/Float64MultiArray "{data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}"
-```
-
-#### Joint Trajectory Testing
-
-1. Switch to joint trajectory controller using the controller switching service
-2. In a new terminal:
-```bash
-ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory "{ \
-  trajectory:{ \
-    joint_names: ['base_yaw', 'shoulder_pitch', 'elbow_pitch', 'wrist_pitch', 'wrist_roll', 'gripper_claw', 'actuator'], \
-    points: [ \
-      {positions: [0.0, -1.0, -2.0, -1.0, -0.16, 0.0, 0.0], time_from_start: {sec: 3, nanosec: 0}}, \
-    ] \
-  } \
-}"
-```
-
----
-
-### Drive
-
-#### Launch
-
-_Hardware:_
-```bash
-ros2 launch drive_bringup athena_drive.launch.py use_mock_hardware:=false
-```
-
-_Mock (no hardware):_
-```bash
-ros2 launch drive_bringup athena_drive.launch.py use_mock_hardware:=true
-```
-
-The default controller is `single_ackermann_controller`. To use the built-in ackermann steering controller instead:
-```bash
-ros2 launch drive_bringup athena_drive.launch.py robot_controller:=ackermann_steering_controller
-```
-
----
-
-### Science
-
-#### Launch
-
-_Hardware:_
-```bash
-ros2 launch science_bringup athena_science.launch.py use_mock_hardware:=false
-```
-
-_Mock (no hardware):_
-```bash
-ros2 launch science_bringup athena_science.launch.py use_mock_hardware:=true
-```
-
----
-
 ## How To Contribute
 
 ### Learning Git
 
-If you're new to Git and GitHub, start with this beginner-friendly tutorial: [GitHub's Hello World Guide](https://docs.github.com/en/get-started/quickstart/hello-world)
+If you're new to Git and GitHub, start with this beginner-friendly tutorial: [GitHub&#39;s Hello World Guide](https://docs.github.com/en/get-started/quickstart/hello-world)
 
 For a more comprehensive introduction, check out: [Git and GitHub Tutorial for Beginners](https://www.freecodecamp.org/news/git-and-github-for-beginners/)
 
@@ -175,17 +163,16 @@ To securely authenticate with GitHub without entering your password each time, s
 Once you're set up, here's how to contribute your changes:
 
 1. **Fork the repository** - Create your own copy of the repository: [Fork a repo](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo)
-
 2. **Clone your fork** - Download your forked repository to your local machine using `git clone`.
-
 3. **Create a feature branch** - Make a new branch for your specific feature or fix:
+
 ```bash
 git checkout -b feature/your-feature-name
 ```
 
 4. **Make your changes** - Write your code, test it thoroughly, and commit your changes
-
 5. **Push to your fork** - Upload your feature branch to your GitHub fork
+
 ```bash
 git push origin feature/your-feature-name
 ```
@@ -193,3 +180,35 @@ git push origin feature/your-feature-name
 6. **Open a Pull Request** - Submit your changes for review: [Creating a pull request from a fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork)
 
 Your PR will be reviewed by your lead, and once approved, it will be merged into the main codebase!
+
+---
+
+### Enabling Real Time ros2_control
+
+```bash
+sudo addgroup realtime
+sudo usermod -a -G realtime $(whoami)
+```
+
+Afterwards, add the following limits to the realtime group in `/etc/security/limits.conf`:
+
+```
+@realtime soft rtprio 99
+@realtime soft priority 99
+@realtime soft memlock unlimited
+@realtime hard rtprio 99
+@realtime hard priority 99
+@realtime hard memlock unlimited
+```
+
+---
+
+## Future Work
+
+- Test docker setup and documentation branch changes on actual rover.
+- Add navigation readme.
+- Modify `.devcontainer/jetson/Dockerfile` for the Jetson platform and its hardware-specific dependencies.
+- Modify `.devcontainer/base_station/Dockerfile` for the base-station machine and its runtime requirements.
+- Validate both images on their target machines so they can replace the shared developer setup.
+- Test Docker hardware access with a CANable adapter when one is available.
+- Fix joystick publisher.

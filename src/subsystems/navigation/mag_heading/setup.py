@@ -21,7 +21,6 @@ setup(
     maintainer_email='mdurrani808@gmail.com',
     description='Magnetometer calibration and heading publisher for ZED camera IMU',
     license='MIT',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'mag_heading_node = mag_heading.mag_heading_node:main',

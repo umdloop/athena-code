@@ -1,0 +1,40 @@
+{
+  "name": "Athena ROS 2 Humble (Developer)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "../..",
+    "args": {
+      "MACHINE_TYPE": "developer"
+    }
+  },
+  "remoteUser": "loop_dev",
+  "updateRemoteUserUID": true,
+  "workspaceFolder": "/athena-code",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/athena-code,type=bind,consistency=cached",
+  "postCreateCommand": ".devcontainer/developer/post_create.sh",
+  "runArgs": [
+    "--network=host",
+    "--ipc=host",
+    "--privileged"
+  ],
+  "containerEnv": {
+    "ROS_DISTRO": "humble",
+    "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
+    "ATHENA_MACHINE_TYPE": "developer"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "ms-python.python",
+        "ms-iot.vscode-ros",
+        "openai.chatgpt",
+        "cweijan.vscode-office",
+        "esben.prettier-vscode",
+        "redhat.vscode-xml",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  }
+}

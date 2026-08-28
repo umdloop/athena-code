@@ -244,11 +244,11 @@ controller_interface::return_type ManualArmCylindricalController::update(
   if (!std::isnan((*current_ref)->axes[0]))
   {
     //TODO: Get rid of the hardcoded rigamarole (translates to max vel of 1.5 inches/s)
-    command_velocities_[0] = (*current_ref)->axes[2]*0.174533; // l/r right joystick -> yaw 10 dps
-    command_velocities_[1] = (*current_ref)->axes[1]*6*0.00635; // u/d left joystick -> vy
-    command_velocities_[2] = (*current_ref)->axes[3]*6*0.00635; // u/d right joystick -> vz
+    command_velocities_[0] = (*current_ref)->axes[0]*0.174533; // l/r left joystick -> yaw 10 dps
+    command_velocities_[1] = (*current_ref)->axes[1]*6*0.00635; // u/d left joystick -> vx
+    command_velocities_[2] = (*current_ref)->axes[3]*6*0.00635; // u/d right joystick -> vy
     command_velocities_[3] = (*current_ref)->axes[1] * static_cast<float>((*current_ref)->buttons[1]);  // u/d left joystick & circle -> thetadot
-    command_velocities_[4] = 0.0; // (*current_ref)->axes[0]; // l/r left joystick -> wrist roll
+    command_velocities_[4] = (*current_ref)->axes[2]; // l/r right joystick -> wrist roll
     command_velocities_[5] = (*current_ref)->axes[4]; // left trigger -> open claw
     command_velocities_[6] = (*current_ref)->axes[5]; // right trigger -> close claw
   }

@@ -8,16 +8,17 @@
   <xacro:arg name="sim_gazebo" default="true"/>
   <xacro:arg name="simulation_controllers" default=""/>
   <xacro:arg name="deactivate_odrive" default="false"/>
+  <xacro:arg name="steering_config" default="rear"/>
   <xacro:arg name="can_interface" default="can0"/>
 
 
-  <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.xacro"/>
-  <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.ros2_control.xacro"/>
-  <xacro:include filename="imu.xacro"/>
-  <xacro:include filename="gps.xacro"/>
-  <xacro:include filename="magnetometer.xacro"/>
-  <xacro:include filename="ground_truth_odom.xacro"/>
-  <xacro:include filename="zed_camera.xacro"/>
+  <xacro:include filename="$(find description)/urdf/drive/athena_drive_macro.xacro"/>
+  <xacro:include filename="$(find description)/urdf/drive/athena_drive_macro.ros2_control.xacro"/>
+  <xacro:include filename="$(find description)/urdf/components/imu.xacro"/>
+  <xacro:include filename="$(find description)/urdf/components/gps.xacro"/>
+  <xacro:include filename="$(find description)/urdf/components/magnetometer.xacro"/>
+  <xacro:include filename="$(find description)/urdf/components/ground_truth_odom.xacro"/>
+  <xacro:include filename="$(find description)/urdf/components/zed_camera.xacro"/>
 
 
   <!-- Load robot's macro with parameters -->
@@ -30,7 +31,7 @@
 
   
   <!-- Import athena_drive macro -->
-  <xacro:include filename="$(find description)/urdf/athena_drive_description.urdf.xacro"/>
+  <xacro:include filename="$(find description)/urdf/drive/athena_drive_description.urdf.xacro"/>
 
   <!-- Import rmd ros2_control description -->
   <xacro:include filename="$(find description)/ros2_control/drive/drive.rmd.ros2_control.xacro" />
@@ -78,7 +79,11 @@
   <xacro:unless value="$(arg use_mock_hardware)">
 
     <!-- ODrives-->
-    <xacro:odrive_ros2_control name="odrive" deactivate_odrive="$(arg deactivate_odrive)" can_interface="$(arg can_interface)"/>
+    <xacro:odrive_ros2_control
+      name="odrive"
+      deactivate_odrive="$(arg deactivate_odrive)"
+      steering_config="$(arg steering_config)"
+      can_interface="$(arg can_interface)"/>
 
     <!-- RMD -->
     <xacro:rmd_ros2_control name="rmd" can_interface="$(arg can_interface)"/>

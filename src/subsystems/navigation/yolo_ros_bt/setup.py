@@ -32,7 +32,6 @@ setup(
     maintainer_email='abdul@example.com',
     description='YOLO ROS 2 perception node for Behavior Tree integration',
     license='Apache-2.0',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'yolo_ros_node = yolo_ros_bt.yolo_ros_node:main',

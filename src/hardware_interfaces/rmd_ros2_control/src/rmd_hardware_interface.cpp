@@ -25,6 +25,7 @@ namespace rmd_ros2_control
 
 // -- HELPER FUNCTIONS -- //
 
+// TODO: Remove the 0.01 dps conversion factor, we are not using 
 double RMDHardwareInterface::calculate_joint_position_from_motor_position(double motor_position, int gear_ratio){
   // Converts from 0.01 deg to deg to radians/s
   return (motor_position * 0.01 * (M_PI/180.0))/gear_ratio;

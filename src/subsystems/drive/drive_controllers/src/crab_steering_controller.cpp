@@ -174,17 +174,7 @@ controller_interface::CallbackReturn CrabSteeringController::on_configure(
 
 void CrabSteeringController::reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg)
 {
-  // if (msg->joint_names.size() == joints.size())
-  // {
-  //   input_ref_.writeFromNonRT(msg);
-  // }
-  // else
-  // {
-  //   RCLCPP_ERROR(
-  //     get_node()->get_logger(),
-  //     "Received %zu , but expected %zu joints in command. Ignoring message.",
-  //     msg->joint_names.size(), joints.size());
-  // }
+  input_ref_.writeFromNonRT(msg);
 }
 
 controller_interface::InterfaceConfiguration CrabSteeringController::command_interface_configuration() const

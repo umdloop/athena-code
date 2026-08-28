@@ -20,17 +20,37 @@
 #
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, RegisterEventHandler, TimerAction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler, TimerAction
+from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import TimerAction
 
 
 def generate_launch_description():
     # Declare arguments
     declared_arguments = []
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "mode",
+            default_value="standalone",
+            choices=["standalone", "jetson", "base_station"],
+            description=(
+                "Deployment mode. "
+                "'standalone' (default) starts all nodes on a single machine. "
+                "'jetson' starts only the control/hardware nodes (run on the rover). "
+                "'base_station' starts only the teleop node (joystick)."
+            ),
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_sim",
+            default_value="true",
+            description="Start RViz2 automatically with this launch file.",
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "runtime_config_package",
@@ -57,7 +77,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_file",
-            default_value="athena_science.urdf.xacro",
+            default_value="science/athena_science.urdf.xacro",
             description="URDF/XACRO description file with the robot.",
         )
     )
@@ -108,7 +128,13 @@ def generate_launch_description():
         )
     )
 
+    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+
+
+def launch_setup(context, *args, **kwargs):
     # Initialize Arguments
+    mode = LaunchConfiguration("mode").perform(context)
+    use_sim = LaunchConfiguration("use_sim")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     controllers_file = LaunchConfiguration("controllers_file")
     description_package = LaunchConfiguration("description_package")
@@ -117,6 +143,7 @@ def generate_launch_description():
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
+    robot_controller_name = robot_controller.perform(context)
     deactivate_talon = LaunchConfiguration("deactivate_talon")
     can_interface = LaunchConfiguration("can_interface")
 
@@ -156,7 +183,7 @@ def generate_launch_description():
     )
 
     controller_switcher_config = PathJoinSubstitution(
-        [FindPackageShare("bringup"), "config", "controller_switcher.yaml"]
+        [FindPackageShare("science_bringup"), "config", "controller_switcher.yaml"]
     )
 
     joystick_config_file = PathJoinSubstitution(
@@ -193,6 +220,7 @@ def generate_launch_description():
         name="rviz2",
         output="log",
         arguments=["-d", rviz_config_file],
+        condition=IfCondition(use_sim),
     )
 
     joint_state_broadcaster_spawner = Node(
@@ -222,7 +250,7 @@ def generate_launch_description():
     )'''
 
     # Active Spawners
-    robot_controller_names = ["science_controller"] # robot_controller
+    robot_controller_names = [robot_controller_name]
     robot_controller_spawners = [] 
     for controller in robot_controller_names:
         robot_controller_spawners += [
@@ -310,6 +338,13 @@ def generate_launch_description():
         )
     )
 
+    delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=joint_state_broadcaster_spawner,
+            on_exit=[rviz_node],
+        )
+    )
+
     umdloop_can_node = Node(
             package='umdloop_can',
             executable='can_node',
@@ -350,19 +385,28 @@ def generate_launch_description():
             )
         ]
 
-    return LaunchDescription(
-        declared_arguments
-        + [
-            control_node,
-            robot_state_pub_node,
-            rviz_node,
-            delay_joint_state_broadcaster_spawner_after_ros2_control_node,
-            delay_motor_status_controller_after_joint_state_broadcaster,
-            # umdloop_can_node,
-            controller_switcher_node,
-            joystick_publisher,
-        ]
-        + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner
-        + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner
-        + delay_gpio_controller_spawners_after_joint_state_broadcaster_spawner
-    )
+    jetson_actions = [
+        control_node,
+        robot_state_pub_node,
+        delay_joint_state_broadcaster_spawner_after_ros2_control_node,
+        delay_motor_status_controller_after_joint_state_broadcaster,
+        # umdloop_can_node,
+        controller_switcher_node,
+    ] + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner \
+      + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner \
+      + delay_gpio_controller_spawners_after_joint_state_broadcaster_spawner
+
+    base_station_actions = [
+        joystick_publisher,
+    ]
+
+    standalone_visualization_actions = [
+        delay_rviz_after_joint_state_broadcaster_spawner,
+    ]
+
+    if mode == "jetson":
+        return jetson_actions
+    elif mode == "base_station":
+        return base_station_actions
+    else:
+        return jetson_actions + base_station_actions + standalone_visualization_actions

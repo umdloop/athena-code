@@ -94,7 +94,7 @@ def launch_setup(context, *args, **kwargs):
         PathJoinSubstitution([FindExecutable(name='xacro')]),
         ' ',
         PathJoinSubstitution([
-            FindPackageShare('description'), 'urdf', 'athena_drive.urdf.xacro'
+            FindPackageShare('description'), 'urdf', 'drive', 'athena_drive.urdf.xacro'
         ]),
     ])
 

@@ -37,7 +37,7 @@ def generate_launch_description():
         PathJoinSubstitution([FindExecutable(name='xacro')]),
         ' ',
         PathJoinSubstitution([
-            FindPackageShare('description'), 'urdf', 'athena_drive.urdf.xacro'
+            FindPackageShare('description'), 'urdf', 'drive', 'athena_drive.urdf.xacro'
         ]),
         ' ',
         'can_interface:=',

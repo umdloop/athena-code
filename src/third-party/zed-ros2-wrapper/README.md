@@ -91,6 +91,7 @@ source ~/.bashrc
 To start the ZED node, open a bash terminal and use the [CLI](https://index.ros.org/doc/ros2/Tutorials/Introspection-with-command-line-tools/) command `ros2 launch`:
 
 ```bash
+source install/setup.bash
 ros2 launch zed_wrapper zed_camera.launch.py camera_model:=<camera_model>
 ```
 
@@ -104,7 +105,9 @@ A Robot State Publisher node is started to publish the camera static links and j
 You can get the list of all the available launch parameters by using the `-s` launch option:
 
 ```bash
+source install/setup.bash
 ros2 launch zed_wrapper zed_camera.launch.py -s
+source install/setup.bash
 ros2 launch zed_display_rviz2 display_zed_cam.launch.py -s
 ```
 
@@ -123,6 +126,7 @@ You can also quickly check that your depth data is correctly retrieved in RViz w
 Launch a standalone ZED ROS 2 node with simulated ZED data as input by using the following command:
 
 ```bash
+source install/setup.bash
 ros2 launch zed_wrapper zed_camera.launch.py camera_model:=zedx sim_mode:=true
 ```
 
@@ -137,6 +141,7 @@ Launch options:
 You can also start a preconfigured instance of `rviz2` to visualize all the information available in the simulation by using the command:
 
 ```bash
+source install/setup.bash
 ros2 launch zed_display_rviz2 display_zed_cam.launch.py camera_model:=zedx sim_mode:=true
 ```
 

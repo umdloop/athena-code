@@ -21,6 +21,7 @@ def generate_launch_description():
     robot_description_path = PathJoinSubstitution([
         FindPackageShare("description"),
         "urdf",
+        "arm",
         "athena_arm.urdf.xacro"
     ])
 

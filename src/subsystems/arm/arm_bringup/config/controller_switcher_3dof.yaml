@@ -1,0 +1,15 @@
+/**:
+  ros__parameters:
+    subsystem: arm
+    always_active:
+      - cam_position_controller
+      - rotary_encoder_state_request_controller
+    full_arm:
+      - arm_velocity_controller
+      - joint_trajectory_controller
+    arm:
+      - manual_arm_joint_by_joint_controller
+    wrist:
+      - manual_wrist_joint_by_joint_controller
+    end_effector:
+      - manual_end_effector_gripper_claw_controller

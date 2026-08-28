@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro">
 
-  <xacro:include filename="$(find description)/urdf/common/inertials.xacro"/>
-  <xacro:include filename="$(find description)/urdf/common/materials.xacro"/>
+  <xacro:include filename="$(find description)/urdf/components/inertials.xacro"/>
+  <xacro:include filename="$(find description)/urdf/components/materials.xacro"/>
 
   <xacro:macro name="athena_drive" params="prefix parent *origin">
     <!-- LINKS -->

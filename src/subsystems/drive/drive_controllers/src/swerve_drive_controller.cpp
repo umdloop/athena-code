@@ -122,7 +122,7 @@ controller_interface::CallbackReturn SwerveDriveController::on_configure(
 
   // Reference Subscriber
   ref_subscriber_ = get_node()->create_subscription<ControllerReferenceMsg>(
-    "/cmd_vel", subscribers_qos,
+    "~/reference", subscribers_qos,
     std::bind(&SwerveDriveController::reference_callback, this, std::placeholders::_1));
 
   std::shared_ptr<ControllerReferenceMsg> msg = std::make_shared<ControllerReferenceMsg>();
@@ -175,17 +175,6 @@ controller_interface::CallbackReturn SwerveDriveController::on_configure(
 
 void SwerveDriveController::reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg)
 {
-  // if (msg->joint_names.size() == params_.joints.size())
-  // {
-  //   input_ref_.writeFromNonRT(msg);
-  // }
-  // else
-  // {
-  //   RCLCPP_ERROR(
-  //     get_node()->get_logger(),
-  //     "Received %zu , but expected %zu joints in command. Ignoring message.",
-  //     msg->joint_names.size(), params_.joints.size());
-  // }
   input_ref_.writeFromNonRT(msg);
 }
 

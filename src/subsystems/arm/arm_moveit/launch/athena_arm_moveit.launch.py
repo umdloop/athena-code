@@ -1,5 +1,5 @@
-from launch import LaunchDescription, LaunchContext
-from launch.actions import DeclareLaunchArgument
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
 
 from launch_ros.actions import Node
@@ -10,7 +10,6 @@ from moveit_configs_utils import MoveItConfigsBuilder
 
 
 def generate_launch_description():
-
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -20,6 +19,10 @@ def generate_launch_description():
         )
     )
 
+    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+
+
+def launch_setup(context, *args, **kwargs):
     use_3dof = LaunchConfiguration("use_3dof")
 
     joint_state_yaml = PathJoinSubstitution(
@@ -32,6 +35,7 @@ def generate_launch_description():
         
     robot_description_path = PathJoinSubstitution([FindPackageShare("description"),
                                                    "urdf",
+                                                   "arm",
                                                    "athena_arm.urdf.xacro"])
     robot_semantic_path = PathJoinSubstitution([FindPackageShare("arm_moveit"),
                                                 "srdf",
@@ -71,9 +75,9 @@ def generate_launch_description():
         MoveItConfigsBuilder(
             "athena_arm", package_name="arm_moveit"
         )
-        .robot_description(robot_description_path.perform(LaunchContext()))
+        .robot_description(robot_description_path.perform(context))
         .robot_description_semantic("srdf/athena_arm.srdf")
-        .trajectory_execution(file_path=moveit_controllers_config_path.perform(LaunchContext()))
+        .trajectory_execution(file_path=moveit_controllers_config_path.perform(context))
         .planning_scene_monitor(
             publish_robot_description=True, publish_robot_description_semantic=True
         )
@@ -142,4 +146,4 @@ def generate_launch_description():
                 run_move_group_node,
                 hello_moveit_node
             ]
-    return LaunchDescription(declared_arguments + nodes)
+    return nodes

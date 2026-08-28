@@ -17,7 +17,6 @@ setup(
     maintainer_email='abhinav.kota06@gmail.com',
     description='TODO: Package description',
     license='TODO: License declaration',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             "aruco_node = aruco_detection.aruco_node:main",

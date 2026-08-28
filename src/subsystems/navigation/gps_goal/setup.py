@@ -21,7 +21,6 @@ setup(
     maintainer_email='mdurrani808@gmail.com',
     description='GPS goal navigation action server for Nav2',
     license='MIT',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'gps_goal_server = gps_goal.gps_goal_server:main',

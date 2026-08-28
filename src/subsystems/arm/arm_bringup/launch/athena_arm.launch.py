@@ -1,14 +1,11 @@
-from launch import LaunchDescription, LaunchContext
+from launch import LaunchDescription
 from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction, OpaqueFunction
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
+from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-
-from moveit_configs_utils import MoveItConfigsBuilder
-
 
 def generate_launch_description():
     declared_arguments = []
@@ -34,6 +31,13 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "use_moveit",
+            default_value="false",
+            description="Start the MoveIt move_group and hello_moveit nodes.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "runtime_config_package",
             default_value="arm_bringup",
             description='Package with the controller\'s configuration in "config" folder. \
@@ -43,8 +47,8 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "controllers_file",
-            default_value="athena_arm_controllers.yaml",
-            description="YAML file with the controllers configuration.",
+            default_value="",
+            description="Optional controller YAML override. The wrist-specific configuration is selected by default.",
         )
     )
     declared_arguments.append(
@@ -58,7 +62,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_file",
-            default_value="athena_arm.urdf.xacro",
+            default_value="arm/athena_arm.urdf.xacro",
             description="URDF/XACRO description file with the robot.",
         )
     )
@@ -129,16 +133,18 @@ def generate_launch_description():
 def launch_setup(context, *args, **kwargs):
     mode = LaunchConfiguration("mode").perform(context)
     use_sim = LaunchConfiguration("use_sim")
+    use_moveit = LaunchConfiguration("use_moveit")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     controllers_file = LaunchConfiguration("controllers_file")
     description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
     rviz_file = LaunchConfiguration("rviz_file")
-    moveit_package = LaunchConfiguration("moveit_package")
     prefix = LaunchConfiguration("prefix")
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
+    using_mock_hardware = use_mock_hardware.perform(context).lower() in ("true", "1", "yes")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     use_3dof = LaunchConfiguration("use_3dof")
+    using_3dof = use_3dof.perform(context).lower() in ("true", "1", "yes")
     deactivate_talon = LaunchConfiguration("deactivate_talon")
     can_interface = LaunchConfiguration("can_interface")
     
@@ -147,37 +153,27 @@ def launch_setup(context, *args, **kwargs):
     # This is creating a terminal command that essentially expands all macros in this file
     # and creates the FULL URDF
     robot_description_path = PathJoinSubstitution(
-        [FindPackageShare("description"), "urdf", "athena_arm.urdf.xacro"]
+        [FindPackageShare(description_package), "urdf", description_file]
     )
+    controllers_file_name = controllers_file.perform(context)
+    if not controllers_file_name:
+        controllers_file_name = (
+            "athena_arm_controllers_3dof.yaml"
+            if using_3dof
+            else "athena_arm_controllers_2dof.yaml"
+        )
     robot_controllers = PathJoinSubstitution(
-        [FindPackageShare(runtime_config_package), "config", controllers_file]
-    )
-    joint_state_yaml = PathJoinSubstitution(
-        [FindPackageShare(runtime_config_package), "config", "initial_joint_states.yaml"]
-    )
-    rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare(description_package), "rviz", rviz_file]
+        [FindPackageShare(runtime_config_package), "config", controllers_file_name]
     )
     joystick_config_file = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), 'config', 'joystick.yaml']
     )
 
-    controller_switcher_config = PathJoinSubstitution(
-        [FindPackageShare(runtime_config_package), "config", "controller_switcher.yaml"]
-    )
-
-    # MoveIt Config Setup (TODO: Currently not using Launch Configuration for description and these configs because moveit
-    # config builder happens at launch time. Is there a way to keep these Launch configs when building file path?)
-    robot_semantic_path = PathJoinSubstitution(
-        [FindPackageShare("arm_moveit"), "srdf", "athena_arm.srdf"]
-    )
-    robot_kinematics_path = PathJoinSubstitution(
-        [FindPackageShare("arm_moveit"), "config", "kinematics.yaml"]
-    )
-
-    moveit_controllers_config_path = PathJoinSubstitution(
-        [FindPackageShare("arm_moveit"), "config", "moveit_controllers_2dof.yaml"]
-    )
+    controller_switcher_config = PathJoinSubstitution([
+        FindPackageShare(runtime_config_package),
+        "config",
+        "controller_switcher_3dof.yaml" if using_3dof else "controller_switcher_2dof.yaml",
+    ])
 
     robot_description_content = Command(
         [
@@ -206,22 +202,6 @@ def launch_setup(context, *args, **kwargs):
     )
     robot_description = {"robot_description": robot_description_content}
 
-    moveit_config = (
-        MoveItConfigsBuilder("athena_arm", package_name="arm_moveit")
-        .robot_description(file_path=robot_description_path.perform(LaunchContext()))
-        .robot_description_semantic(file_path=robot_semantic_path.perform(LaunchContext()))
-        .robot_description_kinematics(file_path=robot_kinematics_path.perform(LaunchContext()))
-        .trajectory_execution(file_path=moveit_controllers_config_path.perform(LaunchContext()))
-        .planning_scene_monitor(
-            publish_robot_description=True, publish_robot_description_semantic=True
-        )
-        .planning_pipelines(
-            pipelines=["ompl", "pilz_industrial_motion_planner"],
-            default_planning_pipeline="ompl",
-        )
-        .to_moveit_configs()
-    )
-
     joystick_publisher = Node(
         package='teleop',
         executable='joystick',
@@ -247,22 +227,6 @@ def launch_setup(context, *args, **kwargs):
         parameters=[robot_description],
     )
 
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="log",
-        arguments=["-d", rviz_config_file],
-        condition=IfCondition(use_sim),
-        parameters=[
-            moveit_config.robot_description,
-            moveit_config.robot_description_semantic,
-            moveit_config.robot_description_kinematics,
-            moveit_config.planning_pipelines,
-            moveit_config.joint_limits,
-        ],
-    )
-
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
         executable="spawner",
@@ -272,27 +236,12 @@ def launch_setup(context, *args, **kwargs):
     motor_status_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=[
-            PythonExpression([
-                '"three_dof_motor_status_controller" if "',
-                use_3dof,
-                '" == "true" else "two_dof_motor_status_controller"'
-            ]),
-            "-c",
-            "/controller_manager",
-        ],
+        arguments=["motor_status_controller", "-c", "/controller_manager"],
     )
 
-    
-    wrist_controller = PythonExpression([
-        '"manual_3dof_wrist_joint_by_joint_controller" if "',
-        use_3dof,
-        '" == "true" else "manual_2dof_wrist_joint_by_joint_controller"'
-    ])
-    
     robot_controller_names = [
         "manual_arm_joint_by_joint_controller",
-        wrist_controller,
+        "manual_wrist_joint_by_joint_controller",
         "manual_end_effector_gripper_claw_controller",
     ]
     robot_controller_spawners = []
@@ -305,23 +254,12 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
 
-    joint_trajectory_controller = PythonExpression([
-        '"threedof_joint_trajectory_controller" if "',
-        use_3dof,
-        '" == "true" else "twodof_joint_trajectory_controller"'
-    ])
-
-
-    inactive_controller = PythonExpression([
-        '"manual_2dof_wrist_joint_by_joint_controller" if "',
-        use_3dof,
-        '" == "true" else "manual_3dof_wrist_joint_by_joint_controller"',
-    ])
     inactive_robot_controller_names = [
-        inactive_controller,
-        "manual_arm_cylindrical_controller", 
-        joint_trajectory_controller,
-        "arm_velocity_controller"]
+        "joint_trajectory_controller",
+        "arm_velocity_controller",
+    ]
+    if not using_3dof:
+        inactive_robot_controller_names.insert(0, "manual_arm_cylindrical_controller")
     inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [
@@ -332,10 +270,11 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
 
-    active_robot_controller_names = [
-        "rotary_encoder_state_request_controller",
-        "cam_position_controller",
-    ]
+    active_robot_controller_names = ["cam_position_controller"]
+    if not using_mock_hardware:
+        active_robot_controller_names.insert(
+            0, "rotary_encoder_state_request_controller"
+        )
     for controller in active_robot_controller_names:
         robot_controller_spawners += [
             Node(
@@ -379,13 +318,6 @@ def launch_setup(context, *args, **kwargs):
         )
     )
 
-    delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=joint_state_broadcaster_spawner,
-            on_exit=[rviz_node],
-        )
-    )
-
     delay_robot_controller_spawners_after_joint_state_broadcaster_spawner = []
     for i, controller in enumerate(robot_controller_spawners):
         delay_robot_controller_spawners_after_joint_state_broadcaster_spawner += [
@@ -416,15 +348,82 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
 
+    standalone_visualization_actions = []
+    if mode == "standalone":
+        from moveit_configs_utils import MoveItConfigsBuilder
+
+        rviz_config_file = PathJoinSubstitution(
+            [FindPackageShare(description_package), "rviz", rviz_file]
+        )
+        robot_semantic_path = PathJoinSubstitution(
+            [FindPackageShare("arm_moveit"), "srdf", "athena_arm.srdf"]
+        )
+        robot_kinematics_path = PathJoinSubstitution(
+            [FindPackageShare("arm_moveit"), "config", "kinematics.yaml"]
+        )
+        moveit_controllers_config_path = PathJoinSubstitution([
+            FindPackageShare("arm_moveit"),
+            "config",
+            "moveit_controllers_3dof.yaml" if using_3dof else "moveit_controllers_2dof.yaml",
+        ])
+        moveit_config = (
+            MoveItConfigsBuilder("athena_arm", package_name="arm_moveit")
+            .robot_description(file_path=robot_description_path.perform(context))
+            .robot_description_semantic(file_path=robot_semantic_path.perform(context))
+            .robot_description_kinematics(file_path=robot_kinematics_path.perform(context))
+            .trajectory_execution(file_path=moveit_controllers_config_path.perform(context))
+            .planning_scene_monitor(
+                publish_robot_description=True, publish_robot_description_semantic=True
+            )
+            .planning_pipelines(
+                pipelines=["ompl", "pilz_industrial_motion_planner"],
+                default_planning_pipeline="ompl",
+            )
+            .to_moveit_configs()
+        )
+        rviz_node = Node(
+            package="rviz2",
+            executable="rviz2",
+            name="rviz2",
+            output="log",
+            arguments=["-d", rviz_config_file],
+            condition=IfCondition(use_sim),
+            parameters=[
+                moveit_config.robot_description,
+                moveit_config.robot_description_semantic,
+                moveit_config.robot_description_kinematics,
+                moveit_config.planning_pipelines,
+                moveit_config.joint_limits,
+            ],
+        )
+        move_group_node = Node(
+            package="moveit_ros_move_group",
+            executable="move_group",
+            output="screen",
+            condition=IfCondition(use_moveit),
+            parameters=[moveit_config.to_dict()],
+        )
+        standalone_visualization_actions.append(
+            RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=joint_state_broadcaster_spawner,
+                    on_exit=[rviz_node, move_group_node],
+                )
+            )
+        )
+
     jetson_actions = [
         control_node,
         robot_state_pub_node,
         delay_joint_state_broadcaster_spawner_after_ros2_control_node,
-        delay_motor_status_controller_after_joint_state_broadcaster,
-        delay_rviz_after_joint_state_broadcaster_spawner,
         controller_switcher_node,
     ] + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner \
       + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner
+
+    if not using_mock_hardware:
+        jetson_actions.append(
+            delay_motor_status_controller_after_joint_state_broadcaster
+        )
 
     base_station_actions = [
         joystick_publisher,
@@ -435,4 +434,4 @@ def launch_setup(context, *args, **kwargs):
     elif mode == "base_station":
         return base_station_actions
     else:
-        return jetson_actions + base_station_actions
+        return jetson_actions + base_station_actions + standalone_visualization_actions

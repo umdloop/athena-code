@@ -19,7 +19,6 @@ setup(
     maintainer_email="mdurrani808@gmail.com",
     description="LED status indicator via Adafruit Pixel Trinkey + NeoPixels",
     license="MIT",
-    tests_require=["pytest"],
     entry_points={
         "console_scripts": [
             "led_indicator_node = led_indicator.led_indicator_node:main",

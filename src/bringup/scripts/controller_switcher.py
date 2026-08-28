@@ -20,6 +20,7 @@ class ControllerSwitcher(Node):
             namespace='',
             parameters=[
                 ('subsystem', Parameter.Type.STRING),
+                ('always_active', Parameter.Type.STRING_ARRAY),
                 ('full_arm', Parameter.Type.STRING_ARRAY),
                 ('arm', Parameter.Type.STRING_ARRAY),
                 ('wrist', Parameter.Type.STRING_ARRAY),
@@ -40,7 +41,12 @@ class ControllerSwitcher(Node):
         self.client_cb_group = MutuallyExclusiveCallbackGroup()
         
         # Controllers to always keep active or ignore
-        self.always_active = ["joint_state_broadcaster", "motor_status_broadcaster"]
+        configured_always_active = self.get_parameter('always_active').value or []
+        self.always_active = list(dict.fromkeys([
+            "joint_state_broadcaster",
+            "motor_status_controller",
+            *configured_always_active,
+        ]))
         self.ignore_controllers = []
         
         # Lock to prevent concurrent service processing
@@ -149,9 +155,10 @@ class ControllerSwitcher(Node):
             controllers_to_deactivate = []
 
             
-            # Always ensure joint_state_broadcaster is active
-            if "joint_state_broadcaster" not in active_controllers and "joint_state_broadcaster" not in controllers_to_activate:
-                controllers_to_activate.append("joint_state_broadcaster")
+            # Ensure every loaded protected controller remains active.
+            for controller in self.always_active:
+                if controller in all_controllers and controller not in active_controllers:
+                    controllers_to_activate.append(controller)
 
             
             def controller_handler(controller, subsystem_controllers):

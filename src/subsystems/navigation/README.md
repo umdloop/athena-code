@@ -3,6 +3,8 @@
 ## Running In Simulation
 
 ```bash
+source install/setup.bash
 ros2 launch simulation bringup.launch.py publish_ground_truth_tf:=true rviz:=true
+source install/setup.bash
 ros2 launch athena_planner navigation.launch.py sim:=true
 ```

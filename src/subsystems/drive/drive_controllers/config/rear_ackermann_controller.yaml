@@ -1,4 +1,3 @@
-# Parameters for the RearAckermannController
 rear_ackermann_controller:
   drive_joints: {
     type: string_array,

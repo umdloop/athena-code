@@ -1,4 +1,3 @@
-# Parameters for the FrontAckermannController
 front_ackermann_controller:
   drive_joints: {
     type: string_array,

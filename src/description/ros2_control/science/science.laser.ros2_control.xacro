@@ -1,10 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-
     <xacro:macro name="laser_ros2_control" params="name can_interface:=can0">
-
         <ros2_control name="${name}" type="system">
-
             <hardware>
                 <plugin>laser_ros2_control/LaserHardwareInterface</plugin>
                 <param name="can_interface">${can_interface}</param>
@@ -22,9 +19,6 @@
                 <command_interface name="laser_command"/>
                 <command_interface name="status_request"/>
             </gpio>
-
         </ros2_control>
-
     </xacro:macro>
-
 </robot>

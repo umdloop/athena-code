@@ -67,6 +67,7 @@ The `zed_camera_debug.launch.py` launch file has been modified to accept a `cmd_
 Run the launch file with the `gdbserver` prefix:
 
 ```bash
+source install/setup.bash
 ros2 launch zed_debug zed_camera_debug.launch.py camera_model:=<your_camera_model> cmd_prefix:='gdbserver localhost:3000'
 ```
 
@@ -75,6 +76,7 @@ ros2 launch zed_debug zed_camera_debug.launch.py camera_model:=<your_camera_mode
 You can also debug the ZED ROS2 nodes using `gdb` directly from the command line.
 
 ```bash
+source install/setup.bash
 ros2 launch zed_debug zed_camera_debug.launch.py camera_model:=<your_camera_model> cmd_prefix:='gdb --args'
 ```
 
@@ -87,6 +89,7 @@ You can also run the ZED ROS2 nodes with `valgrind` to check for memory leaks an
 Run the launch file with the `valgrind` prefix:
 
 ```bash
+source install/setup.bash
 ros2 launch zed_debug zed_camera_debug.launch.py camera_model:=<your_camera_model> cmd_prefix:='valgrind --leak-check=full --track-origins=yes'
 ```
 

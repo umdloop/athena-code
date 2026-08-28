@@ -94,8 +94,13 @@ def launch_setup(context, *args, **kwargs):
     # Arm: inlined, namespaced under /arm so its CM/topics don't clash with drive.
     # The arm subsystem files (URDF, controllers YAML, joystick YAML) are reused as-is.
     # ------------------------------------------------------------------
-    arm_urdf_xacro = os.path.join(description_share, 'urdf', 'athena_arm.urdf.xacro')
-    arm_controllers_yaml = os.path.join(arm_bringup_share, 'config', 'athena_arm_controllers.yaml')
+    arm_urdf_xacro = os.path.join(description_share, 'urdf', 'arm', 'athena_arm.urdf.xacro')
+    use_3dof_bool = use_3dof.lower() == 'true'
+    arm_controllers_yaml = os.path.join(
+        arm_bringup_share,
+        'config',
+        'athena_arm_controllers_3dof.yaml' if use_3dof_bool else 'athena_arm_controllers_2dof.yaml',
+    )
     arm_joystick_yaml = os.path.join(arm_bringup_share, 'config', 'joystick.yaml')
 
     arm_urdf = Command([
@@ -109,22 +114,17 @@ def launch_setup(context, *args, **kwargs):
         ' can_interface:=', can_interface, ' ',        
     ])
 
-    use_3dof_bool = use_3dof.lower() == 'true'
-    wrist_active = 'manual_3dof_wrist_joint_by_joint_controller' if use_3dof_bool else 'manual_2dof_wrist_joint_by_joint_controller'
-    wrist_inactive = 'manual_2dof_wrist_joint_by_joint_controller' if use_3dof_bool else 'manual_3dof_wrist_joint_by_joint_controller'
-    jt_controller = 'threedof_joint_trajectory_controller' if use_3dof_bool else 'twodof_joint_trajectory_controller'
-
     active_controllers = [
         'manual_arm_joint_by_joint_controller',
-        wrist_active,
+        'manual_wrist_joint_by_joint_controller',
         'manual_end_effector_gripper_claw_controller',
     ]
     inactive_controllers = [
-        wrist_inactive,
-        'manual_arm_cylindrical_controller',
-        jt_controller,
+        'joint_trajectory_controller',
         'arm_velocity_controller',
     ]
+    if not use_3dof_bool:
+        inactive_controllers.insert(0, 'manual_arm_cylindrical_controller')
 
     arm_cm = Node(
         package='controller_manager',

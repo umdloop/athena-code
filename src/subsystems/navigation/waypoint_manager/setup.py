@@ -20,7 +20,6 @@ setup(
     maintainer_email='abhinav.kota06@gmail.com',
     description='Waypoint management and navigation node for simulation',
     license='MIT',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'waypoint_manager_node = waypoint_manager.waypoint_manager_node:main',

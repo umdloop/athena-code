@@ -31,7 +31,7 @@ def generate_launch_description():
     pkg_description = get_package_share_directory('description')
     pkg_sim = get_package_share_directory('simulation')
 
-    urdf_file = os.path.join(pkg_description, 'urdf', 'athena_drive.urdf.xacro')
+    urdf_file = os.path.join(pkg_description, 'urdf', 'drive', 'athena_drive.urdf.xacro')
     controllers_file = os.path.join(pkg_description, 'config', 'athena_drive_sim_controllers.yaml')
     rviz_config_file = os.path.join(pkg_sim, 'rviz', 'sim.rviz')
     

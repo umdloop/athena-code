@@ -14,10 +14,10 @@
 
   <!-- Macro Imports -->
   <!-- Import athena_arm macro -->
-  <xacro:include filename="$(find description)/urdf/athena_arm_description.urdf.xacro"/>
+  <xacro:include filename="$(find description)/urdf/arm/athena_arm_description.urdf.xacro"/>
 
   <!-- Import mock ros2_control description -->
-  <xacro:include filename="$(find description)/config/mock.ros2_control.xacro" />
+  <xacro:include filename="$(find description)/ros2_control/arm/arm.mock.ros2_control.xacro" />
 
   <!-- Import smc ros2_control description -->
   <xacro:include filename="$(find description)/ros2_control/arm/arm.smc_2dof.ros2_control.xacro" />
@@ -53,7 +53,7 @@
 
 
   <xacro:if value="$(arg use_mock_hardware)">     <!-- MOCK -->
-    <xacro:mock_ros2_control name="mock"/>
+    <xacro:arm_mock_ros2_control name="mock"/>
   </xacro:if>
   <xacro:unless value="$(arg use_mock_hardware)"> <!-- HARDWARE -->
     <xacro:if value="$(arg use_3dof)">

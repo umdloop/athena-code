@@ -172,19 +172,9 @@ controller_interface::CallbackReturn DoubleAckermannController::on_configure(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-void DoubleAckermannController::reference_callback(const std::shared_ptr<ControllerReferenceMsg> /*msg*/)
+void DoubleAckermannController::reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg)
 {
-  // if (msg->joint_names.size() == joints.size())
-  // {
-  //   input_ref_.writeFromNonRT(msg);
-  // }
-  // else
-  // {
-  //   RCLCPP_ERROR(
-  //     get_node()->get_logger(),
-  //     "Received %zu , but expected %zu joints in command. Ignoring message.",
-  //     msg->joint_names.size(), joints.size());
-  // }
+  input_ref_.writeFromNonRT(msg);
 }
 
 controller_interface::InterfaceConfiguration DoubleAckermannController::command_interface_configuration() const

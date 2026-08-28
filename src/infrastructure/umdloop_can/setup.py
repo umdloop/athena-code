@@ -20,7 +20,6 @@ setup(
     maintainer_email='loop@adriancires.com',
     description='ROS2 CAN Package for UMD Loop',
     license='Apache-2.0',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'can_node = umdloop_can.can_node:main',

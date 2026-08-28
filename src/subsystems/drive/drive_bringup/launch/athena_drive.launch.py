@@ -69,7 +69,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_file",
-            default_value="athena_drive.urdf.xacro",
+            default_value="drive/athena_drive.urdf.xacro",
             description="URDF/XACRO description file with the robot.",
         )
     )
@@ -108,7 +108,14 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "robot_controller",
             default_value="rear_ackermann_controller",
-            choices=["front_ackermann_controller", "ackermann_steering_controller", "rear_ackermann_controller"],
+            choices=[
+                "front_ackermann_controller",
+                "ackermann_steering_controller",
+                "rear_ackermann_controller",
+                "crab_steering_controller",
+                "double_ackermann_controller",
+                "swerve_drive_controller",
+            ],
             description="Robot controller to start.",
         )
     )
@@ -117,6 +124,14 @@ def generate_launch_description():
             "deactivate_odrive",
             default_value="false",
             description="Deactivate the ODrive joints in the URDF when using mock hardware to prevent excessive CAN flow.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "steering_config",
+            default_value="rear",
+            choices=["front", "rear", "all"],
+            description="Steering joints to load in the ODrive ros2_control description.",
         )
     )
     declared_arguments.append(
@@ -144,7 +159,9 @@ def launch_setup(context, *args, **kwargs):
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
+    robot_controller_name = robot_controller.perform(context)
     deactivate_odrive = LaunchConfiguration("deactivate_odrive")
+    steering_config = LaunchConfiguration("steering_config")
     can_interface = LaunchConfiguration("can_interface")
 
     robot_description_path = PathJoinSubstitution(
@@ -164,7 +181,7 @@ def launch_setup(context, *args, **kwargs):
     )
 
     controller_switcher_config = PathJoinSubstitution(
-        [FindPackageShare("bringup"), "config", "controller_switcher.yaml"]
+        [FindPackageShare("drive_bringup"), "config", "controller_switcher.yaml"]
     )
 
     # -- Additional Configuration Setup --
@@ -185,6 +202,9 @@ def launch_setup(context, *args, **kwargs):
             " ",
             "deactivate_odrive:=",
             deactivate_odrive,
+            " ",
+            "steering_config:=",
+            steering_config,
             " ",
             "can_interface:=",
             can_interface,
@@ -212,7 +232,7 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[teleop_twist_config],
         remappings=[
-            ('/cmd_vel', '/rear_ackermann_controller/reference'),
+            ('/cmd_vel', f'/{robot_controller_name}/reference'),
         ],
     )
 
@@ -224,7 +244,6 @@ def launch_setup(context, *args, **kwargs):
         remappings=[
             ("~/robot_description", "/robot_description"),
             ("/front_ackermann_controller/tf_odometry", "/tf"),
-            ("/ackermann_steering_controller/reference", "/cmd_vel"),
         ],
     )
 
@@ -256,7 +275,7 @@ def launch_setup(context, *args, **kwargs):
         arguments=["motor_status_controller", "-c", "/controller_manager"],
     )
 
-    robot_controller_names = [robot_controller]
+    robot_controller_names = [robot_controller_name]
     robot_controller_spawners = []
     for controller in robot_controller_names:
         robot_controller_spawners += [
@@ -278,7 +297,19 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
 
-    inactive_robot_controller_names = ["ackermann_steering_controller", "drive_velocity_controller", "drive_position_controller"]
+    selectable_robot_controller_names = [
+        "front_ackermann_controller",
+        "ackermann_steering_controller",
+        "rear_ackermann_controller",
+        "crab_steering_controller",
+        "double_ackermann_controller",
+        "swerve_drive_controller",
+    ]
+    inactive_robot_controller_names = [
+        controller
+        for controller in selectable_robot_controller_names
+        if controller != robot_controller_name
+    ] + ["drive_velocity_controller", "drive_position_controller"]
     inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [

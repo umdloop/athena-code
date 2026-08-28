@@ -61,6 +61,7 @@ add_library(
   SHARED
   src/swerve_drive_controller.cpp
   src/double_ackermann_controller.cpp
+  src/crab_steering_controller.cpp
   src/front_ackermann_controller.cpp
   src/rear_ackermann_controller.cpp
 )

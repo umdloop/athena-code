@@ -1,7 +1,7 @@
 from launch import LaunchDescription, LaunchContext
-from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction
+from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction, OpaqueFunction
 from launch.event_handlers import OnProcessExit, OnProcessStart
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
+from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -18,8 +18,8 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "controllers_file",
-            default_value="athena_arm_controllers.yaml",
-            description="YAML file with the controllers configuration.",
+            default_value="",
+            description="Optional controller YAML override. The wrist-specific configuration is selected by default.",
         )
     )
     declared_arguments.append(
@@ -32,7 +32,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_file",
-            default_value="athena_arm.urdf.xacro",
+            default_value="arm/athena_arm.urdf.xacro",
             description="URDF/XACRO description file with the robot.",
         )
     )
@@ -78,6 +78,11 @@ def generate_launch_description():
             description="CAN interface to use for hardware interfaces.",
         )
     )
+
+    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+
+
+def launch_setup(context, *args, **kwargs):
     # -- Initialize Arguments --
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     controllers_file = LaunchConfiguration("controllers_file")
@@ -86,20 +91,30 @@ def generate_launch_description():
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     use_3dof = LaunchConfiguration("use_3dof")
+    using_3dof = use_3dof.perform(context).lower() in ("true", "1", "yes")
     deactivate_talon = LaunchConfiguration("deactivate_talon")
     can_interface = LaunchConfiguration("can_interface")
     
     # -- Building Path Files --
     robot_description_path = PathJoinSubstitution(
-        [FindPackageShare("description"), "urdf", "athena_arm.urdf.xacro"]
+        [FindPackageShare(description_package), "urdf", LaunchConfiguration("description_file")]
     )
+    controllers_file_name = controllers_file.perform(context)
+    if not controllers_file_name:
+        controllers_file_name = (
+            "athena_arm_controllers_3dof.yaml"
+            if using_3dof
+            else "athena_arm_controllers_2dof.yaml"
+        )
     robot_controllers = PathJoinSubstitution(
-        [FindPackageShare(runtime_config_package), "config", controllers_file]
+        [FindPackageShare(runtime_config_package), "config", controllers_file_name]
     )
 
-    controller_switcher_config = PathJoinSubstitution(
-        [FindPackageShare("bringup"), "config", "controller_switcher.yaml"]
-    )
+    controller_switcher_config = PathJoinSubstitution([
+        FindPackageShare(runtime_config_package),
+        "config",
+        "controller_switcher_3dof.yaml" if using_3dof else "controller_switcher_2dof.yaml",
+    ])
 
     # -- Additional Configuration Setup --
     robot_description_content = Command(
@@ -154,15 +169,9 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster"],
     )
 
-    wrist_controller = PythonExpression([
-        '"manual_3dof_wrist_joint_by_joint_controller" if "',
-        use_3dof,
-        '" == "true" else "manual_2dof_wrist_joint_by_joint_controller"'
-    ])
-
     robot_controller_names = [
         "manual_arm_joint_by_joint_controller",
-        wrist_controller,
+        "manual_wrist_joint_by_joint_controller",
         "manual_end_effector_gripper_claw_controller",
     ]
     robot_controller_spawners = []
@@ -175,23 +184,12 @@ def generate_launch_description():
             )
         ]
 
-    joint_trajectory_controller = PythonExpression([
-        '"threedof_joint_trajectory_controller" if "',
-        use_3dof,
-        '" == "true" else "twodof_joint_trajectory_controller"'
-    ])
-
-    inactive_controller = PythonExpression([
-        '"manual_2dof_wrist_joint_by_joint_controller" if "',
-        use_3dof,
-        '" == "true" else "manual_3dof_wrist_joint_by_joint_controller"',
-    ])
     inactive_robot_controller_names = [
-        inactive_controller,
-        "manual_arm_cylindrical_controller",
-        joint_trajectory_controller,
+        "joint_trajectory_controller",
         "arm_velocity_controller",
     ]
+    if not using_3dof:
+        inactive_robot_controller_names.insert(0, "manual_arm_cylindrical_controller")
     inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [
@@ -264,8 +262,7 @@ def generate_launch_description():
             )
         ]
 
-    return LaunchDescription(
-        declared_arguments +
+    return (
         [
             control_node,
             robot_state_pub_node,

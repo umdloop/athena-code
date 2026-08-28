@@ -96,7 +96,7 @@ def launch_setup(context, *args, **kwargs):
     # Science: inlined, namespaced under /science so its CM/topics don't clash with drive.
     # The science subsystem files (URDF, controllers YAML, joystick YAML) are reused as-is.
     # ------------------------------------------------------------------
-    science_urdf_xacro = os.path.join(description_share, 'urdf', 'athena_science.urdf.xacro')
+    science_urdf_xacro = os.path.join(description_share, 'urdf', 'science', 'athena_science.urdf.xacro')
     science_controllers_yaml = os.path.join(science_bringup_share, 'config', 'athena_science_controllers.yaml')
     science_joystick_yaml = os.path.join(science_bringup_share, 'config', 'joystick.yaml')
 
